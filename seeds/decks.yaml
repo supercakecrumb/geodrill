@@ -1,0 +1,23 @@
+# Deck & skill seeds — GeoGuessr language-confusion groups.
+# Consumed by cmd/ingest to upsert decks + skills, and to drive which
+# per-language Tatoeba dumps get downloaded. Keys are ISO-639-3 codes;
+# values are human labels shown on the answer buttons.
+decks:
+  - slug: romance
+    name: Romance languages
+    languages: {spa: Spanish, por: Portuguese, ita: Italian, fra: French, cat: Catalan, ron: Romanian}
+  - slug: cjk
+    name: Chinese · Japanese · Korean
+    languages: {cmn: Chinese (Mandarin), jpn: Japanese, kor: Korean}
+  - slug: slavic-latin
+    name: Slavic (Latin script)
+    languages: {pol: Polish, ces: Czech, slk: Slovak, hrv: Croatian, slv: Slovenian}
+  - slug: slavic-cyrillic
+    name: Slavic (Cyrillic script)
+    languages: {rus: Russian, ukr: Ukrainian, bul: Bulgarian, srp: Serbian, mkd: Macedonian}
+  - slug: nordic
+    name: Nordic languages
+    languages: {swe: Swedish, nor: Norwegian, dan: Danish, isl: Icelandic, fin: Finnish}
+  - slug: se-asia
+    name: Southeast Asia
+    languages: {tha: Thai, khm: Khmer, lao: Lao, mya: Burmese, vie: Vietnamese, ind: Indonesian}
