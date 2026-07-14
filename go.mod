@@ -22,4 +22,5 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
+	gopkg.in/telebot.v4 v4.0.0-beta.10 // indirect
 )
