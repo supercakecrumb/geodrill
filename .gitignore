@@ -1,0 +1,20 @@
+# Tatoeba download cache (large TSV/bz2 dumps)
+/data/
+
+# Build output
+/bin/
+geodrill
+ingest
+*.exe
+
+# Env / secrets
+.env
+*.env
+!.env.example
+
+# go.work.sum (workspace checksum; local only)
+go.work.sum
+
+# OS / editor
+.DS_Store
+*.swp
