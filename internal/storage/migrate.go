@@ -31,6 +31,25 @@ func MigrateUp(databaseURL string) error {
 	return nil
 }
 
+// MigrateDown rolls every migration back (idempotent: ErrNoChange is success).
+// Used by integration tests to exercise the down migrations.
+func MigrateDown(databaseURL string) error {
+	src, err := iofs.New(migrations.FS, ".")
+	if err != nil {
+		return fmt.Errorf("open embedded migrations: %w", err)
+	}
+	m, err := migrate.NewWithSourceInstance("iofs", src, databaseURL)
+	if err != nil {
+		return fmt.Errorf("init migrate: %w", err)
+	}
+	defer m.Close()
+
+	if err := m.Down(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migrate down: %w", err)
+	}
+	return nil
+}
+
 // MigrateURL converts a standard postgres:// / postgresql:// DSN into the
 // pgx5:// scheme golang-migrate expects. Any other scheme is returned as-is.
 func MigrateURL(dsn string) string {
