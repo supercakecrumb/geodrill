@@ -40,6 +40,51 @@ func (q *Queries) GetDeckBySlug(ctx context.Context, slug string) (Deck, error) 
 	return i, err
 }
 
+const getSkillByID = `-- name: GetSkillByID :one
+SELECT id, deck_id, key, label FROM skills WHERE id = $1
+`
+
+func (q *Queries) GetSkillByID(ctx context.Context, id uuid.UUID) (Skill, error) {
+	row := q.db.QueryRow(ctx, getSkillByID, id)
+	var i Skill
+	err := row.Scan(
+		&i.ID,
+		&i.DeckID,
+		&i.Key,
+		&i.Label,
+	)
+	return i, err
+}
+
+const listAllSkills = `-- name: ListAllSkills :many
+SELECT id, deck_id, key, label FROM skills ORDER BY deck_id, key
+`
+
+func (q *Queries) ListAllSkills(ctx context.Context) ([]Skill, error) {
+	rows, err := q.db.Query(ctx, listAllSkills)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Skill{}
+	for rows.Next() {
+		var i Skill
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeckID,
+			&i.Key,
+			&i.Label,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDecks = `-- name: ListDecks :many
 SELECT id, slug, name, exercise_type, created_at FROM decks ORDER BY created_at, slug
 `

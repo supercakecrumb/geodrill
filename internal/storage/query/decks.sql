@@ -21,6 +21,12 @@ RETURNING *;
 -- name: ListSkillsByDeck :many
 SELECT * FROM skills WHERE deck_id = $1 ORDER BY key;
 
+-- name: GetSkillByID :one
+SELECT * FROM skills WHERE id = $1;
+
+-- name: ListAllSkills :many
+SELECT * FROM skills ORDER BY deck_id, key;
+
 -- name: SetUserDeckEnabled :exec
 INSERT INTO user_decks (user_id, deck_id, enabled)
 VALUES ($1, $2, $3)

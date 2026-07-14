@@ -142,6 +142,31 @@ func (s *Store) ListSkillsByDeck(ctx context.Context, deckID uuid.UUID) ([]Skill
 	return out, nil
 }
 
+// GetSkillByID looks up a single skill by id.
+func (s *Store) GetSkillByID(ctx context.Context, skillID uuid.UUID) (Skill, bool, error) {
+	sk, err := s.q.GetSkillByID(ctx, skillID)
+	if IsNotFound(err) {
+		return Skill{}, false, nil
+	}
+	if err != nil {
+		return Skill{}, false, err
+	}
+	return Skill{ID: sk.ID, DeckID: sk.DeckID, Key: sk.Key, Label: sk.Label}, true, nil
+}
+
+// ListAllSkills returns every skill across all decks (label lookups).
+func (s *Store) ListAllSkills(ctx context.Context) ([]Skill, error) {
+	rows, err := s.q.ListAllSkills(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Skill, len(rows))
+	for i, sk := range rows {
+		out[i] = Skill{ID: sk.ID, DeckID: sk.DeckID, Key: sk.Key, Label: sk.Label}
+	}
+	return out, nil
+}
+
 // ListUserDecks returns all decks with the user's enabled flag.
 func (s *Store) ListUserDecks(ctx context.Context, userID uuid.UUID) ([]UserDeck, error) {
 	rows, err := s.q.ListUserDecks(ctx, userID)

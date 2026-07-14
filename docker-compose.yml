@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-geodrill}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geodrill}
+      POSTGRES_DB: ${POSTGRES_DB:-geodrill}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geodrill} -d ${POSTGRES_DB:-geodrill}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bot:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:?set TELEGRAM_TOKEN in .env}
+      DATABASE_URL: ${DATABASE_URL:-postgres://geodrill:geodrill@db:5432/geodrill?sslmode=disable}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      FSRS_RETENTION: ${FSRS_RETENTION:-}
+    restart: unless-stopped
+
+  ingest:
+    build: .
+    entrypoint: ["/app/ingest"]
+    profiles: ["ingest"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://geodrill:geodrill@db:5432/geodrill?sslmode=disable}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+volumes:
+  pgdata:

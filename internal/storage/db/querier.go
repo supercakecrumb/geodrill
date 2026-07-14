@@ -18,11 +18,13 @@ type Querier interface {
 	GetCard(ctx context.Context, arg GetCardParams) (GetCardRow, error)
 	GetDeckBySlug(ctx context.Context, slug string) (Deck, error)
 	GetExercise(ctx context.Context, id uuid.UUID) (Exercise, error)
+	GetSkillByID(ctx context.Context, id uuid.UUID) (Skill, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error)
 	InsertContent(ctx context.Context, arg InsertContentParams) error
 	InsertExercise(ctx context.Context, arg InsertExerciseParams) (InsertExerciseRow, error)
 	InsertReview(ctx context.Context, arg InsertReviewParams) error
+	ListAllSkills(ctx context.Context) ([]Skill, error)
 	ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error)
 	ListCardsForUser(ctx context.Context, userID uuid.UUID) ([]ListCardsForUserRow, error)
 	ListDecks(ctx context.Context) ([]Deck, error)
