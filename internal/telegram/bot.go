@@ -69,6 +69,8 @@ type Config struct {
 	// StudyService powers /study, /introduce, and the reminder loop's
 	// introduction nudge (architecture §5.1, §5.3).
 	StudyService StudyService
+	// TopicService powers the /topics tree browser (architecture §5.2).
+	TopicService TopicService
 }
 
 // Bot wires telebot to geodrill's train/storage layers.
@@ -82,6 +84,9 @@ type Bot struct {
 	// study is nil until a later wave wires Config.StudyService — every
 	// call site checks it before use (see study.go).
 	study StudyService
+	// topics is nil until a later wave wires Config.TopicService — every
+	// call site checks it before use (see topics_ui.go).
+	topics TopicService
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -139,6 +144,7 @@ func New(cfg Config) (*Bot, error) {
 		logger:        logger,
 		now:           now,
 		study:         cfg.StudyService,
+		topics:        cfg.TopicService,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
 	}
@@ -152,6 +158,7 @@ func New(cfg Config) (*Bot, error) {
 	tb.Handle("/help", b.wrap(b.handleHelp))
 	tb.Handle("/study", b.wrap(b.handleStudy))
 	tb.Handle("/introduce", b.wrap(b.handleStudy)) // alias that fetches more intro cards on demand (decision 2)
+	tb.Handle("/topics", b.wrap(b.handleTopics))
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
 
 	// Populate the in-app "/" command menu (best-effort; a failure here must
@@ -168,6 +175,7 @@ var botCommands = []telebot.Command{
 	{Text: "train", Description: "Next due exercise"},
 	{Text: "practice", Description: "Endless practice (no scheduling)"},
 	{Text: "study", Description: "Introduce new items (v2)"},
+	{Text: "topics", Description: "Browse topics, tiers & progress (v2)"},
 	{Text: "decks", Description: "Turn confusion groups on/off"},
 	{Text: "settings", Description: "Daily cap, reminders, button style"},
 	{Text: "stats", Description: "Your progress and mix-ups"},

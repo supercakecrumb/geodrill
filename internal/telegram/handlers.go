@@ -339,6 +339,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleIntroCallback(ctx, s, data)
 	case data == dataStudyStart, data == dataStudyNext:
 		return b.handleStudyCallback(ctx, s)
+	case strings.HasPrefix(data, "top:"):
+		return b.handleTopicCallback(ctx, s, data)
 	case data == "cap:inc":
 		return b.handleCapChange(ctx, s, 1)
 	case data == "cap:dec":
