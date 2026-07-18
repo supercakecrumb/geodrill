@@ -75,15 +75,9 @@ Each of these gets a short design doc in geodrill's `vibe/` with step-by-step im
 
 After **every wave completes** (and after any standalone milestone worth seeing — e.g. a topic worker finishing, a live smoke test passing), the orchestrator sends Aurora a short Telegram message via `curl` and then **immediately continues to the next wave — this is a status ping, not an approval gate. Do not wait for a reply.** (The one real blocking gate is the plan-mode approval in wave 1; everything after that is fire-and-forget notifications.)
 
-- Chat ID: `371532208`.
+- Chat ID: read `TELEGRAM_CHAT_ID` from the gitignored `.env` (never hardcode it — this repo is public). Use `./scripts/notify.sh "<text>"`.
 - Token: **read `TELEGRAM_TOKEN` out of `.env` at send time — never print it, log it, or write it into any file** (this repo is public; `vibe/` gets committed).
-- Send pattern (bash):
-  ```bash
-  set -a; source .env; set +a
-  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-    --data-urlencode "chat_id=371532208" \
-    --data-urlencode "text=✅ <what just finished — 1-3 sentences>. Bot is running locally at ./bin/geodrill-bot — go ahead and check it out. Continuing to <next stage>."
-  ```
+- Send pattern: `./scripts/notify.sh "✅ <what just finished — 1-3 sentences>. Bot is running locally at ./bin/geodrill-bot — go ahead and check it out. Continuing to <next stage>."` — the script reads `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID` from the gitignored `.env` at send time; neither value ever appears in tracked source.
 - Keep messages short and concrete: what shipped, that it's runnable locally right now, and what's next. A failed `curl` (network hiccup, bad token) must never block or fail the build — log it and move on.
 - **Only send a ping once the bot is actually runnable in that state** — rebuild `./bin/geodrill-bot`, restart it, confirm exactly one process (`pgrep -fl geodrill-bot`) and a clean startup log, *then* notify. Don't claim something is checkable if it isn't running.
 

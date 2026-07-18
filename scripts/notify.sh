@@ -9,7 +9,6 @@ set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="$repo_root/.env"
-chat_id="371532208"
 
 if [ ! -f "$env_file" ]; then
   echo "notify: no .env — skipping" >&2
@@ -21,8 +20,16 @@ set -a
 source "$env_file"
 set +a
 
+# Both the token and the recipient chat id live only in the gitignored .env,
+# never in tracked source (this repo is public).
 if [ -z "${TELEGRAM_TOKEN:-}" ]; then
   echo "notify: TELEGRAM_TOKEN not set — skipping" >&2
+  exit 0
+fi
+
+chat_id="${TELEGRAM_CHAT_ID:-}"
+if [ -z "$chat_id" ]; then
+  echo "notify: TELEGRAM_CHAT_ID not set in .env — skipping" >&2
   exit 0
 fi
 
