@@ -11,6 +11,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+# Self-install the commit-notification hook (idempotent).
+git config core.hooksPath scripts/githooks
+
 start_time=$(date +%s)
 
 section() {

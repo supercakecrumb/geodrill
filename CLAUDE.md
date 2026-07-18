@@ -8,6 +8,7 @@ Telegram bot ([@geodriller_bot](https://t.me/geodriller_bot)) that trains GeoGue
 - **One atomic commit per logical change, pushed immediately.** Never batch unrelated changes into one commit. Every commit must build and keep tests green on its own.
 - **changie** manages the changelog: add a `changie new` fragment in the same commit for any user-visible change; `changie batch` + `changie merge` at release tags. Docs/CI-meta changes don't need fragments.
 - Never rewrite pushed history.
+- **Tell Aurora everything, in Telegram.** Every commit auto-notifies her via the post-commit hook (`scripts/githooks/`, self-installed by `scripts/pre-commit.sh`). Additionally send a manual `./scripts/notify.sh "<text>"` whenever a new bot version starts running locally and whenever a phase/milestone completes. Short, concrete messages; a failed send never blocks work.
 
 ## Hard safety rules
 

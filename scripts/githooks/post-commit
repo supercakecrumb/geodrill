@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Auto-notify Aurora on every commit.
+# Installed by scripts/pre-commit.sh via: git config core.hooksPath scripts/githooks
+repo_root="$(git rev-parse --show-toplevel)"
+msg="$(git log -1 --pretty='%h %s')"
+"$repo_root/scripts/notify.sh" "📦 geodrill: ${msg}" || true
