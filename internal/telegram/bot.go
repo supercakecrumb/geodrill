@@ -276,6 +276,21 @@ func (b *Bot) sendReminders(ctx context.Context) {
 			continue
 		}
 
+		// "Available introductions" (architecture §5.3) = min(available,
+		// budgetLeft): candidates exist AND today's daily cap isn't already
+		// spent. Only queried when StudyService is wired; degrades to 0
+		// (due-only reminders, today's behavior) on nil or on error rather
+		// than skipping the whole tick over a StudyService hiccup.
+		introReady := 0
+		if b.study != nil {
+			available, budgetLeft, ierr := b.study.IntroSummary(ctx, u.ID)
+			if ierr != nil {
+				b.logger.Error("telegram: reminders: intro summary", "user", u.ID, "error", ierr)
+			} else {
+				introReady = min(available, budgetLeft)
+			}
+		}
+
 		// The engagement check (has the user answered anything since the first
 		// reminder?) only matters for the follow-up decision, so only query it
 		// once a first reminder has already gone out today.
@@ -288,14 +303,14 @@ func (b *Bot) sendReminders(ctx context.Context) {
 			}
 		}
 
-		switch decideReminder(u, st, day, local.Hour(), now, due, reviewedSince) {
+		switch decideReminder(u, st, day, local.Hour(), now, due, reviewedSince, introReady) {
 		case reminderFirst:
-			if !b.sendReminderMessage(u, reminderText(due, false)) {
+			if !b.sendReminderMessage(u, reminderText(due, introReady, false), due, introReady) {
 				continue
 			}
 			b.setReminderState(u.ID, reminderState{day: day, firstSentAt: now, lastSentAt: now})
 		case reminderFollowUp:
-			if !b.sendReminderMessage(u, reminderText(due, true)) {
+			if !b.sendReminderMessage(u, reminderText(due, introReady, true), due, introReady) {
 				continue
 			}
 			st.lastSentAt = now
@@ -308,10 +323,14 @@ func (b *Bot) sendReminders(ctx context.Context) {
 // decideReminder decides whether to send a first reminder, a follow-up, or
 // nothing to a user on a tick. It is pure (no I/O) so the timing rules are
 // unit-testable: st is the user's current in-memory state, day is the user's
-// local date, localHour their local hour, due their due-review count, and
-// reviewedSince how many reviews they've answered since st.firstSentAt.
-func decideReminder(u storage.User, st reminderState, day string, localHour int, now time.Time, due, reviewedSince int) reminderKind {
-	if due <= 0 {
+// local date, localHour their local hour, due their due-review count,
+// reviewedSince how many reviews they've answered since st.firstSentAt, and
+// introReady how many items are ready to introduce today (architecture
+// §5.3; always 0 when StudyService is nil — see sendReminders). Follow-up
+// suppression (engagement, cap, delay) is unchanged by introReady: it only
+// widens the gate that fires the FIRST reminder of the day.
+func decideReminder(u storage.User, st reminderState, day string, localHour int, now time.Time, due, reviewedSince, introReady int) reminderKind {
+	if due <= 0 && introReady <= 0 {
 		return reminderNone
 	}
 	// No first reminder yet today: send one when we reach the user's chosen hour.
@@ -334,28 +353,83 @@ func decideReminder(u storage.User, st reminderState, day string, localHour int,
 	return reminderFollowUp
 }
 
-// reminderText renders the reminder body for the given due count. followUp
-// switches to the terser nudge wording.
-func reminderText(due int, followUp bool) string {
-	plural := ""
-	if due != 1 {
-		plural = "s"
+// reminderText renders the reminder body for the given due/introReady
+// counts (architecture §5.3): due-only keeps today's exact wording
+// (introReady == 0 is the common case while StudyService is unwired),
+// intro-only and combined ("N reviews due · M new items to introduce") are
+// new. followUp switches every variant to the terser nudge wording.
+func reminderText(due, introReady int, followUp bool) string {
+	switch {
+	case due > 0 && introReady > 0:
+		return combinedReminderText(due, introReady, followUp)
+	case introReady > 0:
+		return introOnlyReminderText(introReady, followUp)
+	default:
+		return dueOnlyReminderText(due, followUp)
 	}
+}
+
+func dueOnlyReminderText(due int, followUp bool) string {
+	plural := plural(due)
 	if followUp {
 		return fmt.Sprintf("⏰ Still %d review%s waiting — tap to start.", due, plural)
 	}
 	return fmt.Sprintf("🔔 You have %d review%s due today.", due, plural)
 }
 
-// sendReminderMessage sends a reminder with the ▶️ Start reviewing button.
-// It returns false (and logs) on failure so the caller skips recording state.
-func (b *Bot) sendReminderMessage(u storage.User, text string) bool {
-	markup := buildMarkup([][]Btn{{{Label: "▶️ Start reviewing", Data: dataStartTrain}}})
+func introOnlyReminderText(introReady int, followUp bool) string {
+	plural := plural(introReady)
+	if followUp {
+		return fmt.Sprintf("⏰ Still %d new item%s ready to introduce — tap to start.", introReady, plural)
+	}
+	return fmt.Sprintf("✨ %d new item%s ready to introduce.", introReady, plural)
+}
+
+func combinedReminderText(due, introReady int, followUp bool) string {
+	if followUp {
+		return fmt.Sprintf("⏰ Still %d review%s due · %d new item%s to introduce — tap to start.",
+			due, plural(due), introReady, plural(introReady))
+	}
+	return fmt.Sprintf("🔔 %d review%s due · %d new item%s to introduce.",
+		due, plural(due), introReady, plural(introReady))
+}
+
+// plural returns "s" unless n is exactly 1.
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+// sendReminderMessage sends a reminder with "▶️ Start reviewing" (due > 0)
+// and/or "✨ Introduce new" (introReady > 0) buttons — architecture §5.3's
+// combined nudge. It returns false (and logs) on failure so the caller
+// skips recording state.
+func (b *Bot) sendReminderMessage(u storage.User, text string, due, introReady int) bool {
+	markup := buildMarkup(reminderButtonRows(due, introReady))
 	if _, err := b.tb.Send(telebot.ChatID(u.TelegramID), text, markup); err != nil {
 		b.logger.Error("telegram: reminders: send", "user", u.ID, "error", err)
 		return false
 	}
 	return true
+}
+
+// reminderButtonRows lays out the reminder's action buttons on one row: ▶️
+// Start reviewing when reviews are due, ✨ Introduce new when items are
+// ready to introduce — either, both, or (defensively) neither.
+func reminderButtonRows(due, introReady int) [][]Btn {
+	var row []Btn
+	if due > 0 {
+		row = append(row, Btn{Label: "▶️ Start reviewing", Data: dataStartTrain})
+	}
+	if introReady > 0 {
+		row = append(row, Btn{Label: "✨ Introduce new", Data: dataStudyStart})
+	}
+	if len(row) == 0 {
+		return nil
+	}
+	return [][]Btn{row}
 }
 
 func (b *Bot) getReminderState(userID uuid.UUID) reminderState {

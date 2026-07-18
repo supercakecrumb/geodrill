@@ -852,22 +852,29 @@ func TestDecideReminder(t *testing.T) {
 		localHour     int
 		due           int
 		reviewedSince int
+		introReady    int
 		want          reminderKind
 	}{
-		{"first at chosen hour", base, reminderState{}, 9, 3, 0, reminderFirst},
-		{"nothing off-hour", base, reminderState{}, 8, 3, 0, reminderNone},
-		{"nothing when due is zero", base, reminderState{}, 9, 0, 0, reminderNone},
-		{"nothing when reminders disabled", storage.User{RemindersEnabled: false, ReminderHour: 9, FollowUpEnabled: true, FollowUpDelayMin: 60}, reminderState{}, 9, 3, 0, reminderNone},
-		{"stale prior-day state still fires first", base, reminderState{day: "2026-07-17", firstSentAt: now.Add(-24 * time.Hour)}, 9, 3, 0, reminderFirst},
-		{"follow-up after the delay", base, sent(90*time.Minute, 0), 11, 3, 0, reminderFollowUp},
-		{"no follow-up before the delay", base, sent(30*time.Minute, 0), 11, 3, 0, reminderNone},
-		{"no follow-up once engaged", base, sent(90*time.Minute, 0), 11, 3, 1, reminderNone},
-		{"no follow-up at the cap", base, sent(90*time.Minute, maxFollowUps), 11, 3, 0, reminderNone},
-		{"no follow-up when disabled", storage.User{RemindersEnabled: true, ReminderHour: 9, FollowUpEnabled: false, FollowUpDelayMin: 60}, sent(90*time.Minute, 0), 11, 3, 0, reminderNone},
+		{"first at chosen hour", base, reminderState{}, 9, 3, 0, 0, reminderFirst},
+		{"nothing off-hour", base, reminderState{}, 8, 3, 0, 0, reminderNone},
+		{"nothing when due is zero", base, reminderState{}, 9, 0, 0, 0, reminderNone},
+		{"nothing when reminders disabled", storage.User{RemindersEnabled: false, ReminderHour: 9, FollowUpEnabled: true, FollowUpDelayMin: 60}, reminderState{}, 9, 3, 0, 0, reminderNone},
+		{"stale prior-day state still fires first", base, reminderState{day: "2026-07-17", firstSentAt: now.Add(-24 * time.Hour)}, 9, 3, 0, 0, reminderFirst},
+		{"follow-up after the delay", base, sent(90*time.Minute, 0), 11, 3, 0, 0, reminderFollowUp},
+		{"no follow-up before the delay", base, sent(30*time.Minute, 0), 11, 3, 0, 0, reminderNone},
+		{"no follow-up once engaged", base, sent(90*time.Minute, 0), 11, 3, 1, 0, reminderNone},
+		{"no follow-up at the cap", base, sent(90*time.Minute, maxFollowUps), 11, 3, 0, 0, reminderNone},
+		{"no follow-up when disabled", storage.User{RemindersEnabled: true, ReminderHour: 9, FollowUpEnabled: false, FollowUpDelayMin: 60}, sent(90*time.Minute, 0), 11, 3, 0, 0, reminderNone},
+		// introReady-driven cases (architecture §5.3: StudyService extends the reminder gate).
+		{"first purely from intro-ready, due zero", base, reminderState{}, 9, 0, 0, 5, reminderFirst},
+		{"nothing when both due and introReady are zero", base, reminderState{}, 9, 0, 0, 0, reminderNone},
+		{"nothing off-hour even with intro-ready", base, reminderState{}, 8, 0, 0, 5, reminderNone},
+		{"follow-up still fires with intro-ready and due zero", base, sent(90*time.Minute, 0), 11, 0, 0, 5, reminderFollowUp},
+		{"follow-up suppression unaffected by intro-ready (engaged)", base, sent(90*time.Minute, 0), 11, 0, 1, 5, reminderNone},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := decideReminder(tc.user, tc.st, day, tc.localHour, now, tc.due, tc.reviewedSince)
+			got := decideReminder(tc.user, tc.st, day, tc.localHour, now, tc.due, tc.reviewedSince, tc.introReady)
 			if got != tc.want {
 				t.Fatalf("decideReminder = %v, want %v", got, tc.want)
 			}
@@ -877,19 +884,60 @@ func TestDecideReminder(t *testing.T) {
 
 func TestReminderText(t *testing.T) {
 	cases := []struct {
-		due      int
-		followUp bool
-		want     string
+		due        int
+		introReady int
+		followUp   bool
+		want       string
 	}{
-		{1, false, "🔔 You have 1 review due today."},
-		{5, false, "🔔 You have 5 reviews due today."},
-		{1, true, "⏰ Still 1 review waiting — tap to start."},
-		{3, true, "⏰ Still 3 reviews waiting — tap to start."},
+		{1, 0, false, "🔔 You have 1 review due today."},
+		{5, 0, false, "🔔 You have 5 reviews due today."},
+		{1, 0, true, "⏰ Still 1 review waiting — tap to start."},
+		{3, 0, true, "⏰ Still 3 reviews waiting — tap to start."},
+		// intro-only (due == 0).
+		{0, 1, false, "✨ 1 new item ready to introduce."},
+		{0, 5, false, "✨ 5 new items ready to introduce."},
+		{0, 5, true, "⏰ Still 5 new items ready to introduce — tap to start."},
+		// combined (architecture §5.3's "N reviews due · M new items to introduce").
+		{3, 5, false, "🔔 3 reviews due · 5 new items to introduce."},
+		{1, 1, false, "🔔 1 review due · 1 new item to introduce."},
+		{3, 5, true, "⏰ Still 3 reviews due · 5 new items to introduce — tap to start."},
 	}
 	for _, tc := range cases {
-		if got := reminderText(tc.due, tc.followUp); got != tc.want {
-			t.Fatalf("reminderText(%d, %v) = %q, want %q", tc.due, tc.followUp, got, tc.want)
+		if got := reminderText(tc.due, tc.introReady, tc.followUp); got != tc.want {
+			t.Fatalf("reminderText(%d, %d, %v) = %q, want %q", tc.due, tc.introReady, tc.followUp, got, tc.want)
 		}
+	}
+}
+
+// ── reminderButtonRows ───────────────────────────────────────────────────
+
+func TestReminderButtonRows(t *testing.T) {
+	dueOnly := reminderButtonRows(3, 0)
+	assertHasBtn(t, dueOnly[0], Btn{Label: "▶️ Start reviewing", Data: dataStartTrain})
+	for _, btn := range dueOnly[0] {
+		if btn.Data == dataStudyStart {
+			t.Fatalf("did not expect the Introduce-new button when introReady is 0")
+		}
+	}
+
+	introOnly := reminderButtonRows(0, 5)
+	assertHasBtn(t, introOnly[0], Btn{Label: "✨ Introduce new", Data: dataStudyStart})
+	for _, btn := range introOnly[0] {
+		if btn.Data == dataStartTrain {
+			t.Fatalf("did not expect the Start-reviewing button when due is 0")
+		}
+	}
+
+	both := reminderButtonRows(3, 5)
+	var all []Btn
+	for _, row := range both {
+		all = append(all, row...)
+	}
+	assertHasBtn(t, all, Btn{Label: "▶️ Start reviewing", Data: dataStartTrain})
+	assertHasBtn(t, all, Btn{Label: "✨ Introduce new", Data: dataStudyStart})
+
+	if rows := reminderButtonRows(0, 0); rows != nil {
+		t.Fatalf("expected no rows when both due and introReady are 0, got %+v", rows)
 	}
 }
 

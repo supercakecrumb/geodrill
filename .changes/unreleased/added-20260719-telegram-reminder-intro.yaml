@@ -1,0 +1,2 @@
+kind: Added
+body: Extend the reminder loop (architecture §5.3) to also nudge on available introductions — decideReminder now widens its first-reminder gate to due>0 OR introReady>0 (introReady = min(available, budgetLeft) from StudyService.IntroSummary, 0 when unwired), and the sent message becomes a combined "N reviews due · M new items to introduce" with both a "Start reviewing" and "Introduce new" button when applicable
