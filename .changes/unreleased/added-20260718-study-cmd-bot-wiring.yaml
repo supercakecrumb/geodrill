@@ -1,0 +1,2 @@
+kind: Added
+body: 'Wire the v2 service layer into cmd/bot: register the four topic Generators (guesslang, specialchars, roadside, words) once at startup, construct internal/study.Service, and populate telegram.Config''s StudyService/TopicService/TrainerV2/IntroCapStore fields — /study, /introduce, /topics, and the mode-aware /train path are now live instead of the "coming with v2 wiring" placeholder'
