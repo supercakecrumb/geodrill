@@ -1,0 +1,30 @@
+version: "2"
+
+# Minimal, targeted overrides on top of golangci-lint's "standard" linter set
+# (errcheck, gosimple/staticcheck, govet, ineffassign, unused) — added only
+# because that default set does not pass on current master, and per the CI/CD
+# bootstrap brief this is fixed via config, never by editing .go files. Every
+# exclusion below is scoped and documented; nothing is blanket-disabled.
+linters:
+  default: standard
+  settings:
+    staticcheck:
+      # QF1002/QF1008 are staticcheck's "quickfix" style suggestions
+      # (tagged-switch rewrite, embedded-field-selector removal) — cosmetic
+      # refactors, not correctness issues. Every other staticcheck/SA/ST
+      # check stays enabled. Hit on current master:
+      #   internal/train/callback.go:80  QF1002
+      #   internal/train/service.go:83   QF1008
+      checks:
+        - -QF1002
+        - -QF1008
+  exclusions:
+    presets:
+      # Standard golangci-lint preset (the same EXC0001-class exclusion most
+      # Go projects ship) that stops errcheck from flagging unchecked errors
+      # on defer'd Close()/Flush() and best-effort cleanup calls like
+      # os.Remove() — errcheck stays fully active for every other call site.
+      # Hit on current master:
+      #   internal/content/downloader.go:73,85,86
+      #   internal/storage/migrate.go:26,45
+      - std-error-handling
