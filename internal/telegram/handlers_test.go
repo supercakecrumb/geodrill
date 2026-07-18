@@ -127,9 +127,8 @@ var errEditMessage = errors.New("message can't be edited")
 // stubTrainer implements trainer with canned results, so the callback
 // handler can be exercised without internal/train or a database.
 type stubTrainer struct {
-	answer    train.AnswerResult
-	next      train.NextResult
-	statsData train.Stats
+	answer train.AnswerResult
+	next   train.NextResult
 }
 
 func (s *stubTrainer) NextExercise(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error) {
@@ -142,10 +141,6 @@ func (s *stubTrainer) NextPractice(ctx context.Context, user storage.User, now t
 
 func (s *stubTrainer) Answer(ctx context.Context, cb train.Callback, now time.Time) (train.AnswerResult, error) {
 	return s.answer, nil
-}
-
-func (s *stubTrainer) Stats(ctx context.Context, user storage.User, now time.Time) (train.Stats, error) {
-	return s.statsData, nil
 }
 
 func (s *stubTrainer) DueCount(ctx context.Context, user storage.User, now time.Time) (int, error) {
@@ -1049,42 +1044,45 @@ func TestReminderButtonRows(t *testing.T) {
 	}
 }
 
-// ── formatStats ──────────────────────────────────────────────────────────
+// ── formatStatsV2 ────────────────────────────────────────────────────────
 
-func TestFormatStats(t *testing.T) {
-	st := train.Stats{
+func TestFormatStatsV2(t *testing.T) {
+	st := StatsV2{
 		ReviewsToday: 12,
 		ReviewsWeek:  50,
 		Streak:       4,
 		Accuracy:     0.83,
-		ByDeck: []train.DeckAccuracy{
-			{Slug: "romance", Name: "Romance languages", Total: 20, Correct: 18, Accuracy: 0.9},
+		ByTopic: []TopicAccuracyV2{
+			{Name: "Languages", Total: 20, Correct: 18, Accuracy: 0.9},
 		},
 		DueForecast: []int{3, 5, 0, 1, 2, 0, 4},
-		Confusion: []train.ConfusionRow{
-			{TargetKey: "por", TargetLabel: "Portuguese", ChosenKey: "spa", ChosenLabel: "Spanish", Count: 7, Share: 0.4},
+		Confusion: []ConfusionRowV2{
+			{TargetLabel: "Portuguese", ChosenLabel: "Spanish", Count: 7, Share: 0.4},
 		},
+		Introduced: 30,
+		Known:      5,
 	}
 
-	out := formatStats(st)
+	out := formatStatsV2(st)
 
 	for _, want := range []string{
 		"Reviews today: 12",
 		"Reviews this week: 50",
 		"Accuracy: 83%",
 		"Streak: 4 days",
-		"Romance languages: 90% (18/20)",
+		"Introduced: 30 · Known: 5",
+		"Languages: 90% (18/20)",
 		"3 5 0 1 2 0 4",
 		"You mistake Portuguese for Spanish — 7 times (40%)",
 	} {
 		if !strings.Contains(out, want) {
-			t.Fatalf("expected formatStats output to contain %q; got:\n%s", want, out)
+			t.Fatalf("expected formatStatsV2 output to contain %q; got:\n%s", want, out)
 		}
 	}
 }
 
-func TestFormatStats_SingularStreak(t *testing.T) {
-	out := formatStats(train.Stats{Streak: 1})
+func TestFormatStatsV2_SingularStreak(t *testing.T) {
+	out := formatStatsV2(StatsV2{Streak: 1})
 	if !strings.Contains(out, "Streak: 1 day\n") {
 		t.Fatalf("expected singular 'day' for a streak of 1; got:\n%s", out)
 	}

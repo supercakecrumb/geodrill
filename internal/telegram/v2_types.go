@@ -266,6 +266,47 @@ type TrainerV2 interface {
 	// there is no such exercise — the caller must treat the message as
 	// ordinary, unhandled text rather than silently swallowing it.
 	AnswerText(ctx context.Context, userID uuid.UUID, typed string) (result AnswerResultV2, ok bool, err error)
+	// Stats builds the /stats view model over v2 reviews/user_items — the
+	// v2 counterpart of the legacy trainer.Stats.
+	Stats(ctx context.Context, userID uuid.UUID) (StatsV2, error)
+}
+
+// ── /stats — v2 view model ──────────────────────────────────────────────
+
+// TopicAccuracyV2 is per-topic accuracy for /stats (the v2 counterpart of
+// the legacy DeckAccuracy).
+type TopicAccuracyV2 struct {
+	Name     string
+	Total    int
+	Correct  int
+	Accuracy float64 // 0..1; 0 when Total == 0
+}
+
+// ConfusionRowV2 is one "you mistake X for Y" line for /stats (the v2
+// counterpart of ConfusionRow), computed over v2 attempts (quiz.Confusion).
+// TargetLabel/ChosenLabel are resolved via a best-effort global item
+// key->label map (see storage.Store.ListAllItemKeyLabels): they fall back
+// to the raw key when no item currently carries it.
+type ConfusionRowV2 struct {
+	TargetLabel string
+	ChosenLabel string
+	Count       int
+	Share       float64
+}
+
+// StatsV2 is the /stats view model, computed over v2 reviews/user_items
+// (the v2 counterpart of the legacy train.Stats): ByTopic replaces ByDeck,
+// and Introduced/Known are new (architecture §2.3 lifecycle counts).
+type StatsV2 struct {
+	ReviewsToday int
+	ReviewsWeek  int
+	Streak       int
+	Accuracy     float64 // overall, 0..1
+	ByTopic      []TopicAccuracyV2
+	DueForecast  []int            // due counts for the next N days (index 0 = today)
+	Confusion    []ConfusionRowV2 // top pairs, most-confused first
+	Introduced   int              // items with lifecycle != new
+	Known        int              // items with lifecycle == known
 }
 
 // ── /settings — daily intro cap ─────────────────────────────────────────────

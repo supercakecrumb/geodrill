@@ -25,7 +25,6 @@ type trainer interface {
 	NextExercise(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error)
 	NextPractice(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error)
 	Answer(ctx context.Context, cb train.Callback, now time.Time) (train.AnswerResult, error)
-	Stats(ctx context.Context, user storage.User, now time.Time) (train.Stats, error)
 	DueCount(ctx context.Context, user storage.User, now time.Time) (int, error)
 }
 
@@ -353,16 +352,25 @@ func helpTextFor(hasStudy, hasTopics bool) string {
 
 // ── /stats ───────────────────────────────────────────────────────────────
 
+// statsDormantText is what /stats replies with when Config.TrainerV2 is
+// nil, matching the /study and /topics "coming with v2 wiring" convention:
+// /stats is now computed entirely over v2 reviews/user_items (study.
+// Service.Stats), so there is no legacy fallback to degrade to.
+const statsDormantText = "🚧 /stats is coming with v2 wiring."
+
 func (b *Bot) handleStats(ctx context.Context, s Session) error {
+	if b.trainerV2 == nil {
+		return s.Send(statsDormantText)
+	}
 	user, err := b.loadOrCreateUser(ctx, s)
 	if err != nil {
 		return err
 	}
-	st, err := b.svc.Stats(ctx, user, b.now())
+	st, err := b.trainerV2.Stats(ctx, user.ID)
 	if err != nil {
 		return err
 	}
-	return s.Send(formatStats(st))
+	return s.Send(formatStatsV2(st))
 }
 
 // ── callbacks ────────────────────────────────────────────────────────────
@@ -789,10 +797,10 @@ func settingsRows(user storage.User, introCap *int) [][]Btn {
 	return rows
 }
 
-// formatStats renders the /stats view model as a readable multi-line
+// formatStatsV2 renders the /stats view model as a readable multi-line
 // message. Pure function — no Session/store dependency — so it's directly
 // unit-testable.
-func formatStats(st train.Stats) string {
+func formatStatsV2(st StatsV2) string {
 	var b strings.Builder
 
 	b.WriteString("📊 Your stats\n\n")
@@ -804,11 +812,12 @@ func formatStats(st train.Stats) string {
 		b.WriteByte('s')
 	}
 	b.WriteByte('\n')
+	fmt.Fprintf(&b, "Introduced: %d · Known: %d\n", st.Introduced, st.Known)
 
-	if len(st.ByDeck) > 0 {
-		b.WriteString("\nBy deck:\n")
-		for _, d := range st.ByDeck {
-			fmt.Fprintf(&b, "  %s: %.0f%% (%d/%d)\n", d.Name, d.Accuracy*100, d.Correct, d.Total)
+	if len(st.ByTopic) > 0 {
+		b.WriteString("\nBy topic:\n")
+		for _, t := range st.ByTopic {
+			fmt.Fprintf(&b, "  %s: %.0f%% (%d/%d)\n", t.Name, t.Accuracy*100, t.Correct, t.Total)
 		}
 	}
 

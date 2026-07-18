@@ -487,6 +487,36 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("expected item B's due date to move forward past %v, got %v", now, uiB.Card.Due)
 	}
 
+	// ── Service.Stats over v2 reviews/user_items ─────────────────────────
+	gradeStats, err := svc.Stats(ctx, gradeUser.ID)
+	if err != nil {
+		t.Fatalf("Stats: %v", err)
+	}
+	if gradeStats.ReviewsToday < 2 {
+		t.Fatalf("expected at least the 2 roadside reviews counted today, got %d", gradeStats.ReviewsToday)
+	}
+	if gradeStats.Accuracy <= 0 || gradeStats.Accuracy >= 1 {
+		t.Fatalf("expected a fractional accuracy (1 correct of 2 reviews), got %v", gradeStats.Accuracy)
+	}
+	if len(gradeStats.DueForecast) != 7 {
+		t.Fatalf("expected a 7-day due forecast, got %d entries", len(gradeStats.DueForecast))
+	}
+	var roadsTotal, roadsCorrect int
+	for _, ta := range gradeStats.ByTopic {
+		if ta.Name == roadsideTopic.Name {
+			roadsTotal, roadsCorrect = ta.Total, ta.Correct
+		}
+	}
+	if roadsTotal != 2 || roadsCorrect != 1 {
+		t.Fatalf("expected per-topic stats for %q to be total=2 correct=1, got total=%d correct=%d", roadsideTopic.Name, roadsTotal, roadsCorrect)
+	}
+	if len(gradeStats.Confusion) == 0 {
+		t.Fatalf("expected at least one confusion pair from the wrong roadside answer")
+	}
+	if gradeStats.Introduced < 2 {
+		t.Fatalf("expected Introduced to count at least the 2 seeded roadside items, got %d", gradeStats.Introduced)
+	}
+
 	// ── AnswerText: a specialchars single-language item forced into
 	// ModeText via the reps-based rotation rule ─────────────────────────
 	charsTopic, found, err := store.GetTopicByPath(ctx, "languages/special-characters")

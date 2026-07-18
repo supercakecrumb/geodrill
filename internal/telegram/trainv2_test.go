@@ -21,6 +21,8 @@ type stubTrainerV2 struct {
 	next     PromptV2
 	practice PromptV2
 	answer   AnswerResultV2
+	stats    StatsV2
+	statsErr error
 	textOK   bool
 	textErr  error
 	textCall struct {
@@ -53,6 +55,10 @@ func (s *stubTrainerV2) AnswerText(ctx context.Context, userID uuid.UUID, typed 
 	s.textCall.userID = userID
 	s.textCall.typed = typed
 	return s.answer, s.textOK, s.textErr
+}
+
+func (s *stubTrainerV2) Stats(ctx context.Context, userID uuid.UUID) (StatsV2, error) {
+	return s.stats, s.statsErr
 }
 
 // ── v2a: callback parsing ────────────────────────────────────────────────
@@ -212,6 +218,33 @@ func TestSendPromptV2_NoTopics(t *testing.T) {
 }
 
 // ── sendPromptV2 / sendExerciseV2 ────────────────────────────────────────
+
+// ── /stats V2 ────────────────────────────────────────────────────────────
+
+func TestHandleStats_DormantWhenV2Nil(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	s := &fakeSession{userID: 1}
+	if err := b.handleStats(context.Background(), s); err != nil {
+		t.Fatalf("handleStats: %v", err)
+	}
+	if len(s.sent) != 1 || s.sent[0] != statsDormantText {
+		t.Fatalf("expected the dormant text, got %v", s.sent)
+	}
+}
+
+func TestHandleStats_RendersV2ViewModel(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(&stubTrainer{}, st)
+	b.trainerV2 = &stubTrainerV2{stats: StatsV2{ReviewsToday: 3, Streak: 2}}
+
+	s := &fakeSession{userID: 1}
+	if err := b.handleStats(context.Background(), s); err != nil {
+		t.Fatalf("handleStats: %v", err)
+	}
+	if len(s.sent) != 1 || !strings.Contains(s.sent[0], "Reviews today: 3") {
+		t.Fatalf("expected the v2 stats rendered, got %v", s.sent)
+	}
+}
 
 func TestSendPromptV2_NothingDueUsesUserTimezone(t *testing.T) {
 	user := storage.User{Timezone: "America/New_York"}
