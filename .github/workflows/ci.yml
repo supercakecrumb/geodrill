@@ -1,17 +1,5 @@
 name: CI
 
-# Every job below checks out BOTH geodrill and engram: geodrill's go.work
-# resolves github.com/supercakecrumb/engram ONLY via the relative path
-# ../../Packages/engram (no versioned `require` yet — see go.mod's comment
-# and vibe/geodrill-architecture.md §7.3), so we reproduce the same
-# relative layout on the runner: geodrill under PersonalProjects/geodrill,
-# engram under Packages/engram. `../../Packages/engram` from
-# PersonalProjects/geodrill resolves to <workspace>/Packages/engram, which is
-# exactly where the second checkout below places it.
-#
-# NEVER run `go mod tidy` here (would try to resolve engram over the network
-# and fail, or corrupt the co-development workspace setup).
-
 on:
   push:
     branches: [master]
@@ -25,20 +13,11 @@ jobs:
     steps:
       - name: Checkout geodrill
         uses: actions/checkout@v7
-        with:
-          path: PersonalProjects/geodrill
-
-      - name: Checkout engram (go.work dependency)
-        uses: actions/checkout@v7
-        with:
-          repository: supercakecrumb/engram
-          ref: master
-          path: Packages/engram
 
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: PersonalProjects/geodrill/go.mod
+          go-version-file: go.mod
 
       # Pinned explicitly rather than left to the local dev tool version
       # (2.5.0): that binary is built with go1.25 and cannot lint code
@@ -51,7 +30,6 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
-          working-directory: PersonalProjects/geodrill
 
   test:
     name: test
@@ -78,27 +56,16 @@ jobs:
     steps:
       - name: Checkout geodrill
         uses: actions/checkout@v7
-        with:
-          path: PersonalProjects/geodrill
-
-      - name: Checkout engram (go.work dependency)
-        uses: actions/checkout@v7
-        with:
-          repository: supercakecrumb/engram
-          ref: master
-          path: Packages/engram
 
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: PersonalProjects/geodrill/go.mod
+          go-version-file: go.mod
 
       - name: Unit tests
-        working-directory: PersonalProjects/geodrill
         run: go test ./...
 
       - name: Integration tests (against the postgres service above)
-        working-directory: PersonalProjects/geodrill
         env:
           GEODRILL_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/geodrill_test?sslmode=disable
         run: go test -p 1 ./...
@@ -109,21 +76,11 @@ jobs:
     steps:
       - name: Checkout geodrill
         uses: actions/checkout@v7
-        with:
-          path: PersonalProjects/geodrill
-
-      - name: Checkout engram (go.work dependency)
-        uses: actions/checkout@v7
-        with:
-          repository: supercakecrumb/engram
-          ref: master
-          path: Packages/engram
 
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: PersonalProjects/geodrill/go.mod
+          go-version-file: go.mod
 
       - name: Build
-        working-directory: PersonalProjects/geodrill
         run: go build ./...

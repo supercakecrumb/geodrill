@@ -3,16 +3,6 @@ name: Release
 # Triggered by pushing a tag matching "v*": builds + pushes
 # ghcr.io/supercakecrumb/geodrill, then creates a GitHub Release.
 #
-# engram build-context problem (temporary — see the Dockerfile's own comment
-# and vibe/geodrill-architecture.md §7.3): geodrill isn't a standalone
-# buildable module yet (github.com/supercakecrumb/engram has no published
-# version; it's resolved only via the committed go.work, which a Docker
-# build context can't see). We check out supercakecrumb/engram into an
-# `engram/` subdirectory of THIS checkout so the Dockerfile can splice it in
-# with `go mod edit -replace`. Once engram v0.3.0 is tagged, geodrill's
-# go.mod pins a real `require`, and go.work is dropped (final wave), delete
-# the second checkout below and the corresponding Dockerfile COPY/replace.
-#
 # Release-notes strategy (same approach as engram/.github/workflows/release.yml,
 # documented there): extract the tag's version section verbatim from
 # CHANGELOG.md, which the release process is expected to have populated via
@@ -37,13 +27,6 @@ jobs:
     steps:
       - name: Checkout geodrill
         uses: actions/checkout@v7
-
-      - name: Checkout engram (Docker build-context dependency)
-        uses: actions/checkout@v7
-        with:
-          repository: supercakecrumb/engram
-          ref: master
-          path: engram
 
       - name: Log in to GHCR
         if: ${{ !env.ACT }}

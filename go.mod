@@ -2,16 +2,11 @@ module github.com/supercakecrumb/geodrill
 
 go 1.26
 
-// NOTE: github.com/supercakecrumb/engram is resolved via the committed go.work
-// (use ../../Packages/engram) while both repos are built in parallel. It is
-// intentionally NOT listed here: a versioned require would force network
-// resolution of an as-yet-unpublished module. Once engram is published and
-// tagged on GitHub, drop go.work and `go get github.com/supercakecrumb/engram`.
-
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/supercakecrumb/engram v0.3.0
 	gopkg.in/telebot.v4 v4.0.0-beta.10
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -21,6 +16,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/open-spaced-repetition/go-fsrs/v3 v3.3.1 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
