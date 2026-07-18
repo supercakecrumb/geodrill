@@ -745,6 +745,125 @@ func TestHandleCapChange_StepsOfFive(t *testing.T) {
 	}
 }
 
+// ── /settings reminder controls ──────────────────────────────────────────
+
+func TestHandleReminderHourChange(t *testing.T) {
+	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", ReminderHour: 9}}
+	b := newTestBot(&stubTrainer{}, st)
+	s := &fakeSession{userID: 1, messageID: 42, data: "rhour:inc"}
+
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if st.user.ReminderHour != 10 {
+		t.Fatalf("expected +1h to advance 9 -> 10, got %d", st.user.ReminderHour)
+	}
+	if len(s.edits) != 1 {
+		t.Fatalf("expected settings to re-render in place, got %d edits", len(s.edits))
+	}
+
+	// Decrement wraps 0 -> 23.
+	st.user.ReminderHour = 0
+	s.data = "rhour:dec"
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if st.user.ReminderHour != 23 {
+		t.Fatalf("expected -1h to wrap 0 -> 23, got %d", st.user.ReminderHour)
+	}
+}
+
+func TestHandleFollowUpToggle(t *testing.T) {
+	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", FollowUpEnabled: true}}
+	b := newTestBot(&stubTrainer{}, st)
+	s := &fakeSession{userID: 1, messageID: 42, data: "fup:toggle"}
+
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if st.user.FollowUpEnabled {
+		t.Fatalf("expected follow-up to toggle on -> off")
+	}
+	if len(s.edits) != 1 {
+		t.Fatalf("expected settings to re-render in place, got %d edits", len(s.edits))
+	}
+}
+
+func TestHandleFollowUpDelayCycle(t *testing.T) {
+	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", FollowUpDelayMin: 30}}
+	b := newTestBot(&stubTrainer{}, st)
+	s := &fakeSession{userID: 1, messageID: 42, data: "fupdelay:cycle"}
+
+	for _, want := range []int{60, 120, 30} { // 30 -> 60 -> 120 -> wrap 30
+		if err := b.handleCallback(context.Background(), s); err != nil {
+			t.Fatalf("handleCallback: %v", err)
+		}
+		if st.user.FollowUpDelayMin != want {
+			t.Fatalf("expected follow-up delay to advance to %d, got %d", want, st.user.FollowUpDelayMin)
+		}
+	}
+}
+
+// ── decideReminder ───────────────────────────────────────────────────────
+
+func TestDecideReminder(t *testing.T) {
+	const day = "2026-07-18"
+	now := time.Date(2026, 7, 18, 11, 0, 0, 0, time.UTC)
+	base := storage.User{RemindersEnabled: true, ReminderHour: 9, FollowUpEnabled: true, FollowUpDelayMin: 60}
+
+	// A day's state where the first reminder went out `ago` before now.
+	sent := func(ago time.Duration, followUps int) reminderState {
+		return reminderState{day: day, firstSentAt: now.Add(-ago), lastSentAt: now.Add(-ago), followUps: followUps}
+	}
+
+	cases := []struct {
+		name          string
+		user          storage.User
+		st            reminderState
+		localHour     int
+		due           int
+		reviewedSince int
+		want          reminderKind
+	}{
+		{"first at chosen hour", base, reminderState{}, 9, 3, 0, reminderFirst},
+		{"nothing off-hour", base, reminderState{}, 8, 3, 0, reminderNone},
+		{"nothing when due is zero", base, reminderState{}, 9, 0, 0, reminderNone},
+		{"nothing when reminders disabled", storage.User{RemindersEnabled: false, ReminderHour: 9, FollowUpEnabled: true, FollowUpDelayMin: 60}, reminderState{}, 9, 3, 0, reminderNone},
+		{"stale prior-day state still fires first", base, reminderState{day: "2026-07-17", firstSentAt: now.Add(-24 * time.Hour)}, 9, 3, 0, reminderFirst},
+		{"follow-up after the delay", base, sent(90*time.Minute, 0), 11, 3, 0, reminderFollowUp},
+		{"no follow-up before the delay", base, sent(30*time.Minute, 0), 11, 3, 0, reminderNone},
+		{"no follow-up once engaged", base, sent(90*time.Minute, 0), 11, 3, 1, reminderNone},
+		{"no follow-up at the cap", base, sent(90*time.Minute, maxFollowUps), 11, 3, 0, reminderNone},
+		{"no follow-up when disabled", storage.User{RemindersEnabled: true, ReminderHour: 9, FollowUpEnabled: false, FollowUpDelayMin: 60}, sent(90*time.Minute, 0), 11, 3, 0, reminderNone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := decideReminder(tc.user, tc.st, day, tc.localHour, now, tc.due, tc.reviewedSince)
+			if got != tc.want {
+				t.Fatalf("decideReminder = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestReminderText(t *testing.T) {
+	cases := []struct {
+		due      int
+		followUp bool
+		want     string
+	}{
+		{1, false, "🔔 You have 1 review due today."},
+		{5, false, "🔔 You have 5 reviews due today."},
+		{1, true, "⏰ Still 1 review waiting — tap to start."},
+		{3, true, "⏰ Still 3 reviews waiting — tap to start."},
+	}
+	for _, tc := range cases {
+		if got := reminderText(tc.due, tc.followUp); got != tc.want {
+			t.Fatalf("reminderText(%d, %v) = %q, want %q", tc.due, tc.followUp, got, tc.want)
+		}
+	}
+}
+
 // ── formatStats ──────────────────────────────────────────────────────────
 
 func TestFormatStats(t *testing.T) {

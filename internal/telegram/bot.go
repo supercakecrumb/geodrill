@@ -70,7 +70,7 @@ type Bot struct {
 	logger *slog.Logger
 	now    func() time.Time
 
-	remindedMu sync.Mutex
+	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
 
 	practiceMu    sync.Mutex
