@@ -1,0 +1,2 @@
+kind: Changed
+body: "Raised /settings cap ceilings (daily new-skill cap to 500, intro cap to 200) and added -5/+5 buttons for the intro cap alongside the existing +-1 buttons, matching the daily cap's layout"

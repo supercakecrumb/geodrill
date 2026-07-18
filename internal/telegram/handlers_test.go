@@ -364,9 +364,11 @@ func TestSettingsRows_IntroCapRow(t *testing.T) {
 	for _, row := range settingsRows(user, &cap) {
 		all = append(all, row...)
 	}
+	assertHasBtn(t, all, Btn{Label: "🎯 -5", Data: "icap:dec5"})
 	assertHasBtn(t, all, Btn{Label: "🎯 -1", Data: "icap:dec"})
 	assertHasBtn(t, all, Btn{Label: "intro cap: 12", Data: "noop"})
 	assertHasBtn(t, all, Btn{Label: "🎯 +1", Data: "icap:inc"})
+	assertHasBtn(t, all, Btn{Label: "🎯 +5", Data: "icap:inc5"})
 }
 
 // stubIntroCapStore implements IntroCapStore in memory.
@@ -434,6 +436,73 @@ func TestHandleIntroCapChange_ClampsToBounds(t *testing.T) {
 	}
 	if stub.cap != maxIntroCap {
 		t.Fatalf("expected the cap clamped at %d, got %d", maxIntroCap, stub.cap)
+	}
+}
+
+func TestHandleIntroCapChange_StepsOfFive(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(st)
+	stub := &stubIntroCapStore{cap: 10}
+	b.introCap = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc5"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != 15 {
+		t.Fatalf("expected icap:inc5 to raise the cap by 5 to 15, got %d", stub.cap)
+	}
+	if len(s.edits) != 1 {
+		t.Fatalf("expected the settings keyboard re-rendered in place, got %d edits", len(s.edits))
+	}
+
+	s.data = "icap:dec5"
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != 10 {
+		t.Fatalf("expected icap:dec5 to lower the cap by 5 back to 10, got %d", stub.cap)
+	}
+}
+
+func TestHandleIntroCapChange_ClampsAtNewMaximum(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(st)
+	stub := &stubIntroCapStore{cap: 198}
+	b.introCap = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc5"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != 200 {
+		t.Fatalf("expected +5 at 198 to clamp to the new maximum 200, got %d", stub.cap)
+	}
+	if maxIntroCap != 200 {
+		t.Fatalf("expected maxIntroCap to be 200, got %d", maxIntroCap)
+	}
+
+	// A further +5 must stay clamped at the maximum.
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != 200 {
+		t.Fatalf("expected the cap to stay clamped at 200, got %d", stub.cap)
+	}
+}
+
+func TestHandleIntroCapChange_ClampsAtMinimum(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(st)
+	stub := &stubIntroCapStore{cap: 3}
+	b.introCap = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:dec5"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != minIntroCap {
+		t.Fatalf("expected -5 at 3 to clamp to the minimum %d, got %d", minIntroCap, stub.cap)
 	}
 }
 

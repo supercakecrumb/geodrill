@@ -45,12 +45,12 @@ const dataStartTrain = "train:start"
 
 const (
 	minDailyCap = 0
-	maxDailyCap = 50
+	maxDailyCap = 500
 )
 
 const (
 	minIntroCap = 0
-	maxIntroCap = 50
+	maxIntroCap = 200
 )
 
 // ── label-style cycle ───────────────────────────────────────────────────────
@@ -393,6 +393,10 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleIntroCapChange(ctx, s, 1)
 	case data == "icap:dec":
 		return b.handleIntroCapChange(ctx, s, -1)
+	case data == "icap:inc5":
+		return b.handleIntroCapChange(ctx, s, 5)
+	case data == "icap:dec5":
+		return b.handleIntroCapChange(ctx, s, -5)
 	case data == "rem:toggle":
 		return b.handleRemindersToggle(ctx, s)
 	case data == "rhour:inc":
@@ -502,9 +506,11 @@ func settingsRows(user storage.User, introCap *int) [][]Btn {
 
 	if introCap != nil {
 		rows = append(rows, []Btn{
+			{Label: "🎯 -5", Data: "icap:dec5"},
 			{Label: "🎯 -1", Data: "icap:dec"},
 			{Label: fmt.Sprintf("intro cap: %d", *introCap), Data: "noop"},
 			{Label: "🎯 +1", Data: "icap:inc"},
+			{Label: "🎯 +5", Data: "icap:inc5"},
 		})
 	}
 
