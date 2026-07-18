@@ -1,0 +1,2 @@
+kind: Added
+body: "Add internal/topics.UnlockedTiers/Service (tier-gating: {0,1} union {n+2 for each complete tier n}, GoodShapeMinStabilityDays/TierCompleteShare thresholds) and topics.SelectIntroductions (thin composition over engram.NextIntroductions for the daily intro budget)"
