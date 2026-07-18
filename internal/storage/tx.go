@@ -37,3 +37,17 @@ func (s *Store) WithTx(ctx context.Context, fn func(q *db.Queries) error) (err e
 	err = fn(s.q.WithTx(tx))
 	return err
 }
+
+// WithTxStore is the ergonomic counterpart to WithTx: instead of a raw
+// *db.Queries, fn receives a *Store bound to the same transaction, so every
+// existing high-level Store method (PutUserItem, InsertReviewV2,
+// RecomputeTierProgressForTier, UpsertTierProgress, MarkExerciseAnswered,
+// AnswerIntroductionOnce, ...) can be called transactionally without the
+// caller hand-building db.XxxParams/pgtype conversions itself. Additive
+// convenience over WithTx (architecture §5.5) for v2 callers (internal/study)
+// that want the same API surface they already use outside a transaction.
+func (s *Store) WithTxStore(ctx context.Context, fn func(tx *Store) error) error {
+	return s.WithTx(ctx, func(q *db.Queries) error {
+		return fn(&Store{pool: s.pool, q: q})
+	})
+}

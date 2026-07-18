@@ -41,3 +41,54 @@ JOIN items i ON i.id = t.item_id
 LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
 WHERE t.tier = $2
 GROUP BY t.tier;
+
+-- name: RecomputeTopicProgress :one
+-- v2 (internal/study.TopicService, architecture §5.2 TopicRow): aggregate
+-- progress across an ENTIRE topic subtree (the topic itself plus every
+-- descendant, via the topic_paths recursive view) for one user — a
+-- container topic like "languages" rolls up every quizzable topic beneath
+-- it (e.g. special-characters, guess-the-language/*, common-words) into one
+-- total/introduced/good-shape line. Always returns exactly one row (zeros
+-- when the subtree has no items).
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $2)
+SELECT
+  count(*)::int AS total_items,
+  count(*) FILTER (WHERE ui.lifecycle IS NOT NULL AND ui.lifecycle <> 0)::int AS introduced_items,
+  count(*) FILTER (WHERE ui.lifecycle = 3
+                      OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
+FROM items i
+JOIN topic_paths tp ON tp.id = i.topic_id
+CROSS JOIN target
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE tp.path = target.path OR tp.path LIKE target.path || '/%';
+
+-- name: ListDistinctTiersUnderTopic :many
+-- v2 (internal/study.TopicService): every effective tier used by an item
+-- anywhere in a topic's subtree (itself + descendants) — the input to the
+-- 🔒 AnyLocked/LockedTier badge (architecture §5.2), by comparing against
+-- the user's currently-unlocked tier set.
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $1)
+SELECT DISTINCT it.tier
+FROM items i
+JOIN topic_paths tp ON tp.id = i.topic_id
+JOIN item_tiers it ON it.item_id = i.id
+CROSS JOIN target
+WHERE tp.path = target.path OR tp.path LIKE target.path || '/%'
+ORDER BY it.tier;
+
+-- name: RecomputeTopicTierBreakdown :many
+-- v2 (internal/study.TopicService, architecture §5.2 TierRow): per-tier
+-- progress within ONE quizzable topic's OWN items (non-recursive — a
+-- quizzable topic holds items directly, never a mix of items and child
+-- topics), for one user.
+SELECT it.tier,
+       count(*)::int AS total_items,
+       count(*) FILTER (WHERE ui.lifecycle IS NOT NULL AND ui.lifecycle <> 0)::int AS introduced_items,
+       count(*) FILTER (WHERE ui.lifecycle = 3
+                           OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
+FROM items i
+JOIN item_tiers it ON it.item_id = i.id
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE i.topic_id = $2
+GROUP BY it.tier
+ORDER BY it.tier;

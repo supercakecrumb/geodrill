@@ -45,6 +45,35 @@ func (q *Queries) GetExercise(ctx context.Context, id uuid.UUID) (GetExerciseRow
 	return i, err
 }
 
+const getExerciseByIDV2 = `-- name: GetExerciseByIDV2 :one
+SELECT id, user_id, skill_id, content_id, options, created_at, answered_at, message_id, item_id, mode, prompt, correct_answer, is_media, practice FROM exercises WHERE id = $1
+`
+
+// v2 (internal/study.Service.AnswerV2): fetch one exercise by id with the
+// full mode-aware column set (unlike the legacy GetExercise, which predates
+// item_id/mode/prompt/correct_answer/is_media/practice).
+func (q *Queries) GetExerciseByIDV2(ctx context.Context, id uuid.UUID) (Exercise, error) {
+	row := q.db.QueryRow(ctx, getExerciseByIDV2, id)
+	var i Exercise
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SkillID,
+		&i.ContentID,
+		&i.Options,
+		&i.CreatedAt,
+		&i.AnsweredAt,
+		&i.MessageID,
+		&i.ItemID,
+		&i.Mode,
+		&i.Prompt,
+		&i.CorrectAnswer,
+		&i.IsMedia,
+		&i.Practice,
+	)
+	return i, err
+}
+
 const getExercisesByItem = `-- name: GetExercisesByItem :many
 SELECT id, user_id, skill_id, content_id, item_id, mode, prompt, options,
        correct_answer, is_media, practice, created_at, answered_at, message_id
@@ -187,6 +216,54 @@ func (q *Queries) InsertExercise(ctx context.Context, arg InsertExerciseParams) 
 		arg.Options,
 	)
 	var i InsertExerciseRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
+	return i, err
+}
+
+const insertExerciseV2 = `-- name: InsertExerciseV2 :one
+INSERT INTO exercises (user_id, skill_id, content_id, item_id, mode, prompt, options, correct_answer, is_media, practice)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, created_at
+`
+
+type InsertExerciseV2Params struct {
+	UserID        uuid.UUID
+	SkillID       uuid.UUID
+	ContentID     uuid.UUID
+	ItemID        *uuid.UUID
+	Mode          int16
+	Prompt        pgtype.Text
+	Options       []byte
+	CorrectAnswer pgtype.Text
+	IsMedia       bool
+	Practice      bool
+}
+
+type InsertExerciseV2Row struct {
+	ID        uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+// v2 (internal/study.Service): insert a mode-aware exercise row directly —
+// item_id/mode/prompt/options/correct_answer/is_media/practice — in one
+// shot, instead of the legacy two-step InsertExercise+SetExerciseItemFields
+// path. skill_id/content_id are still NOT NULL (dropped only by a later
+// migration out of this wave's scope); callers without a natural skill/
+// content row supply a bridge placeholder (see internal/study's bridge.go).
+func (q *Queries) InsertExerciseV2(ctx context.Context, arg InsertExerciseV2Params) (InsertExerciseV2Row, error) {
+	row := q.db.QueryRow(ctx, insertExerciseV2,
+		arg.UserID,
+		arg.SkillID,
+		arg.ContentID,
+		arg.ItemID,
+		arg.Mode,
+		arg.Prompt,
+		arg.Options,
+		arg.CorrectAnswer,
+		arg.IsMedia,
+		arg.Practice,
+	)
+	var i InsertExerciseV2Row
 	err := row.Scan(&i.ID, &i.CreatedAt)
 	return i, err
 }

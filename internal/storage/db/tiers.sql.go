@@ -11,6 +11,41 @@ import (
 	"github.com/google/uuid"
 )
 
+const listDistinctTiersUnderTopic = `-- name: ListDistinctTiersUnderTopic :many
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $1)
+SELECT DISTINCT it.tier
+FROM items i
+JOIN topic_paths tp ON tp.id = i.topic_id
+JOIN item_tiers it ON it.item_id = i.id
+CROSS JOIN target
+WHERE tp.path = target.path OR tp.path LIKE target.path || '/%'
+ORDER BY it.tier
+`
+
+// v2 (internal/study.TopicService): every effective tier used by an item
+// anywhere in a topic's subtree (itself + descendants) — the input to the
+// 🔒 AnyLocked/LockedTier badge (architecture §5.2), by comparing against
+// the user's currently-unlocked tier set.
+func (q *Queries) ListDistinctTiersUnderTopic(ctx context.Context, id uuid.UUID) ([]int16, error) {
+	rows, err := q.db.Query(ctx, listDistinctTiersUnderTopic, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int16{}
+	for rows.Next() {
+		var tier int16
+		if err := rows.Scan(&tier); err != nil {
+			return nil, err
+		}
+		items = append(items, tier)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTierProgressForUser = `-- name: ListTierProgressForUser :many
 SELECT user_id, tier, total_items, introduced_items, good_shape_items, complete, updated_at FROM user_tier_progress WHERE user_id = $1 ORDER BY tier
 `
@@ -130,6 +165,100 @@ func (q *Queries) RecomputeTierProgressForTier(ctx context.Context, arg Recomput
 		&i.GoodShapeItems,
 	)
 	return i, err
+}
+
+const recomputeTopicProgress = `-- name: RecomputeTopicProgress :one
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $2)
+SELECT
+  count(*)::int AS total_items,
+  count(*) FILTER (WHERE ui.lifecycle IS NOT NULL AND ui.lifecycle <> 0)::int AS introduced_items,
+  count(*) FILTER (WHERE ui.lifecycle = 3
+                      OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
+FROM items i
+JOIN topic_paths tp ON tp.id = i.topic_id
+CROSS JOIN target
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE tp.path = target.path OR tp.path LIKE target.path || '/%'
+`
+
+type RecomputeTopicProgressParams struct {
+	UserID uuid.UUID
+	ID     uuid.UUID
+}
+
+type RecomputeTopicProgressRow struct {
+	TotalItems      int32
+	IntroducedItems int32
+	GoodShapeItems  int32
+}
+
+// v2 (internal/study.TopicService, architecture §5.2 TopicRow): aggregate
+// progress across an ENTIRE topic subtree (the topic itself plus every
+// descendant, via the topic_paths recursive view) for one user — a
+// container topic like "languages" rolls up every quizzable topic beneath
+// it (e.g. special-characters, guess-the-language/*, common-words) into one
+// total/introduced/good-shape line. Always returns exactly one row (zeros
+// when the subtree has no items).
+func (q *Queries) RecomputeTopicProgress(ctx context.Context, arg RecomputeTopicProgressParams) (RecomputeTopicProgressRow, error) {
+	row := q.db.QueryRow(ctx, recomputeTopicProgress, arg.UserID, arg.ID)
+	var i RecomputeTopicProgressRow
+	err := row.Scan(&i.TotalItems, &i.IntroducedItems, &i.GoodShapeItems)
+	return i, err
+}
+
+const recomputeTopicTierBreakdown = `-- name: RecomputeTopicTierBreakdown :many
+SELECT it.tier,
+       count(*)::int AS total_items,
+       count(*) FILTER (WHERE ui.lifecycle IS NOT NULL AND ui.lifecycle <> 0)::int AS introduced_items,
+       count(*) FILTER (WHERE ui.lifecycle = 3
+                           OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
+FROM items i
+JOIN item_tiers it ON it.item_id = i.id
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE i.topic_id = $2
+GROUP BY it.tier
+ORDER BY it.tier
+`
+
+type RecomputeTopicTierBreakdownParams struct {
+	UserID  uuid.UUID
+	TopicID uuid.UUID
+}
+
+type RecomputeTopicTierBreakdownRow struct {
+	Tier            int16
+	TotalItems      int32
+	IntroducedItems int32
+	GoodShapeItems  int32
+}
+
+// v2 (internal/study.TopicService, architecture §5.2 TierRow): per-tier
+// progress within ONE quizzable topic's OWN items (non-recursive — a
+// quizzable topic holds items directly, never a mix of items and child
+// topics), for one user.
+func (q *Queries) RecomputeTopicTierBreakdown(ctx context.Context, arg RecomputeTopicTierBreakdownParams) ([]RecomputeTopicTierBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, recomputeTopicTierBreakdown, arg.UserID, arg.TopicID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RecomputeTopicTierBreakdownRow{}
+	for rows.Next() {
+		var i RecomputeTopicTierBreakdownRow
+		if err := rows.Scan(
+			&i.Tier,
+			&i.TotalItems,
+			&i.IntroducedItems,
+			&i.GoodShapeItems,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertTierProgress = `-- name: UpsertTierProgress :exec

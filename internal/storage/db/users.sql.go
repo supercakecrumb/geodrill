@@ -102,6 +102,21 @@ func (q *Queries) SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabled
 	return err
 }
 
+const setIntroCap = `-- name: SetIntroCap :exec
+UPDATE users SET daily_intro_cap = $2 WHERE id = $1
+`
+
+type SetIntroCapParams struct {
+	ID            uuid.UUID
+	DailyIntroCap int32
+}
+
+// v2: the /settings daily intro-cap row (architecture §2.10/§8 IntroCapStore).
+func (q *Queries) SetIntroCap(ctx context.Context, arg SetIntroCapParams) error {
+	_, err := q.db.Exec(ctx, setIntroCap, arg.ID, arg.DailyIntroCap)
+	return err
+}
+
 const setLabelStyle = `-- name: SetLabelStyle :exec
 UPDATE users SET label_style = $2 WHERE id = $1
 `

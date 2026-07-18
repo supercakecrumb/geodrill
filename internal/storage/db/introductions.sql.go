@@ -38,6 +38,39 @@ func (q *Queries) AnswerIntroduction(ctx context.Context, arg AnswerIntroduction
 	return i, err
 }
 
+const answerIntroductionOnce = `-- name: AnswerIntroductionOnce :one
+UPDATE introductions
+SET outcome = $2, answered_at = $3
+WHERE id = $1 AND answered_at IS NULL
+RETURNING id, user_id, item_id, seq, outcome, shown_at, answered_at, message_id
+`
+
+type AnswerIntroductionOnceParams struct {
+	ID         uuid.UUID
+	Outcome    pgtype.Int2
+	AnsweredAt pgtype.Timestamptz
+}
+
+// v2 single-use answer guard for introductions (mirrors MarkExerciseAnswered):
+// flips outcome/answered_at only if still open. A returned row means this
+// caller owns the answer; no row means it was already answered (a stale
+// second tap on the same intro card, architecture §5.1/§5.5).
+func (q *Queries) AnswerIntroductionOnce(ctx context.Context, arg AnswerIntroductionOnceParams) (Introduction, error) {
+	row := q.db.QueryRow(ctx, answerIntroductionOnce, arg.ID, arg.Outcome, arg.AnsweredAt)
+	var i Introduction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.ItemID,
+		&i.Seq,
+		&i.Outcome,
+		&i.ShownAt,
+		&i.AnsweredAt,
+		&i.MessageID,
+	)
+	return i, err
+}
+
 const countIntroductionsToday = `-- name: CountIntroductionsToday :one
 SELECT count(DISTINCT item_id) FROM introductions
 WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL
@@ -58,6 +91,28 @@ func (q *Queries) CountIntroductionsToday(ctx context.Context, arg CountIntroduc
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const getIntroductionByID = `-- name: GetIntroductionByID :one
+SELECT id, user_id, item_id, seq, outcome, shown_at, answered_at, message_id FROM introductions WHERE id = $1
+`
+
+// v2 (internal/study.Service.AnswerIntro): resolve the item an introduction
+// callback refers to.
+func (q *Queries) GetIntroductionByID(ctx context.Context, id uuid.UUID) (Introduction, error) {
+	row := q.db.QueryRow(ctx, getIntroductionByID, id)
+	var i Introduction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.ItemID,
+		&i.Seq,
+		&i.Outcome,
+		&i.ShownAt,
+		&i.AnsweredAt,
+		&i.MessageID,
+	)
+	return i, err
 }
 
 const getLatestOpenIntroduction = `-- name: GetLatestOpenIntroduction :one

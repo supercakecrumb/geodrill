@@ -67,6 +67,10 @@ type User struct {
 	LabelStyle       string
 	Timezone         string
 	CreatedAt        time.Time
+	// DailyIntroCap is the v2 daily introduction budget (architecture §2.10,
+	// users.daily_intro_cap). 0 = unlimited (engram.RemainingIntroBudget's
+	// convention).
+	DailyIntroCap int
 }
 
 // Deck is a confusion group.

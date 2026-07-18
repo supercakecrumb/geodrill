@@ -24,6 +24,7 @@ func userFrom(u db.User) User {
 		LabelStyle:       u.LabelStyle,
 		Timezone:         u.Timezone,
 		CreatedAt:        tsTime(u.CreatedAt),
+		DailyIntroCap:    int(u.DailyIntroCap),
 	}
 }
 
@@ -359,6 +360,21 @@ func (s *Store) SampleContent(ctx context.Context, userID uuid.UUID, key string)
 // the row no longer exists (e.g. content was deleted or re-ingested).
 func (s *Store) GetContentByID(ctx context.Context, id uuid.UUID) (Content, bool, error) {
 	c, err := s.q.GetContentByID(ctx, id)
+	if IsNotFound(err) {
+		return Content{}, false, nil
+	}
+	if err != nil {
+		return Content{}, false, err
+	}
+	return Content{ID: c.ID, Kind: c.Kind, Key: c.Key, Payload: c.Payload, Source: c.Source, CharLength: int(c.CharLength)}, true, nil
+}
+
+// GetContentByKindKey looks up a content row by its exact (kind, key) pair —
+// unlike SampleContent/SampleContentAny (hardcoded to kind='sentence',
+// picked randomly among possibly-many rows), used by internal/study's
+// bridge content row (a single, deterministically-keyed placeholder).
+func (s *Store) GetContentByKindKey(ctx context.Context, kind, key string) (Content, bool, error) {
+	c, err := s.q.GetContentByKindKey(ctx, db.GetContentByKindKeyParams{Kind: kind, Key: key})
 	if IsNotFound(err) {
 		return Content{}, false, nil
 	}

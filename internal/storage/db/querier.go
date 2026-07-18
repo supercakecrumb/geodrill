@@ -13,6 +13,11 @@ import (
 
 type Querier interface {
 	AnswerIntroduction(ctx context.Context, arg AnswerIntroductionParams) (Introduction, error)
+	// v2 single-use answer guard for introductions (mirrors MarkExerciseAnswered):
+	// flips outcome/answered_at only if still open. A returned row means this
+	// caller owns the answer; no row means it was already answered (a stale
+	// second tap on the same intro card, architecture §5.1/§5.5).
+	AnswerIntroductionOnce(ctx context.Context, arg AnswerIntroductionOnceParams) (Introduction, error)
 	// Attach item_id/mode/correct_answer to every still-unmapped exercise row
 	// for one legacy skill. correct_answer is the skill's own key: exercises.
 	// skill_id is always the exercise's TARGET (correct) skill, so the correct
@@ -41,13 +46,24 @@ type Querier interface {
 	DeleteCountryFactsByDef(ctx context.Context, arg DeleteCountryFactsByDefParams) error
 	GetCard(ctx context.Context, arg GetCardParams) (GetCardRow, error)
 	GetContentByID(ctx context.Context, id uuid.UUID) (GetContentByIDRow, error)
+	// v2 (internal/study's bridge content row): exact (kind,key) lookup, unlike
+	// SampleContent/SampleContentAny which are hardcoded to kind='sentence' and
+	// pick randomly among multiple rows.
+	GetContentByKindKey(ctx context.Context, arg GetContentByKindKeyParams) (GetContentByKindKeyRow, error)
 	GetCountryByID(ctx context.Context, id uuid.UUID) (Country, error)
 	GetCountryByISO(ctx context.Context, isoA2 pgtype.Text) (Country, error)
 	GetCountryByISOA3(ctx context.Context, isoA3 pgtype.Text) (Country, error)
 	GetDeckBySlug(ctx context.Context, slug string) (Deck, error)
 	GetExercise(ctx context.Context, id uuid.UUID) (GetExerciseRow, error)
+	// v2 (internal/study.Service.AnswerV2): fetch one exercise by id with the
+	// full mode-aware column set (unlike the legacy GetExercise, which predates
+	// item_id/mode/prompt/correct_answer/is_media/practice).
+	GetExerciseByIDV2(ctx context.Context, id uuid.UUID) (Exercise, error)
 	GetExercisesByItem(ctx context.Context, itemID *uuid.UUID) ([]GetExercisesByItemRow, error)
 	GetFactDefByKey(ctx context.Context, key string) (FactDef, error)
+	// v2 (internal/study.Service.AnswerIntro): resolve the item an introduction
+	// callback refers to.
+	GetIntroductionByID(ctx context.Context, id uuid.UUID) (Introduction, error)
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemEffectiveTier(ctx context.Context, itemID uuid.UUID) (int16, error)
 	// Latest open (shown, not yet answered) introduction for a user, regardless
@@ -77,6 +93,13 @@ type Querier interface {
 	// CHECK constraint enforces it); the other two are passed as NULL.
 	InsertCountryFact(ctx context.Context, arg InsertCountryFactParams) (CountryFact, error)
 	InsertExercise(ctx context.Context, arg InsertExerciseParams) (InsertExerciseRow, error)
+	// v2 (internal/study.Service): insert a mode-aware exercise row directly —
+	// item_id/mode/prompt/options/correct_answer/is_media/practice — in one
+	// shot, instead of the legacy two-step InsertExercise+SetExerciseItemFields
+	// path. skill_id/content_id are still NOT NULL (dropped only by a later
+	// migration out of this wave's scope); callers without a natural skill/
+	// content row supply a bridge placeholder (see internal/study's bridge.go).
+	InsertExerciseV2(ctx context.Context, arg InsertExerciseV2Params) (InsertExerciseV2Row, error)
 	InsertIntroduction(ctx context.Context, arg InsertIntroductionParams) (Introduction, error)
 	InsertReview(ctx context.Context, arg InsertReviewParams) error
 	// v2: append a review carrying both the legacy skill_id/chosen_key/correct_key
@@ -122,6 +145,11 @@ type Querier interface {
 	// building block for arbitrary-filter joins (architecture §2.7).
 	ListCountryFactsByDefKey(ctx context.Context, key string) ([]CountryFact, error)
 	ListDecks(ctx context.Context) ([]Deck, error)
+	// v2 (internal/study.TopicService): every effective tier used by an item
+	// anywhere in a topic's subtree (itself + descendants) — the input to the
+	// 🔒 AnyLocked/LockedTier badge (architecture §5.2), by comparing against
+	// the user's currently-unlocked tier set.
+	ListDistinctTiersUnderTopic(ctx context.Context, id uuid.UUID) ([]int16, error)
 	// Due Introduced/Reviewing cards (engram.NextReview candidate set) joined
 	// with their item for topic/key/label context.
 	ListDueUserItems(ctx context.Context, arg ListDueUserItemsParams) ([]ListDueUserItemsRow, error)
@@ -166,6 +194,19 @@ type Querier interface {
 	// per-introduction transactional recompute (architecture §4.2/§5.5: "only the
 	// item's tier needs recompute").
 	RecomputeTierProgressForTier(ctx context.Context, arg RecomputeTierProgressForTierParams) (RecomputeTierProgressForTierRow, error)
+	// v2 (internal/study.TopicService, architecture §5.2 TopicRow): aggregate
+	// progress across an ENTIRE topic subtree (the topic itself plus every
+	// descendant, via the topic_paths recursive view) for one user — a
+	// container topic like "languages" rolls up every quizzable topic beneath
+	// it (e.g. special-characters, guess-the-language/*, common-words) into one
+	// total/introduced/good-shape line. Always returns exactly one row (zeros
+	// when the subtree has no items).
+	RecomputeTopicProgress(ctx context.Context, arg RecomputeTopicProgressParams) (RecomputeTopicProgressRow, error)
+	// v2 (internal/study.TopicService, architecture §5.2 TierRow): per-tier
+	// progress within ONE quizzable topic's OWN items (non-recursive — a
+	// quizzable topic holds items directly, never a mix of items and child
+	// topics), for one user.
+	RecomputeTopicTierBreakdown(ctx context.Context, arg RecomputeTopicTierBreakdownParams) ([]RecomputeTopicTierBreakdownRow, error)
 	// Re-parenting is a single-row UPDATE (architecture §2.1) — the tree is tiny,
 	// so the topic_paths recursive view stays cheap even after this.
 	ReparentTopic(ctx context.Context, arg ReparentTopicParams) error
@@ -183,6 +224,8 @@ type Querier interface {
 	SetExerciseMessageID(ctx context.Context, arg SetExerciseMessageIDParams) error
 	SetFollowUpDelay(ctx context.Context, arg SetFollowUpDelayParams) error
 	SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabledParams) error
+	// v2: the /settings daily intro-cap row (architecture §2.10/§8 IntroCapStore).
+	SetIntroCap(ctx context.Context, arg SetIntroCapParams) error
 	SetIntroductionMessageID(ctx context.Context, arg SetIntroductionMessageIDParams) error
 	SetLabelStyle(ctx context.Context, arg SetLabelStyleParams) error
 	// Caches the Telegram file_id after first upload so later sends can reuse it

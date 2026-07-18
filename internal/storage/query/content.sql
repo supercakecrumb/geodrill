@@ -35,3 +35,12 @@ FROM content_items ci
 WHERE ci.kind = 'sentence' AND ci.key = $1
 ORDER BY random()
 LIMIT 1;
+
+-- name: GetContentByKindKey :one
+-- v2 (internal/study's bridge content row): exact (kind,key) lookup, unlike
+-- SampleContent/SampleContentAny which are hardcoded to kind='sentence' and
+-- pick randomly among multiple rows.
+SELECT ci.id, ci.kind, ci.key, ci.payload, ci.source, ci.char_length
+FROM content_items ci
+WHERE ci.kind = $1 AND ci.key = $2
+LIMIT 1;

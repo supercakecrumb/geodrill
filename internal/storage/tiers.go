@@ -92,3 +92,64 @@ func (s *Store) RecomputeTierProgressForTier(ctx context.Context, userID uuid.UU
 		GoodShapeItems:  int(r.GoodShapeItems),
 	}, true, nil
 }
+
+// TopicProgress is the aggregate total/introduced/good-shape progress for one
+// user across an entire topic subtree (architecture §5.2 TopicRow) — no Tier
+// field, unlike TierProgress, since it rolls up every tier under the topic.
+type TopicProgress struct {
+	TotalItems      int
+	IntroducedItems int
+	GoodShapeItems  int
+}
+
+// RecomputeTopicProgress aggregates progress across topicID's ENTIRE subtree
+// (itself plus every descendant topic, via the topic_paths view) for one
+// user — the "Introduced 48/50" line a container topic like "languages"
+// shows, rolled up over every quizzable topic beneath it.
+func (s *Store) RecomputeTopicProgress(ctx context.Context, userID, topicID uuid.UUID) (TopicProgress, error) {
+	r, err := s.q.RecomputeTopicProgress(ctx, db.RecomputeTopicProgressParams{UserID: userID, ID: topicID})
+	if err != nil {
+		return TopicProgress{}, err
+	}
+	return TopicProgress{
+		TotalItems:      int(r.TotalItems),
+		IntroducedItems: int(r.IntroducedItems),
+		GoodShapeItems:  int(r.GoodShapeItems),
+	}, nil
+}
+
+// ListDistinctTiersUnderTopic returns every effective tier used by an item
+// anywhere in topicID's subtree (itself + descendants), ascending — the
+// input to the 🔒 AnyLocked/LockedTier badge (architecture §5.2).
+func (s *Store) ListDistinctTiersUnderTopic(ctx context.Context, topicID uuid.UUID) ([]int16, error) {
+	return s.q.ListDistinctTiersUnderTopic(ctx, topicID)
+}
+
+// TierBreakdownRow is one tier's progress within a single quizzable topic's
+// own items (architecture §5.2 TierRow's source data).
+type TierBreakdownRow struct {
+	Tier            int16
+	TotalItems      int
+	IntroducedItems int
+	GoodShapeItems  int
+}
+
+// RecomputeTopicTierBreakdown returns per-tier progress within ONE quizzable
+// topic's own items (non-recursive — a quizzable topic holds items
+// directly), ascending by tier.
+func (s *Store) RecomputeTopicTierBreakdown(ctx context.Context, userID, topicID uuid.UUID) ([]TierBreakdownRow, error) {
+	rows, err := s.q.RecomputeTopicTierBreakdown(ctx, db.RecomputeTopicTierBreakdownParams{UserID: userID, TopicID: topicID})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TierBreakdownRow, len(rows))
+	for i, r := range rows {
+		out[i] = TierBreakdownRow{
+			Tier:            r.Tier,
+			TotalItems:      int(r.TotalItems),
+			IntroducedItems: int(r.IntroducedItems),
+			GoodShapeItems:  int(r.GoodShapeItems),
+		}
+	}
+	return out, nil
+}

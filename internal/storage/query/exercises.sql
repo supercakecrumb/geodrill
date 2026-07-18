@@ -43,3 +43,20 @@ FROM exercises
 WHERE user_id = $1 AND mode = $2 AND answered_at IS NULL
 ORDER BY created_at DESC
 LIMIT 1;
+
+-- name: InsertExerciseV2 :one
+-- v2 (internal/study.Service): insert a mode-aware exercise row directly —
+-- item_id/mode/prompt/options/correct_answer/is_media/practice — in one
+-- shot, instead of the legacy two-step InsertExercise+SetExerciseItemFields
+-- path. skill_id/content_id are still NOT NULL (dropped only by a later
+-- migration out of this wave's scope); callers without a natural skill/
+-- content row supply a bridge placeholder (see internal/study's bridge.go).
+INSERT INTO exercises (user_id, skill_id, content_id, item_id, mode, prompt, options, correct_answer, is_media, practice)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, created_at;
+
+-- name: GetExerciseByIDV2 :one
+-- v2 (internal/study.Service.AnswerV2): fetch one exercise by id with the
+-- full mode-aware column set (unlike the legacy GetExercise, which predates
+-- item_id/mode/prompt/correct_answer/is_media/practice).
+SELECT * FROM exercises WHERE id = $1;

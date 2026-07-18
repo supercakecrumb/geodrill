@@ -56,6 +56,44 @@ func (q *Queries) GetContentByID(ctx context.Context, id uuid.UUID) (GetContentB
 	return i, err
 }
 
+const getContentByKindKey = `-- name: GetContentByKindKey :one
+SELECT ci.id, ci.kind, ci.key, ci.payload, ci.source, ci.char_length
+FROM content_items ci
+WHERE ci.kind = $1 AND ci.key = $2
+LIMIT 1
+`
+
+type GetContentByKindKeyParams struct {
+	Kind string
+	Key  string
+}
+
+type GetContentByKindKeyRow struct {
+	ID         uuid.UUID
+	Kind       string
+	Key        string
+	Payload    string
+	Source     string
+	CharLength int32
+}
+
+// v2 (internal/study's bridge content row): exact (kind,key) lookup, unlike
+// SampleContent/SampleContentAny which are hardcoded to kind='sentence' and
+// pick randomly among multiple rows.
+func (q *Queries) GetContentByKindKey(ctx context.Context, arg GetContentByKindKeyParams) (GetContentByKindKeyRow, error) {
+	row := q.db.QueryRow(ctx, getContentByKindKey, arg.Kind, arg.Key)
+	var i GetContentByKindKeyRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Key,
+		&i.Payload,
+		&i.Source,
+		&i.CharLength,
+	)
+	return i, err
+}
+
 const insertContent = `-- name: InsertContent :exec
 INSERT INTO content_items (kind, key, payload, source, char_length)
 VALUES ($1, $2, $3, $4, $5)

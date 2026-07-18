@@ -34,3 +34,7 @@ UPDATE users SET follow_up_delay_min = $2 WHERE id = $1;
 
 -- name: UsersWithReminders :many
 SELECT * FROM users WHERE reminders_enabled = true ORDER BY created_at;
+
+-- name: SetIntroCap :exec
+-- v2: the /settings daily intro-cap row (architecture §2.10/§8 IntroCapStore).
+UPDATE users SET daily_intro_cap = $2 WHERE id = $1;
