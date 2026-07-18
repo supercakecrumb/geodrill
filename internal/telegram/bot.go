@@ -71,6 +71,10 @@ type Config struct {
 	StudyService StudyService
 	// TopicService powers the /topics tree browser (architecture §5.2).
 	TopicService TopicService
+	// TrainerV2 powers the mode-aware v2 exercise path (architecture §1.6):
+	// /train prefers it over the legacy trainer, and its presence is what
+	// decides whether the free-text OnText handler is registered at all.
+	TrainerV2 TrainerV2
 }
 
 // Bot wires telebot to geodrill's train/storage layers.
@@ -87,6 +91,9 @@ type Bot struct {
 	// topics is nil until a later wave wires Config.TopicService — every
 	// call site checks it before use (see topics_ui.go).
 	topics TopicService
+	// trainerV2 is nil until a later wave wires Config.TrainerV2 — every
+	// call site checks it before use (see trainv2.go).
+	trainerV2 TrainerV2
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -145,6 +152,7 @@ func New(cfg Config) (*Bot, error) {
 		now:           now,
 		study:         cfg.StudyService,
 		topics:        cfg.TopicService,
+		trainerV2:     cfg.TrainerV2,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
 	}
@@ -160,6 +168,14 @@ func New(cfg Config) (*Bot, error) {
 	tb.Handle("/introduce", b.wrap(b.handleStudy)) // alias that fetches more intro cards on demand (decision 2)
 	tb.Handle("/topics", b.wrap(b.handleTopics))
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
+	// OnText (free-typed answers) is only registered when TrainerV2 is
+	// wired: the pre-v2 bot never listened for plain text at all, and
+	// nil-safety means that stays true until a real TrainerV2 arrives —
+	// registering it unconditionally would start intercepting every plain
+	// message the moment this field exists, even with Config.TrainerV2 nil.
+	if cfg.TrainerV2 != nil {
+		tb.Handle(telebot.OnText, b.wrap(b.handleText))
+	}
 
 	// Populate the in-app "/" command menu (best-effort; a failure here must
 	// not prevent the bot from starting).
@@ -472,6 +488,14 @@ func (s *tbSession) Data() string {
 		return s.ctx.Data()
 	}
 	return strings.TrimPrefix(s.ctx.Callback().Data, "\f")
+}
+
+// MessageText returns the incoming message's text (or caption), matching
+// telebot's own Text() — deliberately NOT Data(), which for a plain message
+// update is only the command payload (the trailing arguments after
+// "/command "), not the full text a free-typed answer needs.
+func (s *tbSession) MessageText() string {
+	return s.ctx.Text()
 }
 
 // buildMarkup builds an inline-keyboard ReplyMarkup from rows. Buttons set

@@ -57,6 +57,7 @@ type fakeSession struct {
 	username  string
 	messageID int64
 	data      string
+	msgText   string
 
 	sent         []string
 	keyboards    []fakeKeyboardCall
@@ -70,10 +71,11 @@ type fakeSession struct {
 	editMsgError error
 }
 
-func (f *fakeSession) UserID() int64    { return f.userID }
-func (f *fakeSession) Username() string { return f.username }
-func (f *fakeSession) MessageID() int64 { return f.messageID }
-func (f *fakeSession) Data() string     { return f.data }
+func (f *fakeSession) UserID() int64       { return f.userID }
+func (f *fakeSession) Username() string    { return f.username }
+func (f *fakeSession) MessageID() int64    { return f.messageID }
+func (f *fakeSession) Data() string        { return f.data }
+func (f *fakeSession) MessageText() string { return f.msgText }
 
 func (f *fakeSession) Send(text string) error {
 	f.sent = append(f.sent, text)

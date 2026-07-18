@@ -170,11 +170,7 @@ func (b *Bot) handleTrain(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	res, err := b.svc.NextExercise(ctx, user, b.now())
-	if err != nil {
-		return err
-	}
-	return b.sendNextResult(ctx, s, user, res)
+	return b.sendNextTrain(ctx, s, user)
 }
 
 // ── /practice ────────────────────────────────────────────────────────────
@@ -220,7 +216,7 @@ func (b *Bot) handleStopPractice(ctx context.Context, s Session) error {
 
 // handleStartTrainCallback runs the /train flow from the "Start reviewing"
 // button on the daily reminder: it acks the tap (clearing the button's
-// spinner) and sends the next due exercise as a new message.
+// spinner) and sends the next due exercise (V2 when wired) as a new message.
 func (b *Bot) handleStartTrainCallback(ctx context.Context, s Session) error {
 	if err := s.Respond(""); err != nil {
 		return err
@@ -229,11 +225,7 @@ func (b *Bot) handleStartTrainCallback(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	res, err := b.svc.NextExercise(ctx, user, b.now())
-	if err != nil {
-		return err
-	}
-	return b.sendNextResult(ctx, s, user, res)
+	return b.sendNextTrain(ctx, s, user)
 }
 
 // ── /decks ───────────────────────────────────────────────────────────────
@@ -341,6 +333,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleStudyCallback(ctx, s)
 	case strings.HasPrefix(data, "top:"):
 		return b.handleTopicCallback(ctx, s, data)
+	case strings.HasPrefix(data, dataV2AnswerPrefix):
+		return b.handleV2AnswerCallback(ctx, s, data)
 	case data == "cap:inc":
 		return b.handleCapChange(ctx, s, 1)
 	case data == "cap:dec":

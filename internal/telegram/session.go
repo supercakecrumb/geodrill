@@ -49,4 +49,8 @@ type Session interface {
 	Respond(toast string) error
 	// Data is the callback payload; empty outside a callback.
 	Data() string
+	// MessageText is the raw text of an incoming plain-text message (a
+	// telebot.OnText update, never a callback) — used to route free-typed
+	// answers to TrainerV2.AnswerText. Empty outside a plain text message.
+	MessageText() string
 }
