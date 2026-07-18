@@ -36,6 +36,20 @@ type fakeEditMessageCall struct {
 	rows      [][]Btn
 }
 
+// fakePhotoCall records one SendPhoto invocation.
+type fakePhotoCall struct {
+	path    string
+	caption string
+	rows    [][]Btn
+}
+
+// fakeEditCaptionCall records one EditCaption invocation.
+type fakeEditCaptionCall struct {
+	messageID int64
+	caption   string
+	rows      [][]Btn
+}
+
 // fakeSession implements Session in memory, recording every call so tests
 // can assert on them without a bot token or network.
 type fakeSession struct {
@@ -48,6 +62,8 @@ type fakeSession struct {
 	keyboards    []fakeKeyboardCall
 	edits        []fakeEditCall
 	editedMsgs   []fakeEditMessageCall
+	photos       []fakePhotoCall
+	editedCaps   []fakeEditCaptionCall
 	responses    []string
 	nextMsgID    int64
 	failEditMsg  bool // make EditMessage fail (message too old, etc.)
@@ -83,6 +99,17 @@ func (f *fakeSession) EditMessage(messageID int64, text string, rows [][]Btn) er
 		return errEditMessage
 	}
 	f.editedMsgs = append(f.editedMsgs, fakeEditMessageCall{messageID: messageID, text: text, rows: rows})
+	return nil
+}
+
+func (f *fakeSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error) {
+	f.photos = append(f.photos, fakePhotoCall{path: path, caption: caption, rows: rows})
+	f.nextMsgID++
+	return f.nextMsgID, nil
+}
+
+func (f *fakeSession) EditCaption(messageID int64, caption string, rows [][]Btn) error {
+	f.editedCaps = append(f.editedCaps, fakeEditCaptionCall{messageID: messageID, caption: caption, rows: rows})
 	return nil
 }
 

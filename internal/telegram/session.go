@@ -31,6 +31,20 @@ type Session interface {
 	// messageID in place (editMessageText). text is HTML (Telegram HTML
 	// parse mode); the caller must escape any user-supplied content.
 	EditMessage(messageID int64, text string, rows [][]Btn) error
+	// SendPhoto sends the local image file at path as a photo message with
+	// caption and an inline keyboard, and returns the id of the sent
+	// message. Introduction/exercise media renders as a photo message from
+	// birth (architecture §5.1 decision 6) rather than text-then-media.
+	// caption is HTML (Telegram HTML parse mode), exactly like EditMessage
+	// — the caller must escape any user-supplied content. Kept in the same
+	// parse mode as EditCaption so a card's caption never changes rendering
+	// between its initial send and a later in-place edit.
+	SendPhoto(path, caption string, rows [][]Btn) (int64, error)
+	// EditCaption replaces both the caption and the inline keyboard of the
+	// photo message at messageID in place (editMessageCaption) — the photo
+	// counterpart to EditMessage. caption is HTML, caller-escaped, exactly
+	// like EditMessage.
+	EditCaption(messageID int64, caption string, rows [][]Btn) error
 	// Respond answers a callback query with a transient toast (no alert).
 	Respond(toast string) error
 	// Data is the callback payload; empty outside a callback.

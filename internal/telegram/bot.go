@@ -404,6 +404,35 @@ func (s *tbSession) EditMessage(messageID int64, text string, rows [][]Btn) erro
 	return err
 }
 
+// SendPhoto sends path as a photo message (architecture §5.1 decision 6:
+// media introduction/exercise cards are photo messages from birth). caption
+// is sent with ModeHTML — the same parse mode EditCaption edits it with
+// later, so a card never changes rendering between its initial send and an
+// in-place edit (see the Session.SendPhoto doc comment).
+func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error) {
+	photo := &telebot.Photo{File: telebot.FromDisk(path), Caption: caption}
+	msg, err := s.bot.Send(s.ctx.Chat(), photo, buildMarkup(rows), telebot.ModeHTML)
+	if err != nil {
+		return 0, err
+	}
+	return int64(msg.ID), nil
+}
+
+// EditCaption replaces a photo message's caption and keyboard in place, the
+// photo counterpart to EditMessage (same ModeHTML contract).
+func (s *tbSession) EditCaption(messageID int64, caption string, rows [][]Btn) error {
+	var chatID int64
+	if chat := s.ctx.Chat(); chat != nil {
+		chatID = chat.ID
+	}
+	sm := telebot.StoredMessage{
+		MessageID: strconv.FormatInt(messageID, 10),
+		ChatID:    chatID,
+	}
+	_, err := s.bot.EditCaption(sm, caption, buildMarkup(rows), telebot.ModeHTML)
+	return err
+}
+
 func (s *tbSession) Respond(toast string) error {
 	return s.ctx.Respond(&telebot.CallbackResponse{Text: toast})
 }
