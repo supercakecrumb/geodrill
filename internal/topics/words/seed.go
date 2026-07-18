@@ -22,7 +22,7 @@ const (
 	TopicSlug = "common-words"
 	TopicName = "Common words"
 	// QuizKind matches topics.Topic.QuizKind / Generator.Kind() — the seam
-	// that lets internal/train pick this package's Generator without ever
+	// that lets internal/study pick this package's Generator without ever
 	// switching on a topic slug.
 	QuizKind = "word_language"
 	// BaseTier is topics.base_tier for languages/common-words (architecture

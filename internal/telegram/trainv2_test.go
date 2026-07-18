@@ -10,7 +10,6 @@ import (
 	"github.com/supercakecrumb/engram/quiz"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // stubTrainerV2 implements TrainerV2 with canned results. next backs
@@ -136,7 +135,7 @@ func TestParseV2PracticeCallback_Invalid(t *testing.T) {
 
 func TestHandleTrain_PrefersV2WhenWired(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{next: PromptV2{
 		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "hola",
 		Options: []OptionV2{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
@@ -155,7 +154,7 @@ func TestHandleTrain_PrefersV2WhenWired(t *testing.T) {
 
 func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{practice: PromptV2{
 		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "hola", Practice: true,
 		Options: []OptionV2{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
@@ -186,7 +185,7 @@ func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
 
 func TestSendPromptV2_NoTopics(t *testing.T) {
 	s := &fakeSession{}
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	if err := b.sendPromptV2(s, storage.User{}, PromptV2{Kind: PromptV2KindNoTopics}); err != nil {
 		t.Fatalf("sendPromptV2: %v", err)
 	}
@@ -200,7 +199,7 @@ func TestSendPromptV2_NoTopics(t *testing.T) {
 // ── /stats V2 ────────────────────────────────────────────────────────────
 
 func TestHandleStats_DormantWhenV2Nil(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1}
 	if err := b.handleStats(context.Background(), s); err != nil {
 		t.Fatalf("handleStats: %v", err)
@@ -212,7 +211,7 @@ func TestHandleStats_DormantWhenV2Nil(t *testing.T) {
 
 func TestHandleStats_RendersV2ViewModel(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{stats: StatsV2{ReviewsToday: 3, Streak: 2}}
 
 	s := &fakeSession{userID: 1}
@@ -228,7 +227,7 @@ func TestSendPromptV2_NothingDueUsesUserTimezone(t *testing.T) {
 	user := storage.User{Timezone: "America/New_York"}
 	due := time.Date(2026, 7, 18, 20, 0, 0, 0, time.UTC) // 16:00 in America/New_York
 	s := &fakeSession{}
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	if err := b.sendPromptV2(s, user, PromptV2{Kind: PromptV2KindNothingDue, DueAt: due}); err != nil {
 		t.Fatalf("sendPromptV2: %v", err)
 	}
@@ -239,7 +238,7 @@ func TestSendPromptV2_NothingDueUsesUserTimezone(t *testing.T) {
 
 func TestSendExerciseV2_ModeTextHasNoButtons(t *testing.T) {
 	s := &fakeSession{}
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	p := PromptV2{Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "ulica", Mode: quiz.ModeText}
 	if err := b.sendExerciseV2(s, p); err != nil {
 		t.Fatalf("sendExerciseV2: %v", err)
@@ -257,7 +256,7 @@ func TestSendExerciseV2_ModeTextHasNoButtons(t *testing.T) {
 
 func TestSendExerciseV2_ModeSingleHasButtons(t *testing.T) {
 	s := &fakeSession{}
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	exID := uuid.New()
 	p := PromptV2{
 		Kind: PromptV2KindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle,
@@ -276,7 +275,7 @@ func TestSendExerciseV2_ModeSingleHasButtons(t *testing.T) {
 
 func TestSendExerciseV2_PracticeUsesV2pPrefixAndStopButton(t *testing.T) {
 	s := &fakeSession{}
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	exID := uuid.New()
 	p := PromptV2{
 		Kind: PromptV2KindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle, Practice: true,
@@ -296,7 +295,7 @@ func TestSendExerciseV2_PracticeUsesV2pPrefixAndStopButton(t *testing.T) {
 
 func TestSendExerciseV2_PhotoEscapesCaption(t *testing.T) {
 	s := &fakeSession{}
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	p := PromptV2{Kind: PromptV2KindExercise, MediaPath: "/x.jpg", Text: "a < b", Mode: quiz.ModeSingle}
 	if err := b.sendExerciseV2(s, p); err != nil {
 		t.Fatalf("sendExerciseV2: %v", err)
@@ -310,12 +309,12 @@ func TestSendExerciseV2_PhotoEscapesCaption(t *testing.T) {
 
 func TestHandleV2AnswerCallback_GradesEditsAndAdvances(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	exID := uuid.New()
 	stub := &stubTrainerV2{
 		answer: AnswerResultV2{
 			Correct: true, Text: "hola", HasMessage: true, MessageID: 99,
-			Options: []GradedOptionV2{{Label: "🇪🇸 Spanish", Mark: train.MarkCorrect}},
+			Options: []GradedOptionV2{{Label: "🇪🇸 Spanish", Mark: MarkCorrect}},
 		},
 		next: PromptV2{Kind: PromptV2KindNothingDue},
 	}
@@ -341,7 +340,7 @@ func TestHandleV2AnswerCallback_GradesEditsAndAdvances(t *testing.T) {
 
 func TestHandleV2AnswerCallback_Stale(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{answer: AnswerResultV2{Stale: true}}
 
 	s := &fakeSession{userID: 1, data: v2AnswerCallbackData(uuid.New(), 0)}
@@ -358,7 +357,7 @@ func TestHandleV2AnswerCallback_Stale(t *testing.T) {
 
 func TestHandleV2AnswerCallback_PhotoUsesEditCaption(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{
 		answer: AnswerResultV2{Correct: true, Text: "ok", MediaPath: "/x.jpg"},
 		next:   PromptV2{Kind: PromptV2KindNothingDue},
@@ -377,7 +376,7 @@ func TestHandleV2AnswerCallback_PhotoUsesEditCaption(t *testing.T) {
 }
 
 func TestHandleV2AnswerCallback_NilTrainerV2IsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, data: v2AnswerCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
@@ -391,7 +390,7 @@ func TestHandleV2AnswerCallback_NilTrainerV2IsInert(t *testing.T) {
 
 func TestHandleV2PracticeAnswerCallback_GradesAndAdvancesViaPractice(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	exID := uuid.New()
 	stub := &stubTrainerV2{
 		answer:   AnswerResultV2{Correct: true, Text: "hola", HasMessage: true, MessageID: 99},
@@ -422,7 +421,7 @@ func TestHandleV2PracticeAnswerCallback_GradesAndAdvancesViaPractice(t *testing.
 
 func TestHandleV2PracticeAnswerCallback_Stale(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{answer: AnswerResultV2{Stale: true}}
 
 	s := &fakeSession{userID: 1, data: v2PracticeCallbackData(uuid.New(), 0)}
@@ -438,7 +437,7 @@ func TestHandleV2PracticeAnswerCallback_Stale(t *testing.T) {
 }
 
 func TestHandleV2PracticeAnswerCallback_NilTrainerV2IsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, data: v2PracticeCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
@@ -451,7 +450,7 @@ func TestHandleV2PracticeAnswerCallback_NilTrainerV2IsInert(t *testing.T) {
 // ── OnText / handleText ──────────────────────────────────────────────────
 
 func TestHandleText_NilTrainerV2IsNoop(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, msgText: "ulica"}
 	if err := b.handleText(context.Background(), s); err != nil {
 		t.Fatalf("handleText: %v", err)
@@ -463,7 +462,7 @@ func TestHandleText_NilTrainerV2IsNoop(t *testing.T) {
 
 func TestHandleText_IgnoresCommands(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	stub := &stubTrainerV2{textOK: true}
 	b.trainerV2 = stub
 
@@ -478,7 +477,7 @@ func TestHandleText_IgnoresCommands(t *testing.T) {
 
 func TestHandleText_NoOpenExercise(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{textOK: false}
 
 	s := &fakeSession{userID: 1, msgText: "ulica"}
@@ -492,7 +491,7 @@ func TestHandleText_NoOpenExercise(t *testing.T) {
 
 func TestHandleText_GradesAndAdvances(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	stub := &stubTrainerV2{
 		textOK: true,
 		answer: AnswerResultV2{Correct: false, Text: "ulica", HasMessage: true, MessageID: 5},
@@ -521,7 +520,7 @@ func TestHandleText_GradesAndAdvances(t *testing.T) {
 
 func TestHandleText_PracticeAdvancesViaNextPracticeV2(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	stub := &stubTrainerV2{
 		textOK:   true,
 		answer:   AnswerResultV2{Correct: true, Text: "ulica", Practice: true},

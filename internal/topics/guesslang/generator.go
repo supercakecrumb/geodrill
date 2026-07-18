@@ -3,8 +3,8 @@
 // "languages/guess-the-language/<group>"): the original sentence -> guess
 // the language multiple-choice quiz, carried onto the topic/item framework.
 // Behavior is preserved (architecture §3.4): the same content sampling
-// (SampleContent, falling back to SampleContentAny — internal/train's
-// pre-v2 buildExercise did exactly this two-step sample), the same
+// (SampleContent, falling back to SampleContentAny — the pre-v2 legacy
+// trainer's buildExercise did exactly this two-step sample), the same
 // distractor-from-group-siblings generation via engram/quiz.Generate, and
 // the same recognition tips (internal/tips).
 package guesslang
@@ -122,8 +122,9 @@ func (g *Generator) BuildExercise(ctx context.Context, rng *rand.Rand, req topic
 }
 
 // itemToSkill adapts a topic item to an engram.Skill, the shape
-// engram/quiz.Generate needs (mirrors storage/engramstore.SkillTo, adapted
-// from storage.Skill to storage.Item): the item's uuid becomes the SkillID,
+// engram/quiz.Generate needs (the same shape the legacy trainer's own
+// storage.Skill -> engram.Skill converter produced, adapted from
+// storage.Skill to storage.Item): the item's uuid becomes the SkillID,
 // its topic id becomes the DeckID (Generate never reads DeckID, but Skill
 // requires one), and Key/Label carry through unchanged.
 func itemToSkill(it storage.Item) engram.Skill {

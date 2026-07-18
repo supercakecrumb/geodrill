@@ -1,6 +1,5 @@
 // stats.go implements telegram.TrainerV2's Stats method: the /stats view
-// model computed over v2 reviews/user_items (the v2 counterpart of the
-// legacy internal/train.Service.Stats).
+// model computed over v2 reviews/user_items.
 package study
 
 import (
@@ -11,16 +10,13 @@ import (
 	"github.com/supercakecrumb/engram"
 	"github.com/supercakecrumb/engram/quiz"
 
-	"github.com/supercakecrumb/geodrill/internal/storage/engramstore"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 )
 
-// forecastDaysV2 is how many days /stats projects the due forecast over
-// (mirrors internal/train.Service's forecastDays).
+// forecastDaysV2 is how many days /stats projects the due forecast over.
 const forecastDaysV2 = 7
 
-// maxConfusionV2 is how many top confusion pairs /stats reports (mirrors
-// internal/train.Service's maxConfusion).
+// maxConfusionV2 is how many top confusion pairs /stats reports.
 const maxConfusionV2 = 5
 
 // Stats implements telegram.TrainerV2.
@@ -50,7 +46,7 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 		return telegram.StatsV2{}, err
 	}
 
-	log, err := engramstore.New(s.store, userID).Log(ctx, epoch)
+	log, err := s.reviewLog(ctx, userID, epoch)
 	if err != nil {
 		return telegram.StatsV2{}, err
 	}
@@ -74,7 +70,7 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 	}
 	cards := make([]engram.CardState, len(cardRows))
 	for i, c := range cardRows {
-		cards[i] = engramstore.CardStateFrom(c)
+		cards[i] = cardStateFrom(c)
 	}
 	forecast := engram.DueForecast(cards, forecastDaysV2, now, loc)
 
@@ -134,15 +130,40 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 }
 
 // DueCount implements telegram.TrainerV2: how many of userID's v2 cards
-// (user_items in lifecycle Introduced/Reviewing) are due right now — the v2
-// counterpart of the legacy internal/train.Service.DueCount, feeding the
-// reminder loop's due-review count (architecture §5.3).
+// (user_items in lifecycle Introduced/Reviewing) are due right now, feeding
+// the reminder loop's due-review count (architecture §5.3).
 func (s *Service) DueCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	return s.store.CountDueUserItems(ctx, userID, s.now())
 }
 
-// labelOrKey returns labels[key], falling back to key itself when absent
-// (mirrors internal/train's labelOr).
+// reviewLog returns userID's reviews at or after since as []engram.Review,
+// for engram.Streak/Accuracy (formerly a storage-layer engram adapter's
+// Log method — moved here since this package is its only remaining caller
+// now that the legacy trainer is gone).
+func (s *Service) reviewLog(ctx context.Context, userID uuid.UUID, since time.Time) ([]engram.Review, error) {
+	recs, err := s.store.ListReviewsSince(ctx, userID, since)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]engram.Review, len(recs))
+	for i, r := range recs {
+		out[i] = engram.Review{
+			SkillID:          engram.SkillID(r.SkillID.String()),
+			Rating:           engram.Rating(r.Rating),
+			ReviewedAt:       r.ReviewedAt,
+			StabilityBefore:  r.StabilityBefore,
+			DifficultyBefore: r.DifficultyBefore,
+			StabilityAfter:   r.StabilityAfter,
+			DifficultyAfter:  r.DifficultyAfter,
+			StateBefore:      engram.State(r.StateBefore),
+			ScheduledDays:    r.ScheduledDays,
+			ElapsedDays:      r.ElapsedDays,
+		}
+	}
+	return out, nil
+}
+
+// labelOrKey returns labels[key], falling back to key itself when absent.
 func labelOrKey(labels map[string]string, key string) string {
 	if v, ok := labels[key]; ok {
 		return v

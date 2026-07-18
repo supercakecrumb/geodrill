@@ -112,7 +112,7 @@ func TestSendIntroCard_Text(t *testing.T) {
 	introID := uuid.New()
 	card := IntroCard{IntroID: introID, Text: "New letter: ў — where is it used?", Reason: IntroOK}
 
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	if err := b.sendIntroCard(context.Background(), s, card); err != nil {
 		t.Fatalf("sendIntroCard: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestSendIntroCard_Photo(t *testing.T) {
 	introID := uuid.New()
 	card := IntroCard{IntroID: introID, Text: "a < b", MediaPath: "/seeds/media/x.jpg", Reason: IntroOK}
 
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	if err := b.sendIntroCard(context.Background(), s, card); err != nil {
 		t.Fatalf("sendIntroCard: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestSendIntroCard_ClosersByReason(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &fakeSession{}
-			b := newTestBot(&stubTrainer{}, &stubStore{})
+			b := newTestBot(&stubStore{})
 			if err := b.sendIntroCard(context.Background(), s, tc.card); err != nil {
 				t.Fatalf("sendIntroCard: %v", err)
 			}
@@ -203,7 +203,7 @@ func TestSendIntroCard_ClosersByReason(t *testing.T) {
 // ── /study, /introduce ───────────────────────────────────────────────────
 
 func TestHandleStudy_DormantWhenNil(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1}
 	if err := b.handleStudy(context.Background(), s); err != nil {
 		t.Fatalf("handleStudy: %v", err)
@@ -215,7 +215,7 @@ func TestHandleStudy_DormantWhenNil(t *testing.T) {
 
 func TestHandleStudy_SendsCard(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.study = &stubStudyService{nextCard: IntroCard{IntroID: uuid.New(), Text: "hello", Reason: IntroOK}}
 
 	s := &fakeSession{userID: 1}
@@ -231,7 +231,7 @@ func TestHandleStudy_SendsCard(t *testing.T) {
 
 func TestHandleCallback_StudyStart(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.study = &stubStudyService{nextCard: IntroCard{IntroID: uuid.New(), Text: "card text", Reason: IntroOK}}
 
 	s := &fakeSession{userID: 1, data: dataStudyStart}
@@ -250,7 +250,7 @@ func TestHandleCallback_StudyStart(t *testing.T) {
 
 func TestHandleIntroCallback_GradesAndAdvancesText(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	introID := uuid.New()
 	stub := &stubStudyService{
 		ack:      IntroAck{Text: "Got it — now in your reviews."},
@@ -294,7 +294,7 @@ func TestHandleIntroCallback_GradesAndAdvancesText(t *testing.T) {
 
 func TestHandleIntroCallback_PhotoCardUsesEditCaption(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	introID := uuid.New()
 	b.study = &stubStudyService{
 		ack:      IntroAck{Text: "ok"},
@@ -319,7 +319,7 @@ func TestHandleIntroCallback_PhotoCardUsesEditCaption(t *testing.T) {
 
 func TestHandleIntroCallback_InvalidDataIsInert(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	stub := &stubStudyService{}
 	b.study = stub
 
@@ -336,7 +336,7 @@ func TestHandleIntroCallback_InvalidDataIsInert(t *testing.T) {
 }
 
 func TestHandleIntroCallback_NilStudyServiceIsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, data: introCallbackData(uuid.New(), engram.IntroGotIt, false)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)

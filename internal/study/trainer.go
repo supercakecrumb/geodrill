@@ -14,10 +14,8 @@ import (
 	"github.com/supercakecrumb/engram/quiz"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/storage/engramstore"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 var _ telegram.TrainerV2 = (*Service)(nil)
@@ -66,8 +64,7 @@ func (s *Service) NextExerciseV2(ctx context.Context, userID uuid.UUID) (telegra
 		}
 		// This item's generator couldn't build ANY of its topic's configured
 		// modes (topics.ErrNoContent or every mode mismatching its shape) —
-		// skip it and try the next due candidate, mirroring how the legacy
-		// train.Service.NextExercise handles buildExercise's found=false.
+		// skip it and try the next due candidate.
 		work = removeDueItem(work, itemID)
 	}
 
@@ -374,16 +371,15 @@ func matchTypedText(optionsJSON []byte, typed string) (correct bool, err error) 
 
 // markFor decorates one option position i: correct if its serialized key
 // equals correctAnswer, wrong if it's the tapped index and not correct,
-// otherwise unmarked. Mirrors train.markFor's shape for the v2 index-based
-// path.
-func markFor(optKey, correctAnswer string, i, chosenIdx int) train.Mark {
+// otherwise unmarked.
+func markFor(optKey, correctAnswer string, i, chosenIdx int) telegram.Mark {
 	switch {
 	case optKey == correctAnswer:
-		return train.MarkCorrect
+		return telegram.MarkCorrect
 	case i == chosenIdx:
-		return train.MarkWrong
+		return telegram.MarkWrong
 	default:
-		return train.MarkNone
+		return telegram.MarkNone
 	}
 }
 
@@ -440,10 +436,9 @@ func (s *Service) AnswerText(ctx context.Context, userID uuid.UUID, typed string
 //
 // Practice answers (ex.Practice == true, set at exercise-creation time by
 // NextPracticeV2): the single-use guard plus InsertReviewV2 with
-// practice=true and every FSRS field zeroed — mirroring the legacy
-// train.Service.recordPractice's "count in stats, never touch scheduling"
-// contract. No PutUserItem, no tier recompute: practice must never move an
-// item's lifecycle or due date.
+// practice=true and every FSRS field zeroed — "count in stats, never touch
+// scheduling." No PutUserItem, no tier recompute: practice must never move
+// an item's lifecycle or due date.
 //
 // A stale (already-answered) exercise is detected by the guard and returns
 // AnswerResultV2{Stale: true} without touching anything else.
@@ -500,12 +495,12 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 			cs := s.sched.NewCardState(now)
 			introducedAt, knownAt := now, time.Time{}
 			if hasUI {
-				cs = engramstore.CardStateFrom(userItem.Card)
+				cs = cardStateFrom(userItem.Card)
 				introducedAt, knownAt = userItem.IntroducedAt, userItem.KnownAt
 			}
 			newCard, rev := s.sched.Next(cs, now, rating)
 			lifecycleAfter := engram.LifecycleFor(newCard)
-			if err := tx.PutUserItem(ctx, userID, itemID, int16(lifecycleAfter), engramstore.CardFieldsFrom(newCard), introducedAt, knownAt); err != nil {
+			if err := tx.PutUserItem(ctx, userID, itemID, int16(lifecycleAfter), cardFieldsFrom(newCard), introducedAt, knownAt); err != nil {
 				return err
 			}
 
@@ -561,8 +556,7 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 // (architecture §1.6 step 5), if it implements topics.TipProvider. Runs
 // AFTER the answer's write path has already committed, and any failure
 // degrades to "no tip" (returns "") rather than propagating — tips are
-// decoration and must never fail the answer, mirroring
-// internal/train.Service.Answer's same tip-is-best-effort contract.
+// decoration and must never fail the answer.
 func (s *Service) tipFor(ctx context.Context, itemID uuid.UUID, ex storage.ExerciseV2, chosen string, correct bool) string {
 	item, found, err := s.store.GetItemByID(ctx, itemID)
 	if err != nil || !found {
@@ -625,15 +619,14 @@ func toQueueItemsV2(due []storage.DueUserItem) []engram.QueueItem {
 	for i, d := range due {
 		out[i] = engram.QueueItem{
 			Skill: engram.Skill{ID: engram.SkillID(d.ItemID.String())},
-			Card:  engramstore.CardStateFrom(d.Card),
+			Card:  cardStateFrom(d.Card),
 		}
 	}
 	return out
 }
 
-// removeDueItem drops one item from a due-item slice (mirrors
-// internal/train's removeSkill, for the "skip and try the next candidate"
-// loop).
+// removeDueItem drops one item from a due-item slice, for the "skip and
+// try the next candidate" loop.
 func removeDueItem(items []storage.DueUserItem, id uuid.UUID) []storage.DueUserItem {
 	out := items[:0:0]
 	for _, it := range items {

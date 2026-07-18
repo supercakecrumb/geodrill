@@ -11,20 +11,9 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/tips"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // ── narrow dependency interfaces (for unit-testing without a DB) ───────────
-
-// trainer is the subset of *train.Service the handlers call, extracted so
-// tests can stub NextResult/AnswerResult/Stats without a database.
-// *train.Service satisfies this structurally.
-type trainer interface {
-	NextExercise(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error)
-	NextPractice(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error)
-	Answer(ctx context.Context, cb train.Callback, now time.Time) (train.AnswerResult, error)
-	DueCount(ctx context.Context, user storage.User, now time.Time) (int, error)
-}
 
 // userStore is the subset of *storage.Store the handlers call, extracted so
 // tests can stub it without a database. *storage.Store satisfies this
@@ -48,14 +37,13 @@ type userStore interface {
 }
 
 // dataStopPractice is the callback payload for the /practice Stop control. It
-// deliberately avoids the "ans"/"prac" prefixes so train.ParseCallback never
-// mistakes it for an answer tap.
+// deliberately avoids the "ans:"/"prac:" prefixes so isLegacyAnswerCallback
+// never mistakes it for a stale legacy answer tap.
 const dataStopPractice = "pstop"
 
 // dataStartTrain is the callback payload for the "Start reviewing" button on
 // the daily reminder — tapping it kicks off the /train flow without the user
-// typing a command. Two segments (no third ":") so train.ParseCallback ignores
-// it.
+// typing a command.
 const dataStartTrain = "train:start"
 
 // ── daily-cap bounds ────────────────────────────────────────────────────────
@@ -434,15 +422,14 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleStopPractice(ctx, s)
 	case data == dataStartTrain:
 		return b.handleStartTrainCallback(ctx, s)
-	default: // includes train.DataNoop and any unrecognized payload
+	default: // includes DataNoop and any unrecognized payload
 		return s.Respond("")
 	}
 }
 
 // isLegacyAnswerCallback reports whether data has the shape of a pre-v2
-// "ans:<uuid>:<key>" or "prac:<uuid>:<key>" answer tap (the prefixes
-// train.ParseCallback used to parse) — recognized only by shape now, since
-// the legacy trainer that graded them no longer exists.
+// "ans:<uuid>:<key>" or "prac:<uuid>:<key>" answer tap — recognized only by
+// shape now, since the legacy trainer that graded them no longer exists.
 func isLegacyAnswerCallback(data string) bool {
 	return strings.HasPrefix(data, "ans:") || strings.HasPrefix(data, "prac:")
 }

@@ -7,10 +7,11 @@
 // cap). cmd/bot constructs one Service and hands it to telegram.Config as
 // all four fields.
 //
-// Service follows internal/train.Service's injected-clock/rng style: a
-// deterministic *rand.Rand (seeded once at construction, guarded by a
-// mutex — math/rand.Rand is not concurrency-safe) and an injectable now
-// func() time.Time, so tests can fix both.
+// Service uses the same injected-clock/rng style geodrill's exercise
+// engines have always used: a deterministic *rand.Rand (seeded once at
+// construction, guarded by a mutex — math/rand.Rand is not
+// concurrency-safe) and an injectable now func() time.Time, so tests can
+// fix both.
 //
 // # Contract friction: the bridge row (see bridge.go)
 //
@@ -117,8 +118,8 @@ func (s *Service) Now() time.Time { return s.now() }
 
 // ── shared helpers ──────────────────────────────────────────────────────
 
-// locationFor mirrors internal/telegram/internal/train's locationOf: resolve
-// a user's IANA timezone, falling back to UTC on an empty or invalid value.
+// locationFor resolves a user's IANA timezone, falling back to UTC on an
+// empty or invalid value.
 func locationFor(u storage.User) *time.Location {
 	if u.Timezone == "" {
 		return time.UTC

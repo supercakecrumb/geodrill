@@ -51,9 +51,8 @@ func (s *Service) NextPracticeV2(ctx context.Context, userID uuid.UUID) (telegra
 		return telegram.PromptV2{Kind: telegram.PromptV2KindNoContent}, nil
 	}
 
-	// Try items in a random order until one builds an exercise (mirrors
-	// internal/train.Service.NextPractice's own "try until one has content"
-	// loop).
+	// Try items in a random order until one builds an exercise ("try until
+	// one has content" loop).
 	for _, idx := range s.perm(len(items)) {
 		prompt, built, err := s.buildExerciseForItem(ctx, user, items[idx], true, now)
 		if err != nil {
@@ -66,8 +65,8 @@ func (s *Service) NextPracticeV2(ctx context.Context, userID uuid.UUID) (telegra
 	return telegram.PromptV2{Kind: telegram.PromptV2KindNoContent}, nil
 }
 
-// perm returns a random permutation of [0,n) using the guarded rng (mirrors
-// internal/train.Service.perm — math/rand.Rand is not concurrency-safe).
+// perm returns a random permutation of [0,n) using the guarded rng
+// (math/rand.Rand is not concurrency-safe).
 func (s *Service) perm(n int) []int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

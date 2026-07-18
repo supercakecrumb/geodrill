@@ -2,7 +2,7 @@
 // conflict-avoidance seam that lets every quiz mechanic (special characters,
 // road sides, common words, guess-the-language, ...) live in its own
 // subpackage under internal/topics/<name>/ and register itself by
-// topics.quiz_kind, so neither internal/train nor internal/telegram ever
+// topics.quiz_kind, so neither internal/study nor internal/telegram ever
 // switch on a topic slug (architecture §3/§8, task W2.3).
 //
 // # Adding a new topic
@@ -10,7 +10,7 @@
 // A topic worker implements Generator in its own package, keyed by the
 // quiz_kind it handles (topics.Topic.QuizKind), and calls Register — from an
 // init() in that package, or explicit wiring in cmd/bot — so this package
-// and internal/train never import a topic package by name. Get/Kinds are how
+// and internal/study never import a topic package by name. Get/Kinds are how
 // callers discover what's registered without a compile-time dependency on
 // any individual topic.
 //
@@ -28,7 +28,7 @@
 //
 // ...and carry an implementation of it as a field on the concrete generator
 // struct, injected by the caller (cmd/bot) at construction time — the same
-// pattern internal/train already uses for *storage.Store. Keeping the
+// pattern internal/study already uses for *storage.Store. Keeping the
 // storage dependency on the topic's own struct (rather than on Generator or
 // the registry) is what lets two topic workers land in the same wave without
 // ever touching each other's files.
@@ -107,14 +107,14 @@ type IntroCard struct {
 
 // ErrNoContent is the sentinel a Generator returns from BuildExercise when
 // item cannot currently be quizzed (e.g. its content pool is empty). Callers
-// (internal/train) treat this like the pre-v2 buildExercise "found=false"
-// path: skip the item and try the next due/introducible candidate rather
-// than failing the whole request.
+// (internal/study) treat this like the pre-v2 legacy trainer's buildExercise
+// "found=false" path: skip the item and try the next due/introducible
+// candidate rather than failing the whole request.
 var ErrNoContent = fmt.Errorf("topics: no content available for item")
 
 // Generator builds exercises and introduction cards for one quiz_kind. An
 // implementation is registered once (via Register) and looked up by
-// topics.quiz_kind (via Get) — nothing in internal/train or
+// topics.quiz_kind (via Get) — nothing in internal/study or
 // internal/telegram switches on a topic slug directly.
 type Generator interface {
 	// Kind returns the quiz_kind this generator handles (matches

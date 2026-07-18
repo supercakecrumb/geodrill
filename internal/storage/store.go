@@ -1,7 +1,7 @@
 // Package storage is geodrill's PostgreSQL layer: a thin, engram-free wrapper
-// around the sqlc-generated queries (internal/storage/db). It exposes clean app
-// model types (no pgtype leakage) for the ingest tool, the bot, and the engram
-// adapters (internal/storage/engramstore).
+// around the sqlc-generated queries (internal/storage/db). It exposes clean
+// app model types (no pgtype leakage) for the ingest tool, the bot, and
+// internal/study's engram-facing conversions.
 package storage
 
 import (

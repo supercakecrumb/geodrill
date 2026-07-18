@@ -194,7 +194,7 @@ func TestParseTopicToggleCallback(t *testing.T) {
 
 func TestHandleTopicToggle_FlipsAndRerenders(t *testing.T) {
 	topicID := uuid.New()
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	stub := &stubTopicService{
 		children: map[uuid.UUID]TopicView{
 			topicID: {TopicID: topicID, IsQuizzable: true, Enabled: true, Breadcrumb: []TopicCrumb{{TopicID: topicID, Name: "Roads"}}},
@@ -218,7 +218,7 @@ func TestHandleTopicToggle_FlipsAndRerenders(t *testing.T) {
 }
 
 func TestHandleTopicToggle_NilTopicServiceIsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, data: "topen:" + uuid.New().String()}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
@@ -229,7 +229,7 @@ func TestHandleTopicToggle_NilTopicServiceIsInert(t *testing.T) {
 }
 
 func TestHandleTopicToggle_InvalidDataIsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	b.topics = &stubTopicService{}
 	s := &fakeSession{userID: 1, data: "topen:not-a-uuid"}
 	if err := b.handleCallback(context.Background(), s); err != nil {
@@ -243,7 +243,7 @@ func TestHandleTopicToggle_InvalidDataIsInert(t *testing.T) {
 // ── /topics ──────────────────────────────────────────────────────────────
 
 func TestHandleTopics_DormantWhenNil(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1}
 	if err := b.handleTopics(context.Background(), s); err != nil {
 		t.Fatalf("handleTopics: %v", err)
@@ -254,7 +254,7 @@ func TestHandleTopics_DormantWhenNil(t *testing.T) {
 }
 
 func TestHandleTopics_SendsRootListing(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	b.topics = &stubTopicService{root: []TopicRow{{Name: "Languages"}}}
 
 	s := &fakeSession{userID: 1}
@@ -273,7 +273,7 @@ func TestHandleTopics_SendsRootListing(t *testing.T) {
 
 func TestHandleTopicCallback_Drill(t *testing.T) {
 	topicID := uuid.New()
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	b.topics = &stubTopicService{
 		children: map[uuid.UUID]TopicView{
 			topicID: {
@@ -303,7 +303,7 @@ func TestHandleTopicCallback_Drill(t *testing.T) {
 }
 
 func TestHandleTopicCallback_Root(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	b.topics = &stubTopicService{root: []TopicRow{{Name: "Languages"}, {Name: "Roads"}}}
 
 	s := &fakeSession{userID: 1, messageID: 7, data: dataTopicsRoot}
@@ -319,7 +319,7 @@ func TestHandleTopicCallback_Root(t *testing.T) {
 }
 
 func TestHandleTopicCallback_InvalidDataIsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	stub := &stubTopicService{}
 	b.topics = stub
 
@@ -336,7 +336,7 @@ func TestHandleTopicCallback_InvalidDataIsInert(t *testing.T) {
 }
 
 func TestHandleTopicCallback_NilTopicServiceIsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, data: "top:" + uuid.New().String()}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)

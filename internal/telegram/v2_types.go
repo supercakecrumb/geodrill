@@ -23,8 +23,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/supercakecrumb/engram"
 	"github.com/supercakecrumb/engram/quiz"
-
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // ── /study — introductions (architecture §5.1) ──────────────────────────────
@@ -237,11 +235,41 @@ type PromptV2 struct {
 	Practice bool
 }
 
+// Mark is the visual state of a graded answer option (formerly the legacy
+// trainer's Mark type — moved here since this package is its only user now
+// that the legacy /train rendering path is gone).
+type Mark int
+
+const (
+	// MarkNone: this option was neither the answer nor the (wrong) tap.
+	MarkNone Mark = iota
+	// MarkCorrect: this option is the correct answer (✅).
+	MarkCorrect
+	// MarkWrong: this option is the wrong one the user tapped (❌).
+	MarkWrong
+)
+
+// DecorateLabel prefixes a button label with its grade mark.
+func DecorateLabel(label string, m Mark) string {
+	switch m {
+	case MarkCorrect:
+		return "✅ " + label
+	case MarkWrong:
+		return "❌ " + label
+	default:
+		return label
+	}
+}
+
+// DataNoop is the inert callback used on already-graded buttons (formerly
+// the legacy trainer's DataNoop constant).
+const DataNoop = "noop"
+
 // GradedOptionV2 is one OptionV2 after grading, for the in-place edit.
 type GradedOptionV2 struct {
 	Index int
 	Label string
-	Mark  train.Mark
+	Mark  Mark
 }
 
 // AnswerResultV2 is the outcome of grading a v2 tap (AnswerV2) or a typed

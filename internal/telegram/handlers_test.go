@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // ── fakes ────────────────────────────────────────────────────────────────
@@ -124,29 +123,6 @@ func (f *fakeSession) Respond(toast string) error {
 // is set and no specific editMsgError was provided.
 var errEditMessage = errors.New("message can't be edited")
 
-// stubTrainer implements trainer with canned results, so the callback
-// handler can be exercised without internal/train or a database.
-type stubTrainer struct {
-	answer train.AnswerResult
-	next   train.NextResult
-}
-
-func (s *stubTrainer) NextExercise(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error) {
-	return s.next, nil
-}
-
-func (s *stubTrainer) NextPractice(ctx context.Context, user storage.User, now time.Time) (train.NextResult, error) {
-	return s.next, nil
-}
-
-func (s *stubTrainer) Answer(ctx context.Context, cb train.Callback, now time.Time) (train.AnswerResult, error) {
-	return s.answer, nil
-}
-
-func (s *stubTrainer) DueCount(ctx context.Context, user storage.User, now time.Time) (int, error) {
-	return 0, nil
-}
-
 // stubStore implements userStore with a fixed user, so handlers can run
 // without a database.
 type stubStore struct {
@@ -227,10 +203,9 @@ func (s *stubStore) PracticeStatsSince(ctx context.Context, userID uuid.UUID, si
 	return s.practiceTotal, s.practiceCorrect, nil
 }
 
-func newTestBot(tr *stubTrainer, st *stubStore) *Bot {
+func newTestBot(st *stubStore) *Bot {
 	return &Bot{
 		store:       st,
-		svc:         tr,
 		logger:      slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError + 100})),
 		now:         time.Now,
 		remindState: make(map[uuid.UUID]reminderState),
@@ -250,7 +225,7 @@ func TestHandleStopPractice(t *testing.T) {
 		practiceTotal:   8,
 		practiceCorrect: 6,
 	}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	// A recorded session start so the summary counts from there.
 	b.markPracticeStart(7, time.Date(2026, 7, 15, 20, 0, 0, 0, time.UTC))
 
@@ -286,7 +261,7 @@ func TestHandleStopPractice(t *testing.T) {
 
 func TestHandleStopPractice_NoAnswers(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.markPracticeStart(7, time.Now())
 	s := &fakeSession{userID: 7, messageID: 55, data: dataStopPractice}
 
@@ -302,7 +277,7 @@ func TestHandleStopPractice_NoAnswers(t *testing.T) {
 // daily reminder: it acks the tap and dispatches the next due exercise.
 func TestHandleCallback_StartTrain(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	b.trainerV2 = &stubTrainerV2{next: PromptV2{
 		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "Uma frase.",
 		Options: []OptionV2{{Index: 0, Label: "🇵🇹 Portuguese"}, {Index: 1, Label: "🇪🇸 Spanish"}},
@@ -335,7 +310,7 @@ func TestHandleCallback_StartTrain(t *testing.T) {
 // trainv2_test.go's TestHandleV2AnswerCallback_* tests.
 
 func TestHandleCallback_LegacyAnswerIsExpired(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 
 	for _, data := range []string{"ans:" + uuid.NewString() + ":por", "prac:" + uuid.NewString() + ":fin"} {
 		s := &fakeSession{userID: 1, messageID: 42, data: data}
@@ -355,7 +330,7 @@ func TestHandleCallback_LegacyAnswerIsExpired(t *testing.T) {
 // ── /decks (retired onto /topics) ────────────────────────────────────────
 
 func TestHandleDecks_AliasesTopicsWhenWired(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	b.topics = &stubTopicService{root: []TopicRow{{Name: "Languages"}}}
 
 	s := &fakeSession{userID: 1}
@@ -369,7 +344,7 @@ func TestHandleDecks_AliasesTopicsWhenWired(t *testing.T) {
 
 func TestHandleDecks_LegacyPickerWhenTopicsNil(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 
 	s := &fakeSession{userID: 1}
 	if err := b.handleDecks(context.Background(), s); err != nil {
@@ -479,7 +454,7 @@ func (s *stubIntroCapStore) SetIntroCap(ctx context.Context, userID uuid.UUID, c
 }
 
 func TestIntroCapFor(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b := newTestBot(&stubStore{})
 	if got := b.introCapFor(context.Background(), uuid.New()); got != nil {
 		t.Fatalf("expected nil when IntroCapStore is unset, got %v", *got)
 	}
@@ -492,7 +467,7 @@ func TestIntroCapFor(t *testing.T) {
 
 func TestHandleIntroCapChange_AdjustsAndRerenders(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	stub := &stubIntroCapStore{cap: 10}
 	b.introCap = stub
 
@@ -518,7 +493,7 @@ func TestHandleIntroCapChange_AdjustsAndRerenders(t *testing.T) {
 
 func TestHandleIntroCapChange_ClampsToBounds(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	stub := &stubIntroCapStore{cap: maxIntroCap}
 	b.introCap = stub
 
@@ -532,7 +507,7 @@ func TestHandleIntroCapChange_ClampsToBounds(t *testing.T) {
 }
 
 func TestHandleIntroCapChange_NilStoreIsInert(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
@@ -573,7 +548,7 @@ func assertHasBtn(t *testing.T, btns []Btn, want Btn) {
 
 func TestHandleStyleCycle(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", LabelStyle: "name"}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	s := &fakeSession{userID: 1, messageID: 42, data: "style:cycle"}
 
 	if err := b.handleCallback(context.Background(), s); err != nil {
@@ -605,7 +580,7 @@ func TestHandleStyleCycle(t *testing.T) {
 
 func TestHandleCapChange_StepsOfFive(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", DailyNewCap: 10}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	s := &fakeSession{userID: 1, messageID: 42, data: "cap:inc5"}
 
 	if err := b.handleCallback(context.Background(), s); err != nil {
@@ -631,7 +606,7 @@ func TestHandleCapChange_StepsOfFive(t *testing.T) {
 
 func TestHandleReminderHourChange(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", ReminderHour: 9}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	s := &fakeSession{userID: 1, messageID: 42, data: "rhour:inc"}
 
 	if err := b.handleCallback(context.Background(), s); err != nil {
@@ -657,7 +632,7 @@ func TestHandleReminderHourChange(t *testing.T) {
 
 func TestHandleFollowUpToggle(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", FollowUpEnabled: true}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	s := &fakeSession{userID: 1, messageID: 42, data: "fup:toggle"}
 
 	if err := b.handleCallback(context.Background(), s); err != nil {
@@ -673,7 +648,7 @@ func TestHandleFollowUpToggle(t *testing.T) {
 
 func TestHandleFollowUpDelayCycle(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", FollowUpDelayMin: 30}}
-	b := newTestBot(&stubTrainer{}, st)
+	b := newTestBot(st)
 	s := &fakeSession{userID: 1, messageID: 42, data: "fupdelay:cycle"}
 
 	for _, want := range []int{60, 120, 30} { // 30 -> 60 -> 120 -> wrap 30
@@ -841,7 +816,7 @@ func TestFormatStatsV2_SingularStreak(t *testing.T) {
 // ── /help ────────────────────────────────────────────────────────────────
 
 func TestHandleHelp(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: storage.User{ID: uuid.New()}})
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
 	s := &fakeSession{userID: 1}
 
 	if err := b.handleHelp(context.Background(), s); err != nil {
@@ -861,7 +836,7 @@ func TestHandleHelp(t *testing.T) {
 }
 
 func TestHandleHelp_MentionsStudyAndTopicsWhenWired(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{user: storage.User{ID: uuid.New()}})
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
 	b.study = &stubStudyService{}
 	b.topics = &stubTopicService{}
 	s := &fakeSession{userID: 1}

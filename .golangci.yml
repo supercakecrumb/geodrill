@@ -5,19 +5,12 @@ version: "2"
 # because that default set does not pass on current master, and per the CI/CD
 # bootstrap brief this is fixed via config, never by editing .go files. Every
 # exclusion below is scoped and documented; nothing is blanket-disabled.
+#
+# The staticcheck QF1002/QF1008 exclusion this file used to carry (for
+# internal/train/callback.go and service.go) was removed when internal/train
+# was deleted (wave 4.3a) — nothing else in the tree triggers those checks.
 linters:
   default: standard
-  settings:
-    staticcheck:
-      # QF1002/QF1008 are staticcheck's "quickfix" style suggestions
-      # (tagged-switch rewrite, embedded-field-selector removal) — cosmetic
-      # refactors, not correctness issues. Every other staticcheck/SA/ST
-      # check stays enabled. Hit on current master:
-      #   internal/train/callback.go:80  QF1002
-      #   internal/train/service.go:83   QF1008
-      checks:
-        - -QF1002
-        - -QF1008
   exclusions:
     presets:
       # Standard golangci-lint preset (the same EXC0001-class exclusion most

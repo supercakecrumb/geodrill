@@ -1,8 +1,8 @@
 // Package telegram is geodrill's Telegram bot layer (architecture contract
-// §5). It renders internal/train's exercise/answer/stats output over
-// gopkg.in/telebot.v4, and stays deliberately thin: all scheduling,
-// generation, and grading logic lives in internal/train; this package only
-// talks to Telegram and internal/storage's user/deck bookkeeping.
+// §5). It renders internal/study's mode-aware exercise/intro/topic/stats
+// output over gopkg.in/telebot.v4, and stays deliberately thin: all
+// scheduling, generation, and grading logic lives in internal/study; this
+// package only talks to Telegram and internal/storage's user bookkeeping.
 //
 // Handler logic (handlers.go) is written against the small Session
 // interface (session.go) rather than telebot.Context directly, so it can be
@@ -23,7 +23,6 @@ import (
 	telebot "gopkg.in/telebot.v4"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // reminderCheckInterval is how often the reminder goroutine wakes up to
@@ -61,11 +60,10 @@ type reminderState struct {
 // legacy trainer fallback they used to have is gone, and the free-text
 // OnText handler is only registered when it's non-nil.
 type Config struct {
-	Token   string
-	Store   *storage.Store
-	Service *train.Service
-	Logger  *slog.Logger
-	Now     func() time.Time
+	Token  string
+	Store  *storage.Store
+	Logger *slog.Logger
+	Now    func() time.Time
 
 	// StudyService powers /study, /introduce, and the reminder loop's
 	// introduction nudge (architecture §5.1, §5.3).
@@ -81,11 +79,10 @@ type Config struct {
 	IntroCapStore IntroCapStore
 }
 
-// Bot wires telebot to geodrill's train/storage layers.
+// Bot wires telebot to geodrill's study/storage layers.
 type Bot struct {
 	tb     *telebot.Bot
 	store  userStore
-	svc    trainer
 	logger *slog.Logger
 	now    func() time.Time
 
@@ -154,7 +151,6 @@ func New(cfg Config) (*Bot, error) {
 	b := &Bot{
 		tb:            tb,
 		store:         cfg.Store,
-		svc:           cfg.Service,
 		logger:        logger,
 		now:           now,
 		study:         cfg.StudyService,
@@ -584,7 +580,8 @@ func (s *tbSession) MessageText() string {
 // only Text and Data (no Unique): telebot's processButtons only rewrites
 // Data into the "\f<unique>|<data>" form when Unique is non-empty, so
 // leaving it empty guarantees the callback_data Telegram sends back is
-// exactly btn.Data, letting train.ParseCallback parse it directly.
+// exactly btn.Data, letting handleCallback's prefix-based routing parse it
+// directly.
 func buildMarkup(rows [][]Btn) *telebot.ReplyMarkup {
 	markup := &telebot.ReplyMarkup{}
 	trows := make([]telebot.Row, len(rows))

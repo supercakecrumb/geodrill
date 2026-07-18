@@ -7,8 +7,8 @@ import (
 	"github.com/supercakecrumb/engram/quiz"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 func mustJSON(t *testing.T, v any) []byte {
@@ -38,10 +38,10 @@ func TestGradeIndexedSingle(t *testing.T) {
 	if len(graded) != 3 {
 		t.Fatalf("expected 3 graded options, got %d", len(graded))
 	}
-	if graded[1].Mark != train.MarkCorrect {
+	if graded[1].Mark != telegram.MarkCorrect {
 		t.Fatalf("tapped correct option should be MarkCorrect, got %v", graded[1].Mark)
 	}
-	if graded[0].Mark != train.MarkNone || graded[2].Mark != train.MarkNone {
+	if graded[0].Mark != telegram.MarkNone || graded[2].Mark != telegram.MarkNone {
 		t.Fatalf("untapped wrong options should be MarkNone, got %v / %v", graded[0].Mark, graded[2].Mark)
 	}
 
@@ -53,10 +53,10 @@ func TestGradeIndexedSingle(t *testing.T) {
 	if correct2 || chosen2 != "rus" {
 		t.Fatalf("expected correct=false chosen=rus, got correct=%v chosen=%q", correct2, chosen2)
 	}
-	if graded2[0].Mark != train.MarkWrong {
+	if graded2[0].Mark != telegram.MarkWrong {
 		t.Fatalf("tapped wrong option should be MarkWrong, got %v", graded2[0].Mark)
 	}
-	if graded2[1].Mark != train.MarkCorrect {
+	if graded2[1].Mark != telegram.MarkCorrect {
 		t.Fatalf("correct option should still be marked correct, got %v", graded2[1].Mark)
 	}
 
@@ -91,7 +91,7 @@ func TestGradeIndexedSet(t *testing.T) {
 	if chosen != "dan,nor" {
 		t.Fatalf("chosen should be the canonical form, got %q", chosen)
 	}
-	if graded[1].Mark != train.MarkCorrect || graded[0].Mark != train.MarkNone {
+	if graded[1].Mark != telegram.MarkCorrect || graded[0].Mark != telegram.MarkNone {
 		t.Fatalf("unexpected marks: %+v", graded)
 	}
 
@@ -102,7 +102,7 @@ func TestGradeIndexedSet(t *testing.T) {
 	if correctWrong {
 		t.Fatalf("single-member set should not match the two-member correct answer")
 	}
-	if gradedWrong[0].Mark != train.MarkWrong {
+	if gradedWrong[0].Mark != telegram.MarkWrong {
 		t.Fatalf("tapped wrong set option should be MarkWrong, got %v", gradedWrong[0].Mark)
 	}
 }

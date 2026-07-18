@@ -9,8 +9,8 @@ package study_test
 // Skipped unless GEODRILL_TEST_DATABASE_URL is set. Its database name MUST
 // contain "test" (testDSN's safety fuse) since freshSchema drops every
 // table (up -> down -> up) before the test runs. When running integration
-// tests across packages, use `go test -p 1 ./...` so this and the
-// storage/train integration tests never reset the shared schema
+// tests across packages, use `go test -p 1 ./...` so this and the storage
+// package's own integration tests never reset the shared schema
 // concurrently (architecture contract, "verified baselines").
 import (
 	"context"
@@ -36,13 +36,11 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
 	"github.com/supercakecrumb/geodrill/internal/topics/words"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
-// testDSN mirrors internal/storage/integration_test.go's stronger safety
-// fuse (database name must contain "test") rather than internal/train's
-// weaker version (which trusts the env var outright) — this test drops
-// every table via freshSchema, so it must never be pointed at a live DB.
+// testDSN mirrors internal/storage/integration_test.go's safety fuse
+// (database name must contain "test") — this test drops every table via
+// freshSchema, so it must never be pointed at a live DB.
 func testDSN(t *testing.T) string {
 	t.Helper()
 	dsn := os.Getenv("GEODRILL_TEST_DATABASE_URL")
@@ -420,7 +418,7 @@ func TestV2FullLoop(t *testing.T) {
 	}
 	foundWrongMark := false
 	for _, o := range wrongRes.Options {
-		if o.Mark == train.MarkWrong {
+		if o.Mark == telegram.MarkWrong {
 			foundWrongMark = true
 		}
 	}
@@ -588,8 +586,7 @@ func TestV2FullLoop(t *testing.T) {
 	}
 
 	// ── NextPracticeV2 / AnswerV2 (practice=true): counts in stats but
-	// applies ZERO FSRS movement (architecture: /practice's contract, ported
-	// from the legacy train.Service.recordPractice) ──────────────────────
+	// applies ZERO FSRS movement (architecture: /practice's contract) ────
 	practiceUser, err := store.UpsertUser(ctx, 900010, "v2-practice-tester")
 	if err != nil {
 		t.Fatalf("create practice user: %v", err)

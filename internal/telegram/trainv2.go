@@ -11,16 +11,15 @@ import (
 	"github.com/supercakecrumb/engram/quiz"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // dataV2AnswerPrefix is the callback prefix for TrainerV2's index-based
-// answers: "v2a:<exercise-uuid>:<index>". Architecture §5.4 reserves the
-// existing "ans:"/"prac:" prefixes (train.ParseCallback) for a LATER wave's
-// key→index migration of the legacy single-choice path — v2 exercises
-// answer through this separate prefix instead, so the two migrations never
-// collide. Budget: "v2a:"(4) + uuid(36) + ":"(1) + index(up to 3 digits) =
-// 44, comfortably under Telegram's 64-byte callback_data cap.
+// answers: "v2a:<exercise-uuid>:<index>". The legacy "ans:"/"prac:"
+// key-based prefixes are retired (isLegacyAnswerCallback in handlers.go
+// now only recognizes their shape, to toast a stale button as expired) —
+// v2 exercises have always answered through this separate index-based
+// prefix instead. Budget: "v2a:"(4) + uuid(36) + ":"(1) + index(up to 3
+// digits) = 44, comfortably under Telegram's 64-byte callback_data cap.
 const dataV2AnswerPrefix = "v2a:"
 
 // v2AnswerCallbackData builds one option button's payload.
@@ -304,14 +303,13 @@ func (b *Bot) applyV2AnswerEdit(s Session, res AnswerResultV2) {
 }
 
 // gradedOptionRowsV2 lays out graded v2 options two per row, decorated with
-// ✅/❌ (train.DecorateLabel) and wired to the inert noop callback —
-// mirroring gradedButtonRows for the legacy path.
+// ✅/❌ (DecorateLabel) and wired to the inert noop callback.
 func gradedOptionRowsV2(options []GradedOptionV2) [][]Btn {
 	if len(options) == 0 {
 		return nil
 	}
 	graded := func(o GradedOptionV2) Btn {
-		return Btn{Label: train.DecorateLabel(o.Label, o.Mark), Data: train.DataNoop}
+		return Btn{Label: DecorateLabel(o.Label, o.Mark), Data: DataNoop}
 	}
 	rows := make([][]Btn, 0, (len(options)+1)/2)
 	for i := 0; i < len(options); i += 2 {

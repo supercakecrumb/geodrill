@@ -11,7 +11,6 @@ import (
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/storage/engramstore"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
 )
@@ -151,7 +150,7 @@ func (s *Service) AnswerIntro(ctx context.Context, userID, introID uuid.UUID, ou
 	}
 	card := storage.CardFields{}
 	if hasCard {
-		card = engramstore.CardFieldsFrom(cs)
+		card = cardFieldsFrom(cs)
 	}
 
 	var stale bool

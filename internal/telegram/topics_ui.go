@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 // dataTopicsRoot is the "top:root" callback payload (architecture §5.4):
@@ -235,7 +233,7 @@ func topicsViewRows(view TopicView) [][]Btn {
 	rows := make([][]Btn, 0, len(view.Children)+len(view.Tiers)+2)
 	if view.IsQuizzable {
 		for _, t := range view.Tiers {
-			rows = append(rows, []Btn{{Label: tierRowLabel(t), Data: train.DataNoop}})
+			rows = append(rows, []Btn{{Label: tierRowLabel(t), Data: DataNoop}})
 		}
 		rows = append(rows, []Btn{topicToggleButton(view)})
 	} else {

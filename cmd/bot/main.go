@@ -17,13 +17,11 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/study"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
-	"github.com/supercakecrumb/geodrill/internal/tips"
 	"github.com/supercakecrumb/geodrill/internal/topics"
 	"github.com/supercakecrumb/geodrill/internal/topics/guesslang"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
 	"github.com/supercakecrumb/geodrill/internal/topics/words"
-	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
 func main() {
@@ -56,7 +54,6 @@ func run() error {
 	defer store.Close()
 
 	sched := engram.NewScheduler(engram.WithRetention(cfg.FSRSRetention))
-	svc := train.NewService(store, sched, tips.Provider(), time.Now().UnixNano(), nil)
 
 	// Register every v2 topic Generator once at startup, keyed by quiz_kind
 	// (architecture §8): this is the only place that imports all four topic
@@ -72,14 +69,14 @@ func run() error {
 	studySvc := study.New(store, sched, study.GlobalRegistry, nil, time.Now().UnixNano())
 
 	bot, err := telegram.New(telegram.Config{
-		Token:   cfg.TelegramToken,
-		Store:   store,
-		Service: svc,
-		Logger:  logger,
+		Token:  cfg.TelegramToken,
+		Store:  store,
+		Logger: logger,
 
-		// v2 wiring (architecture §5, §8 W4.3): studySvc implements all
-		// three v2 service interfaces, and *storage.Store implements
-		// IntroCapStore directly (internal/storage/introcap.go).
+		// studySvc serves every v2 service interface (architecture §5, §8
+		// W4.3a: study.Service is now the ONLY exercise/answer/stats engine
+		// — the legacy trainer it replaced is gone), and *storage.Store
+		// implements IntroCapStore directly (internal/storage/introcap.go).
 		StudyService:  studySvc,
 		TopicService:  studySvc,
 		TrainerV2:     studySvc,

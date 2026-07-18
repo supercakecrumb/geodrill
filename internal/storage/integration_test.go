@@ -22,11 +22,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/supercakecrumb/engram"
-
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/storage/db"
-	"github.com/supercakecrumb/geodrill/internal/storage/engramstore"
 )
 
 func testDSN(t *testing.T) string {
@@ -241,77 +238,6 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 	if ok {
 		t.Fatalf("por pool should be empty")
-	}
-}
-
-func TestEngramAdapterRoundTrip(t *testing.T) {
-	dsn := testDSN(t)
-	freshSchema(t, dsn)
-
-	ctx := context.Background()
-	st, err := storage.New(ctx, dsn)
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	defer st.Close()
-
-	u, err := st.UpsertUser(ctx, 7, "adapter")
-	if err != nil {
-		t.Fatalf("user: %v", err)
-	}
-	deck, err := st.UpsertDeck(ctx, "cjk", "CJK")
-	if err != nil {
-		t.Fatalf("deck: %v", err)
-	}
-	jpn, err := st.UpsertSkill(ctx, deck.ID, "jpn", "Japanese")
-	if err != nil {
-		t.Fatalf("skill: %v", err)
-	}
-
-	adapter := engramstore.New(st, u.ID)
-
-	// SkillStore.Skills
-	got, err := adapter.Skills(ctx, engram.DeckID(deck.ID.String()))
-	if err != nil || len(got) != 1 || got[0].Key != "jpn" {
-		t.Fatalf("adapter Skills = %+v, %v", got, err)
-	}
-
-	// Card: unseen -> false
-	sid := engram.SkillID(jpn.ID.String())
-	_, seen, err := adapter.Card(ctx, sid)
-	if err != nil || seen {
-		t.Fatalf("unseen card: seen=%v err=%v", seen, err)
-	}
-
-	// PutCard then Card
-	now := time.Now().UTC().Truncate(time.Second)
-	cs := engram.CardState{Due: now.Add(48 * time.Hour), Stability: 10, Difficulty: 6, Reps: 3, Lapses: 1, State: engram.StateReview, LastReview: now}
-	if err := adapter.PutCard(ctx, sid, cs); err != nil {
-		t.Fatalf("adapter PutCard: %v", err)
-	}
-	back, seen, err := adapter.Card(ctx, sid)
-	if err != nil || !seen {
-		t.Fatalf("adapter Card after put: seen=%v err=%v", seen, err)
-	}
-	if !back.Due.Equal(cs.Due) || back.Stability != 10 || back.State != engram.StateReview || back.Reps != 3 {
-		t.Fatalf("adapter card mismatch: %+v vs %+v", back, cs)
-	}
-
-	// ReviewStore.Append + Log
-	rev := engram.Review{
-		SkillID: sid, Rating: engram.Good, ReviewedAt: now,
-		StabilityBefore: 5, DifficultyBefore: 6, StabilityAfter: 10, DifficultyAfter: 6,
-		StateBefore: engram.StateLearning, ScheduledDays: 2, ElapsedDays: 1,
-	}
-	if err := adapter.Append(ctx, rev); err != nil {
-		t.Fatalf("adapter Append: %v", err)
-	}
-	log, err := adapter.Log(ctx, now.Add(-time.Hour))
-	if err != nil || len(log) != 1 {
-		t.Fatalf("adapter Log = %d, %v", len(log), err)
-	}
-	if log[0].Rating != engram.Good || log[0].StabilityAfter != 10 || log[0].ScheduledDays != 2 {
-		t.Fatalf("adapter log mismatch: %+v", log[0])
 	}
 }
 
