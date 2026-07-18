@@ -1,0 +1,2 @@
+kind: Added
+body: "Add internal/topics/specialchars.Seed (quiz_kind char_language): loads seeds/special_chars.yaml into the languages/special-characters topic (base_tier 2, exercise_modes {single,set,text}) and one item per char, idempotent on re-run"
