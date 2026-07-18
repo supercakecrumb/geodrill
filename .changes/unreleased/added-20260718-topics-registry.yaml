@@ -1,2 +1,0 @@
-kind: Added
-body: Add internal/topics.Generator registry (Register/Get/Kinds, ExerciseRequest/Exercise/IntroCard types, optional TipProvider) — the quiz_kind-keyed seam so each v2 topic worker adds an isolated package without ever switching on a topic slug in train/telegram

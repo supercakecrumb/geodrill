@@ -1,2 +1,0 @@
-kind: Fixed
-body: "Audit seeds/special_chars.yaml against the ingested Tatoeba corpus and prune/fix entries the data doesn't back: drop ų (not a Polish letter, 0% fire), ґ and ѕ (real but below the 0.5% claimed-language floor in this corpus); expand ă->[ron,vie], ã->[por,vie], ć->[pol,hrv], ä->[...,slk], ç->[...,cat] to real same-script overlaps the audit surfaced (39 entries remain, down from 42)"

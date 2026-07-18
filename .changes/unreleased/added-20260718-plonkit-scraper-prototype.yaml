@@ -1,2 +1,0 @@
-kind: Added
-body: "Add cmd/plonkit, a prototype scraper for plonkit.net (task W5.5): discovers the guide index from sitemap.xml, extracts each guide page's embedded __PRELOADED_DATA__ JSON (no headless browser needed), and writes seed-shaped per-country YAML plus a taxonomy.yaml aggregating the site's own tip-category enum with counts — output stays gitignored under data/plonkit/, never committed"

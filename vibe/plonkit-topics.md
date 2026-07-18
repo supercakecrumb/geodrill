@@ -3,7 +3,7 @@
 Written from the actual output of `cmd/plonkit` (task W5.5), run against a live 5-country
 sample (NL, DE, FR, GB, JP) on 2026-07-18. Every number and structural claim below comes
 from that run or from direct inspection of plonkit.net's own code/markup — nothing is
-invented. Cross-references are to `vibe/geodrill-v2-architecture.md` by section number.
+invented. Cross-references are to `vibe/geodrill-architecture.md` by section number.
 
 ## 0. Read this first — robots.txt and the scrape's authorization
 

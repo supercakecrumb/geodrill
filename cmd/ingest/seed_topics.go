@@ -12,8 +12,8 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/topics/words"
 )
 
-// runSeedTopics seeds every v2 topic package's data (topics + items) against
-// store, in an order that satisfies -backfill-v2's precondition (the
+// runSeedTopics seeds every topic package's data (topics + items) against
+// store, in an order that satisfies -backfill's precondition (the
 // languages/guess-the-language tree must exist before that mode can map
 // legacy skills onto it). Each package's Seed is independently idempotent
 // (architecture §6), so re-running -seed-topics is always safe and simply

@@ -1,7 +1,7 @@
 // Command plonkit is a prototype scraper for plonkit.net, a GeoGuessr
 // country-guide site: it learns the site's structure, extracts structured
 // per-country tip data, and derives a candidate meta-topic taxonomy for
-// geodrill v2's tier-5 topics (architecture §4, task W5.5). Aurora has the
+// geodrill's tier-5 topics (architecture §4, task W5.5). Aurora has the
 // site developer's explicit permission to scrape and reuse the content for
 // this purpose; see vibe/plonkit-topics.md for the robots.txt findings this
 // tool nonetheless honors as a courtesy (robots.go).

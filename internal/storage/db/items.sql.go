@@ -94,11 +94,10 @@ type ListActiveItemsForPracticeParams struct {
 	Column2 []int16
 }
 
-// v2 (internal/study.Service.NextPracticeV2): active items across a set of
+// internal/study.Service.NextPractice: active items across a set of
 // topics (the caller's enabled+quizzable topics), restricted to a set of
 // tiers (the caller's currently-unlocked tiers) — the /practice candidate
-// pool, mirroring the legacy ListEnabledSkills' "across a user's enabled
-// decks" shape but tier-gated like every other v2 read.
+// pool, tier-gated like every other item-based read.
 func (q *Queries) ListActiveItemsForPractice(ctx context.Context, arg ListActiveItemsForPracticeParams) ([]Item, error) {
 	rows, err := q.db.Query(ctx, listActiveItemsForPractice, arg.Column1, arg.Column2)
 	if err != nil {
@@ -139,12 +138,11 @@ type ListAllItemKeyLabelsRow struct {
 	Label string
 }
 
-// Global key->label lookup for confusion display (mirrors the legacy
-// ListAllSkills key->label map). Best-effort: item keys are only unique
-// WITHIN a topic (items' UNIQUE (topic_id, key) constraint), so a key shared
-// by two topics resolves to whichever row this query returns last for it —
-// an acceptable approximation for a "which language/character/word" hint,
-// exactly like the legacy per-deck assumption it replaces.
+// Global key->label lookup for confusion display. Best-effort: item keys
+// are only unique WITHIN a topic (items' UNIQUE (topic_id, key) constraint),
+// so a key shared by two topics resolves to whichever row this query
+// returns last for it — an acceptable approximation for a "which
+// language/character/word" hint.
 func (q *Queries) ListAllItemKeyLabels(ctx context.Context) ([]ListAllItemKeyLabelsRow, error) {
 	rows, err := q.db.Query(ctx, listAllItemKeyLabels)
 	if err != nil {

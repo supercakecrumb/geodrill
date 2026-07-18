@@ -1,6 +1,6 @@
 # Design: Cities (`quiz_kind='city_country'` family)
 
-Architecture-only design (orchestrator brief item C4 — explicitly the most speculative of the five). Cross-references are to `vibe/geodrill-v2-architecture.md` by section number. No data fill: no city names, no population figures, no per-city tiers.
+Architecture-only design (orchestrator brief item C4 — explicitly the most speculative of the five). Cross-references are to `vibe/geodrill-architecture.md` by section number. No data fill: no city names, no population figures, no per-city tiers.
 
 ## 1. Goal
 

@@ -116,7 +116,7 @@ func (s *Store) GetItemEffectiveTier(ctx context.Context, itemID uuid.UUID) (int
 
 // ListActiveItemsForPractice returns active items across topicIDs restricted
 // to allowedTiers — the /practice candidate pool (internal/study.Service.
-// NextPracticeV2): enabled+quizzable topics, tier-gated like every other v2
+// NextPractice): enabled+quizzable topics, tier-gated like every other item-based
 // read.
 func (s *Store) ListActiveItemsForPractice(ctx context.Context, topicIDs []uuid.UUID, allowedTiers []int16) ([]Item, error) {
 	rows, err := s.q.ListActiveItemsForPractice(ctx, db.ListActiveItemsForPracticeParams{

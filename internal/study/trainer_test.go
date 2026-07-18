@@ -26,7 +26,7 @@ func TestGradeIndexedSingle(t *testing.T) {
 		{Key: "ukr", Label: "Ukrainian"},
 		{Key: "srp", Label: "Serbian"},
 	})
-	ex := storage.ExerciseV2{Mode: int16(quiz.ModeSingle), Options: options, CorrectAnswer: "ukr"}
+	ex := storage.Exercise{Mode: int16(quiz.ModeSingle), Options: options, CorrectAnswer: "ukr"}
 
 	correct, chosen, graded, err := gradeIndexed(ex, 1)
 	if err != nil {
@@ -72,14 +72,14 @@ func TestGradeIndexedSingle(t *testing.T) {
 
 func TestGradeIndexedSet(t *testing.T) {
 	// The persisted CorrectAnswer is the canonical (sorted) join, matching
-	// how serializeExerciseV2/specialchars.buildSetMCQ both persist it.
+	// how serializeExercise/specialchars.buildSetMCQ both persist it.
 	options := mustJSON(t, []setOptionJSON{
 		{Keys: []string{"pol"}, Label: "Polish only"},
 		// deliberately unsorted/duplicated input order — canonicalSetString
 		// must still match the canonical "dan,nor" persisted CorrectAnswer.
 		{Keys: []string{"dan", "nor", "nor"}, Label: "Norwegian / Danish"},
 	})
-	ex := storage.ExerciseV2{Mode: int16(quiz.ModeSet), Options: options, CorrectAnswer: "dan,nor"}
+	ex := storage.Exercise{Mode: int16(quiz.ModeSet), Options: options, CorrectAnswer: "dan,nor"}
 
 	correct, chosen, graded, err := gradeIndexed(ex, 1)
 	if err != nil {
@@ -118,14 +118,14 @@ func TestCanonicalSetString(t *testing.T) {
 	}
 }
 
-func TestSerializeExerciseV2RoundTrip(t *testing.T) {
+func TestSerializeExerciseRoundTrip(t *testing.T) {
 	t.Run("single", func(t *testing.T) {
 		ex := topicsExerciseSingle()
-		optionsJSON, correctAnswer, err := serializeExerciseV2(ex)
+		optionsJSON, correctAnswer, err := serializeExercise(ex)
 		if err != nil {
 			t.Fatalf("serialize: %v", err)
 		}
-		row := storage.ExerciseV2{Mode: int16(quiz.ModeSingle), Options: optionsJSON, CorrectAnswer: correctAnswer}
+		row := storage.Exercise{Mode: int16(quiz.ModeSingle), Options: optionsJSON, CorrectAnswer: correctAnswer}
 		correct, chosen, _, err := gradeIndexed(row, 0)
 		if err != nil {
 			t.Fatalf("gradeIndexed after round trip: %v", err)
@@ -137,11 +137,11 @@ func TestSerializeExerciseV2RoundTrip(t *testing.T) {
 
 	t.Run("set", func(t *testing.T) {
 		ex := topicsExerciseSet()
-		optionsJSON, correctAnswer, err := serializeExerciseV2(ex)
+		optionsJSON, correctAnswer, err := serializeExercise(ex)
 		if err != nil {
 			t.Fatalf("serialize: %v", err)
 		}
-		row := storage.ExerciseV2{Mode: int16(quiz.ModeSet), Options: optionsJSON, CorrectAnswer: correctAnswer}
+		row := storage.Exercise{Mode: int16(quiz.ModeSet), Options: optionsJSON, CorrectAnswer: correctAnswer}
 		correct, _, _, err := gradeIndexed(row, 0)
 		if err != nil {
 			t.Fatalf("gradeIndexed after round trip: %v", err)
@@ -153,7 +153,7 @@ func TestSerializeExerciseV2RoundTrip(t *testing.T) {
 
 	t.Run("text", func(t *testing.T) {
 		ex := topicsExerciseText()
-		optionsJSON, correctAnswer, err := serializeExerciseV2(ex)
+		optionsJSON, correctAnswer, err := serializeExercise(ex)
 		if err != nil {
 			t.Fatalf("serialize: %v", err)
 		}
@@ -220,7 +220,7 @@ func TestModeRotationOrder(t *testing.T) {
 	}
 
 	// every configured mode must appear exactly once regardless of rotation,
-	// so buildExerciseV2's "try until one succeeds" loop can always reach
+	// so buildExercise's "try until one succeeds" loop can always reach
 	// a mode fitting a single-mode item's shape (e.g. a specialchars
 	// subgroup item that only ever builds under ModeSet).
 	single := modeRotationOrder([]string{"set"}, 7)

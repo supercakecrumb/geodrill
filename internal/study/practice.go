@@ -1,10 +1,10 @@
-// practice.go implements TrainerV2's /practice path: an endless, unscheduled
+// practice.go implements Trainer's /practice path: an endless, unscheduled
 // practice pool across a user's enabled+tier-unlocked topics (/practice is
 // a survivor per architecture §5, retargeted from legacy decks/skills onto
-// the v2 topic/item model). Answers route through the SAME AnswerV2/
+// the topic/item model). Answers route through the SAME Answer/
 // AnswerText grading path as /train — the exercise row's own practice=true
 // flag (set here, at creation time, via buildExerciseForItem/
-// persistExerciseV2) is what makes finishAnswer (trainer.go) skip FSRS
+// persistExercise) is what makes finishAnswer (trainer.go) skip FSRS
 // movement, mirroring how the legacy Callback.Practice flag worked.
 package study
 
@@ -17,38 +17,38 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 )
 
-// NextPracticeV2 implements telegram.TrainerV2: a random active item across
+// NextPractice implements telegram.Trainer: a random active item across
 // the user's enabled+quizzable topics, restricted to their currently-
-// unlocked tiers (the same tier gate every other v2 read applies). Unlike
-// NextExerciseV2, due status and lifecycle never matter here — practice
+// unlocked tiers (the same tier gate every other item-based read applies). Unlike
+// NextExercise, due status and lifecycle never matter here — practice
 // never touches scheduling, so any active, tier-unlocked item is fair game
 // regardless of whether (or how recently) it's been reviewed.
-func (s *Service) NextPracticeV2(ctx context.Context, userID uuid.UUID) (telegram.PromptV2, error) {
+func (s *Service) NextPractice(ctx context.Context, userID uuid.UUID) (telegram.Prompt, error) {
 	now := s.now()
 	user, err := s.store.GetUserByID(ctx, userID)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 
 	userTopics, err := s.store.ListUserTopics(ctx, userID)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	topicIDs := enabledQuizzableTopicIDs(userTopics)
 	if len(topicIDs) == 0 {
-		return telegram.PromptV2{Kind: telegram.PromptV2KindNoTopics}, nil
+		return telegram.Prompt{Kind: telegram.PromptKindNoTopics}, nil
 	}
 
 	allowed, err := s.gating.AllowedTiers(ctx, userID)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	items, err := s.store.ListActiveItemsForPractice(ctx, topicIDs, toInt16Slice(allowed))
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	if len(items) == 0 {
-		return telegram.PromptV2{Kind: telegram.PromptV2KindNoContent}, nil
+		return telegram.Prompt{Kind: telegram.PromptKindNoContent}, nil
 	}
 
 	// Try items in a random order until one builds an exercise ("try until
@@ -56,13 +56,13 @@ func (s *Service) NextPracticeV2(ctx context.Context, userID uuid.UUID) (telegra
 	for _, idx := range s.perm(len(items)) {
 		prompt, built, err := s.buildExerciseForItem(ctx, user, items[idx], true, now)
 		if err != nil {
-			return telegram.PromptV2{}, err
+			return telegram.Prompt{}, err
 		}
 		if built {
 			return prompt, nil
 		}
 	}
-	return telegram.PromptV2{Kind: telegram.PromptV2KindNoContent}, nil
+	return telegram.Prompt{Kind: telegram.PromptKindNoContent}, nil
 }
 
 // perm returns a random permutation of [0,n) using the guarded rng

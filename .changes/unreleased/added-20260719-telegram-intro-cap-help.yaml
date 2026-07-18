@@ -1,2 +1,0 @@
-kind: Added
-body: Add a daily intro-cap row to /settings (icap:inc/icap:dec, behind an optional IntroCapStore since storage.User doesn't carry the column yet) and update /help to mention /study, /introduce, and /topics once their services are wired

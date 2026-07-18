@@ -37,12 +37,12 @@ WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL
   AND answered_at >= $2 AND answered_at < $3;
 
 -- name: GetIntroductionByID :one
--- v2 (internal/study.Service.AnswerIntro): resolve the item an introduction
+-- internal/study.Service.AnswerIntro: resolve the item an introduction
 -- callback refers to.
 SELECT * FROM introductions WHERE id = $1;
 
 -- name: AnswerIntroductionOnce :one
--- v2 single-use answer guard for introductions (mirrors MarkExerciseAnswered):
+-- Single-use answer guard for introductions (mirrors MarkExerciseAnswered):
 -- flips outcome/answered_at only if still open. A returned row means this
 -- caller owns the answer; no row means it was already answered (a stale
 -- second tap on the same intro card, architecture §5.1/§5.5).

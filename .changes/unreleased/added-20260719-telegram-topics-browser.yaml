@@ -1,2 +1,0 @@
-kind: Added
-body: Add /topics tree browser (architecture §5.2) — root listing plus top:<uuid>/top:up:<uuid>/top:root drill-down, rendering container children or per-tier progress (with 🔒 locked-tier and 💡 tips badges) via in-place message edits. Dormant (🚧) until Config.TopicService is wired

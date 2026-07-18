@@ -114,7 +114,7 @@ func (s *Store) ListDueUserItems(ctx context.Context, userID uuid.UUID, now time
 }
 
 // CountDueUserItems counts a user's Introduced/Reviewing cards due at or
-// before now — the v2 counterpart of CountDueSkills (internal/study.Service.
+// before now — the counterpart of CountDueSkills (internal/study.Service.
 // DueCount / the reminder loop's due count).
 func (s *Store) CountDueUserItems(ctx context.Context, userID uuid.UUID, now time.Time) (int, error) {
 	n, err := s.q.CountDueUserItems(ctx, db.CountDueUserItemsParams{UserID: userID, Due: timeTs(now)})
@@ -122,7 +122,7 @@ func (s *Store) CountDueUserItems(ctx context.Context, userID uuid.UUID, now tim
 }
 
 // ListUserItemCardsInFSRS returns every Introduced/Reviewing card for a user
-// — the v2 counterpart of ListCardsForUser (internal/study.Service.Stats'
+// — the counterpart of ListCardsForUser (internal/study.Service.Stats'
 // DueForecast input).
 func (s *Store) ListUserItemCardsInFSRS(ctx context.Context, userID uuid.UUID) ([]CardFields, error) {
 	rows, err := s.q.ListUserItemCardsInFSRS(ctx, userID)

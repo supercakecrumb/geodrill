@@ -114,64 +114,21 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Fatalf("upsert user not idempotent: %v id1=%s id2=%s", err, u.ID, u2.ID)
 	}
 
-	// deck + skills
-	deck, err := st.UpsertDeck(ctx, "romance", "Romance languages")
+	// topic + items (replaces the legacy deck/skill setup)
+	topic, err := st.UpsertTopic(ctx, nil, "romance", "Romance languages", 0, 0, "language_id", []string{"single"}, true, []byte(`{}`))
 	if err != nil {
-		t.Fatalf("upsert deck: %v", err)
+		t.Fatalf("upsert topic: %v", err)
 	}
-	spa, err := st.UpsertSkill(ctx, deck.ID, "spa", "Spanish")
+	spa, err := st.UpsertItem(ctx, topic.ID, "spa", "Spanish", nil, []byte(`{}`), nil, 0, true)
 	if err != nil {
-		t.Fatalf("upsert skill spa: %v", err)
+		t.Fatalf("upsert item spa: %v", err)
 	}
-	por, err := st.UpsertSkill(ctx, deck.ID, "por", "Portuguese")
+	por, err := st.UpsertItem(ctx, topic.ID, "por", "Portuguese", nil, []byte(`{}`), nil, 1, true)
 	if err != nil || por.Key != "por" {
-		t.Fatalf("upsert skill por: %v", err)
+		t.Fatalf("upsert item por: %v", err)
 	}
 
-	// enable deck for the user, verify enabled-skill listing
-	if err := st.SetUserDeckEnabled(ctx, u.ID, deck.ID, true); err != nil {
-		t.Fatalf("enable deck: %v", err)
-	}
-	n, err := st.CountEnabledDecks(ctx, u.ID)
-	if err != nil || n != 1 {
-		t.Fatalf("count enabled decks = %d, %v", n, err)
-	}
-	skills, err := st.ListEnabledSkills(ctx, u.ID)
-	if err != nil || len(skills) != 2 {
-		t.Fatalf("enabled skills = %d, %v", len(skills), err)
-	}
-
-	// card round trip
 	now := time.Now().UTC().Truncate(time.Second)
-	card := storage.CardFields{Due: now.Add(24 * time.Hour), Stability: 3.5, Difficulty: 5.0, Reps: 1, Lapses: 0, State: 2, LastReview: now}
-	if err := st.PutCard(ctx, u.ID, spa.ID, card); err != nil {
-		t.Fatalf("put card: %v", err)
-	}
-	got, found, err := st.GetCard(ctx, u.ID, spa.ID)
-	if err != nil || !found {
-		t.Fatalf("get card: found=%v err=%v", found, err)
-	}
-	if !got.Due.Equal(card.Due) || got.Stability != card.Stability || got.State != card.State || got.Reps != 1 {
-		t.Fatalf("card round trip mismatch: %+v vs %+v", got, card)
-	}
-
-	// SkillCards should surface the persisted card for spa, none for por
-	scs, err := st.ListEnabledSkillCards(ctx, u.ID)
-	if err != nil {
-		t.Fatalf("list skill cards: %v", err)
-	}
-	for _, sc := range scs {
-		switch sc.Key {
-		case "spa":
-			if !sc.HasCard {
-				t.Fatalf("spa should have a card")
-			}
-		case "por":
-			if sc.HasCard {
-				t.Fatalf("por should not have a card yet")
-			}
-		}
-	}
 
 	// content + exclusion sampling
 	for i, payload := range []string{"Hola mundo uno", "Hola mundo dos", "Hola mundo tres"} {
@@ -193,7 +150,12 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// exercise single-use guard
-	exID, err := st.InsertExercise(ctx, u.ID, spa.ID, c.ID, []byte(`[{"key":"spa","label":"Spanish"},{"key":"por","label":"Portuguese"}]`))
+	exID, _, err := st.InsertExercise(ctx, storage.InsertExerciseParams{
+		UserID:    u.ID,
+		ItemID:    spa.ID,
+		ContentID: &c.ID,
+		Options:   []byte(`[{"key":"spa","label":"Spanish"},{"key":"por","label":"Portuguese"}]`),
+	})
 	if err != nil {
 		t.Fatalf("insert exercise: %v", err)
 	}
@@ -212,8 +174,8 @@ func TestStoreRoundTrip(t *testing.T) {
 	// review append + read back
 	ms := 1200
 	if err := st.InsertReview(ctx, storage.ReviewInsert{
-		UserID: u.ID, SkillID: spa.ID, ExerciseID: &exID, ContentID: &c.ID,
-		ChosenKey: "por", CorrectKey: "spa", Correct: false, Rating: 1, ResponseMS: &ms,
+		UserID: u.ID, ItemID: spa.ID, ExerciseID: &exID, ContentID: &c.ID,
+		Chosen: "por", CorrectAnswer: "spa", Correct: false, Rating: 1, ResponseMS: &ms,
 		StabilityBefore: 1, DifficultyBefore: 5, StabilityAfter: 0.5, DifficultyAfter: 5.2,
 		StateBefore: 0, ScheduledDays: 0, ElapsedDays: 0, ReviewedAt: now,
 	}); err != nil {
@@ -223,7 +185,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err != nil || len(recs) != 1 {
 		t.Fatalf("list reviews = %d, %v", len(recs), err)
 	}
-	if recs[0].CorrectKey != "spa" || recs[0].ChosenKey != "por" || recs[0].Correct {
+	if recs[0].CorrectAnswer != "spa" || recs[0].Chosen != "por" || recs[0].Correct {
 		t.Fatalf("review round trip mismatch: %+v", recs[0])
 	}
 	atts, err := st.ListAttemptsSince(ctx, u.ID, now.Add(-time.Hour))
@@ -256,10 +218,10 @@ func itoa(i int) string {
 	return string(b[pos:])
 }
 
-// ── v2 schema (architecture §2): topics, items, user_items, introductions,
+// ── schema (architecture §2): topics, items, user_items, introductions,
 // countries/facts, tier progress ────────────────────────────────────────
 
-func TestV2TopicTree(t *testing.T) {
+func TestTopicTree(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -279,8 +241,8 @@ func TestV2TopicTree(t *testing.T) {
 	}
 
 	// idempotent upsert (ON CONFLICT ... DO UPDATE)
-	root2, err := st.UpsertTopic(ctx, nil, "languages", "Languages v2", 0, 0, "container", []string{"single"}, false, []byte(`{}`))
-	if err != nil || root2.ID != root.ID || root2.Name != "Languages v2" {
+	root2, err := st.UpsertTopic(ctx, nil, "languages", "Languages Updated", 0, 0, "container", []string{"single"}, false, []byte(`{}`))
+	if err != nil || root2.ID != root.ID || root2.Name != "Languages Updated" {
 		t.Fatalf("upsert root topic not idempotent: err=%v id1=%s id2=%s name=%s", err, root.ID, root2.ID, root2.Name)
 	}
 
@@ -374,7 +336,7 @@ func TestV2TopicTree(t *testing.T) {
 	}
 }
 
-func TestV2ItemEffectiveTier(t *testing.T) {
+func TestItemEffectiveTier(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -434,7 +396,7 @@ func TestV2ItemEffectiveTier(t *testing.T) {
 	}
 }
 
-func TestV2UserItemLifecycle(t *testing.T) {
+func TestUserItemLifecycle(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -531,7 +493,7 @@ func TestV2UserItemLifecycle(t *testing.T) {
 	}
 }
 
-func TestV2Introductions(t *testing.T) {
+func TestIntroductions(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -615,7 +577,7 @@ func TestV2Introductions(t *testing.T) {
 	}
 }
 
-func TestV2CountriesFacts(t *testing.T) {
+func TestCountriesFacts(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -740,7 +702,7 @@ func TestV2CountriesFacts(t *testing.T) {
 	}
 }
 
-func TestV2MediaFiles(t *testing.T) {
+func TestMediaFiles(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -787,7 +749,7 @@ func TestV2MediaFiles(t *testing.T) {
 	}
 }
 
-func TestV2TierProgress(t *testing.T) {
+func TestTierProgress(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -880,7 +842,7 @@ func TestV2TierProgress(t *testing.T) {
 	}
 }
 
-func TestV2WithTxCommitAndRollback(t *testing.T) {
+func TestWithTxCommitAndRollback(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 

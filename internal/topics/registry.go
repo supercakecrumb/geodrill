@@ -1,4 +1,4 @@
-// Package topics is the topic-quiz-generator framework for geodrill v2: the
+// Package topics is geodrill's topic-quiz-generator framework: the
 // conflict-avoidance seam that lets every quiz mechanic (special characters,
 // road sides, common words, guess-the-language, ...) live in its own
 // subpackage under internal/topics/<name>/ and register itself by
@@ -62,7 +62,7 @@ type OptionSet struct {
 }
 
 // Exercise is a generator's mode-aware answer to "quiz this item" — shaped so
-// ModeSingle, ModeSet, and ModeText all serialize cleanly into the v2
+// ModeSingle, ModeSet, and ModeText all serialize cleanly into the
 // exercises columns (mode, prompt, options jsonb, correct_answer, is_media;
 // architecture §2.5):
 //
@@ -107,7 +107,7 @@ type IntroCard struct {
 
 // ErrNoContent is the sentinel a Generator returns from BuildExercise when
 // item cannot currently be quizzed (e.g. its content pool is empty). Callers
-// (internal/study) treat this like the pre-v2 legacy trainer's buildExercise
+// (internal/study) treat this like the legacy trainer's buildExercise
 // "found=false" path: skip the item and try the next due/introducible
 // candidate rather than failing the whole request.
 var ErrNoContent = fmt.Errorf("topics: no content available for item")

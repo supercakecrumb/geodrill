@@ -1,6 +1,6 @@
 # Design: Rivers & mountains (`quiz_kind='river_country'` / `'mountain_landmark'`)
 
-Architecture-only design (orchestrator brief item C5). Cross-references are to `vibe/geodrill-v2-architecture.md` by section number, and to the other four docs where a pattern is reused rather than reinvented. No data fill: no river/mountain lists, no per-item tiers, no range names.
+Architecture-only design (orchestrator brief item C5). Cross-references are to `vibe/geodrill-architecture.md` by section number, and to the other four docs where a pattern is reused rather than reinvented. No data fill: no river/mountain lists, no per-item tiers, no range names.
 
 ## 1. Goal
 

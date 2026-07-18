@@ -3,7 +3,7 @@
 // "languages/guess-the-language/<group>"): the original sentence -> guess
 // the language multiple-choice quiz, carried onto the topic/item framework.
 // Behavior is preserved (architecture §3.4): the same content sampling
-// (SampleContent, falling back to SampleContentAny — the pre-v2 legacy
+// (SampleContent, falling back to SampleContentAny — the legacy
 // trainer's buildExercise did exactly this two-step sample), the same
 // distractor-from-group-siblings generation via engram/quiz.Generate, and
 // the same recognition tips (internal/tips).
@@ -74,10 +74,10 @@ var _ topics.TipProvider = (*Generator)(nil)
 // BuildExercise implements topics.Generator (ModeSingle only — the
 // guess-the-language mechanic has never had a set/text mode). Behavior-
 // preserving (architecture §3.4): samples a sentence for the item's language
-// exactly like the pre-v2 train.Service.buildExercise (SampleContent first,
+// exactly like the legacy train.Service.buildExercise (SampleContent first,
 // SampleContentAny fallback), then generates the MCQ via engram/quiz.Generate
 // over the item plus its siblings adapted to engram.Skill — the same
-// generation call the pre-v2 code made, now driven by topic items instead of
+// generation call the legacy code made, now driven by topic items instead of
 // deck skills. req.Siblings is the distractor pool and is expected to NOT
 // already include req.Item (mirrors every other topic's Siblings contract);
 // quiz.Generate appends the target itself if it's missing from the deck

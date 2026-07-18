@@ -29,7 +29,7 @@ const (
 
 	// BaseTier is topics.base_tier for every group topic under
 	// languages/guess-the-language (architecture §4 rubric: languages are
-	// "very common signal", tier 1 — the pre-v2 behavior of quizzing every
+	// "very common signal", tier 1 — the legacy behavior of quizzing every
 	// opted-in deck's languages with no further gating).
 	BaseTier = 1
 )

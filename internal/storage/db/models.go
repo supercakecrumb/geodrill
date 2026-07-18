@@ -46,29 +46,20 @@ type CountryFact struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
-type Deck struct {
-	ID           uuid.UUID
-	Slug         string
-	Name         string
-	ExerciseType string
-	CreatedAt    pgtype.Timestamptz
-}
-
 type Exercise struct {
 	ID            uuid.UUID
 	UserID        uuid.UUID
-	SkillID       uuid.UUID
-	ContentID     uuid.UUID
-	Options       []byte
-	CreatedAt     pgtype.Timestamptz
-	AnsweredAt    pgtype.Timestamptz
-	MessageID     pgtype.Int8
-	ItemID        *uuid.UUID
+	ItemID        uuid.UUID
+	ContentID     *uuid.UUID
 	Mode          int16
 	Prompt        pgtype.Text
+	Options       []byte
 	CorrectAnswer pgtype.Text
 	IsMedia       bool
 	Practice      bool
+	CreatedAt     pgtype.Timestamptz
+	AnsweredAt    pgtype.Timestamptz
+	MessageID     pgtype.Int8
 }
 
 type FactDef struct {
@@ -127,11 +118,12 @@ type MediaFile struct {
 type Review struct {
 	ID               uuid.UUID
 	UserID           uuid.UUID
-	SkillID          uuid.UUID
+	ItemID           uuid.UUID
 	ExerciseID       *uuid.UUID
 	ContentID        *uuid.UUID
-	ChosenKey        string
-	CorrectKey       string
+	Mode             int16
+	Chosen           pgtype.Text
+	CorrectAnswer    pgtype.Text
 	Correct          bool
 	Rating           int16
 	ResponseMs       pgtype.Int4
@@ -142,19 +134,8 @@ type Review struct {
 	StateBefore      int16
 	ScheduledDays    int32
 	ElapsedDays      int32
-	ReviewedAt       pgtype.Timestamptz
 	Practice         bool
-	ItemID           *uuid.UUID
-	Mode             int16
-	Chosen           pgtype.Text
-	CorrectAnswer    pgtype.Text
-}
-
-type Skill struct {
-	ID     uuid.UUID
-	DeckID uuid.UUID
-	Key    string
-	Label  string
+	ReviewedAt       pgtype.Timestamptz
 }
 
 type Topic struct {
@@ -182,20 +163,14 @@ type User struct {
 	TelegramID       int64
 	Username         pgtype.Text
 	DailyNewCap      int32
+	DailyIntroCap    int32
 	RemindersEnabled bool
 	Timezone         string
-	CreatedAt        pgtype.Timestamptz
 	LabelStyle       string
 	ReminderHour     int32
 	FollowUpEnabled  bool
 	FollowUpDelayMin int32
-	DailyIntroCap    int32
-}
-
-type UserDeck struct {
-	UserID  uuid.UUID
-	DeckID  uuid.UUID
-	Enabled bool
+	CreatedAt        pgtype.Timestamptz
 }
 
 type UserItem struct {
@@ -212,18 +187,6 @@ type UserItem struct {
 	IntroducedAt pgtype.Timestamptz
 	KnownAt      pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
-}
-
-type UserSkill struct {
-	UserID     uuid.UUID
-	SkillID    uuid.UUID
-	Due        pgtype.Timestamptz
-	Stability  float64
-	Difficulty float64
-	Reps       int32
-	Lapses     int32
-	State      int16
-	LastReview pgtype.Timestamptz
 }
 
 type UserTierProgress struct {

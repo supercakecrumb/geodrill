@@ -1,2 +1,0 @@
-kind: Added
-body: "Add internal/topics/words.Generator (quiz_kind \"word_language\"): a word→language single-choice quiz over sign vocabulary, drawing distractor languages from same-script siblings only (Latin vs Cyrillic, derived from the word's own characters) — architecture §6.3"

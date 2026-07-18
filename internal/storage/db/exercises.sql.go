@@ -12,70 +12,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getExercise = `-- name: GetExercise :one
-SELECT id, user_id, skill_id, content_id, options, created_at, answered_at, message_id
-FROM exercises
-WHERE id = $1
+const getExerciseByID = `-- name: GetExerciseByID :one
+SELECT id, user_id, item_id, content_id, mode, prompt, options, correct_answer, is_media, practice, created_at, answered_at, message_id FROM exercises WHERE id = $1
 `
 
-type GetExerciseRow struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	SkillID    uuid.UUID
-	ContentID  uuid.UUID
-	Options    []byte
-	CreatedAt  pgtype.Timestamptz
-	AnsweredAt pgtype.Timestamptz
-	MessageID  pgtype.Int8
-}
-
-func (q *Queries) GetExercise(ctx context.Context, id uuid.UUID) (GetExerciseRow, error) {
-	row := q.db.QueryRow(ctx, getExercise, id)
-	var i GetExerciseRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.SkillID,
-		&i.ContentID,
-		&i.Options,
-		&i.CreatedAt,
-		&i.AnsweredAt,
-		&i.MessageID,
-	)
-	return i, err
-}
-
-const getExerciseByIDV2 = `-- name: GetExerciseByIDV2 :one
-SELECT id, user_id, skill_id, content_id, options, created_at, answered_at, message_id, item_id, mode, prompt, correct_answer, is_media, practice FROM exercises WHERE id = $1
-`
-
-// v2 (internal/study.Service.AnswerV2): fetch one exercise by id with the
-// full mode-aware column set (unlike the legacy GetExercise, which predates
-// item_id/mode/prompt/correct_answer/is_media/practice).
-func (q *Queries) GetExerciseByIDV2(ctx context.Context, id uuid.UUID) (Exercise, error) {
-	row := q.db.QueryRow(ctx, getExerciseByIDV2, id)
+// internal/study.Service.Answer: fetch one exercise by id with the full
+// mode-aware column set.
+func (q *Queries) GetExerciseByID(ctx context.Context, id uuid.UUID) (Exercise, error) {
+	row := q.db.QueryRow(ctx, getExerciseByID, id)
 	var i Exercise
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.SkillID,
-		&i.ContentID,
-		&i.Options,
-		&i.CreatedAt,
-		&i.AnsweredAt,
-		&i.MessageID,
 		&i.ItemID,
+		&i.ContentID,
 		&i.Mode,
 		&i.Prompt,
+		&i.Options,
 		&i.CorrectAnswer,
 		&i.IsMedia,
 		&i.Practice,
+		&i.CreatedAt,
+		&i.AnsweredAt,
+		&i.MessageID,
 	)
 	return i, err
 }
 
 const getExercisesByItem = `-- name: GetExercisesByItem :many
-SELECT id, user_id, skill_id, content_id, item_id, mode, prompt, options,
+SELECT id, user_id, content_id, item_id, mode, prompt, options,
        correct_answer, is_media, practice, created_at, answered_at, message_id
 FROM exercises
 WHERE item_id = $1
@@ -85,9 +50,8 @@ ORDER BY created_at DESC
 type GetExercisesByItemRow struct {
 	ID            uuid.UUID
 	UserID        uuid.UUID
-	SkillID       uuid.UUID
-	ContentID     uuid.UUID
-	ItemID        *uuid.UUID
+	ContentID     *uuid.UUID
+	ItemID        uuid.UUID
 	Mode          int16
 	Prompt        pgtype.Text
 	Options       []byte
@@ -99,7 +63,7 @@ type GetExercisesByItemRow struct {
 	MessageID     pgtype.Int8
 }
 
-func (q *Queries) GetExercisesByItem(ctx context.Context, itemID *uuid.UUID) ([]GetExercisesByItemRow, error) {
+func (q *Queries) GetExercisesByItem(ctx context.Context, itemID uuid.UUID) ([]GetExercisesByItemRow, error) {
 	rows, err := q.db.Query(ctx, getExercisesByItem, itemID)
 	if err != nil {
 		return nil, err
@@ -111,7 +75,6 @@ func (q *Queries) GetExercisesByItem(ctx context.Context, itemID *uuid.UUID) ([]
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.SkillID,
 			&i.ContentID,
 			&i.ItemID,
 			&i.Mode,
@@ -135,7 +98,7 @@ func (q *Queries) GetExercisesByItem(ctx context.Context, itemID *uuid.UUID) ([]
 }
 
 const getOpenExerciseByMode = `-- name: GetOpenExerciseByMode :one
-SELECT id, user_id, skill_id, content_id, item_id, mode, prompt, options,
+SELECT id, user_id, content_id, item_id, mode, prompt, options,
        correct_answer, is_media, practice, created_at, answered_at, message_id
 FROM exercises
 WHERE user_id = $1 AND mode = $2 AND answered_at IS NULL
@@ -151,9 +114,8 @@ type GetOpenExerciseByModeParams struct {
 type GetOpenExerciseByModeRow struct {
 	ID            uuid.UUID
 	UserID        uuid.UUID
-	SkillID       uuid.UUID
-	ContentID     uuid.UUID
-	ItemID        *uuid.UUID
+	ContentID     *uuid.UUID
+	ItemID        uuid.UUID
 	Mode          int16
 	Prompt        pgtype.Text
 	Options       []byte
@@ -174,7 +136,6 @@ func (q *Queries) GetOpenExerciseByMode(ctx context.Context, arg GetOpenExercise
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.SkillID,
 		&i.ContentID,
 		&i.ItemID,
 		&i.Mode,
@@ -191,46 +152,15 @@ func (q *Queries) GetOpenExerciseByMode(ctx context.Context, arg GetOpenExercise
 }
 
 const insertExercise = `-- name: InsertExercise :one
-INSERT INTO exercises (user_id, skill_id, content_id, options)
-VALUES ($1, $2, $3, $4)
+INSERT INTO exercises (user_id, item_id, content_id, mode, prompt, options, correct_answer, is_media, practice)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id, created_at
 `
 
 type InsertExerciseParams struct {
-	UserID    uuid.UUID
-	SkillID   uuid.UUID
-	ContentID uuid.UUID
-	Options   []byte
-}
-
-type InsertExerciseRow struct {
-	ID        uuid.UUID
-	CreatedAt pgtype.Timestamptz
-}
-
-func (q *Queries) InsertExercise(ctx context.Context, arg InsertExerciseParams) (InsertExerciseRow, error) {
-	row := q.db.QueryRow(ctx, insertExercise,
-		arg.UserID,
-		arg.SkillID,
-		arg.ContentID,
-		arg.Options,
-	)
-	var i InsertExerciseRow
-	err := row.Scan(&i.ID, &i.CreatedAt)
-	return i, err
-}
-
-const insertExerciseV2 = `-- name: InsertExerciseV2 :one
-INSERT INTO exercises (user_id, skill_id, content_id, item_id, mode, prompt, options, correct_answer, is_media, practice)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, created_at
-`
-
-type InsertExerciseV2Params struct {
 	UserID        uuid.UUID
-	SkillID       uuid.UUID
-	ContentID     uuid.UUID
-	ItemID        *uuid.UUID
+	ItemID        uuid.UUID
+	ContentID     *uuid.UUID
 	Mode          int16
 	Prompt        pgtype.Text
 	Options       []byte
@@ -239,23 +169,19 @@ type InsertExerciseV2Params struct {
 	Practice      bool
 }
 
-type InsertExerciseV2Row struct {
+type InsertExerciseRow struct {
 	ID        uuid.UUID
 	CreatedAt pgtype.Timestamptz
 }
 
-// v2 (internal/study.Service): insert a mode-aware exercise row directly —
-// item_id/mode/prompt/options/correct_answer/is_media/practice — in one
-// shot, instead of the legacy two-step InsertExercise+SetExerciseItemFields
-// path. skill_id/content_id are still NOT NULL (dropped only by a later
-// migration out of this wave's scope); callers without a natural skill/
-// content row supply a bridge placeholder (see internal/study's bridge.go).
-func (q *Queries) InsertExerciseV2(ctx context.Context, arg InsertExerciseV2Params) (InsertExerciseV2Row, error) {
-	row := q.db.QueryRow(ctx, insertExerciseV2,
+// internal/study.Service: insert a mode-aware exercise row — item_id/mode/
+// prompt/options/correct_answer/is_media/practice — in one shot. content_id
+// is optional (shared/topic-scoped content, or none).
+func (q *Queries) InsertExercise(ctx context.Context, arg InsertExerciseParams) (InsertExerciseRow, error) {
+	row := q.db.QueryRow(ctx, insertExercise,
 		arg.UserID,
-		arg.SkillID,
-		arg.ContentID,
 		arg.ItemID,
+		arg.ContentID,
 		arg.Mode,
 		arg.Prompt,
 		arg.Options,
@@ -263,7 +189,7 @@ func (q *Queries) InsertExerciseV2(ctx context.Context, arg InsertExerciseV2Para
 		arg.IsMedia,
 		arg.Practice,
 	)
-	var i InsertExerciseV2Row
+	var i InsertExerciseRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
 	return i, err
 }
@@ -297,7 +223,7 @@ WHERE id = $1
 
 type SetExerciseItemFieldsParams struct {
 	ID            uuid.UUID
-	ItemID        *uuid.UUID
+	ItemID        uuid.UUID
 	Mode          int16
 	Prompt        pgtype.Text
 	CorrectAnswer pgtype.Text
@@ -305,8 +231,7 @@ type SetExerciseItemFieldsParams struct {
 	Practice      bool
 }
 
-// v2: attach item/mode-aware metadata (architecture §2.5) to an exercise row.
-// item_id stays nullable until the old-quiz migration backfills it (§3.1).
+// Updates item/mode-aware metadata on an existing exercise row.
 func (q *Queries) SetExerciseItemFields(ctx context.Context, arg SetExerciseItemFieldsParams) error {
 	_, err := q.db.Exec(ctx, setExerciseItemFields,
 		arg.ID,

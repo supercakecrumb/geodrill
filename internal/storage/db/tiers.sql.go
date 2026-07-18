@@ -22,7 +22,7 @@ WHERE tp.path = target.path OR tp.path LIKE target.path || '/%'
 ORDER BY it.tier
 `
 
-// v2 (internal/study.TopicService): every effective tier used by an item
+// internal/study.TopicService: every effective tier used by an item
 // anywhere in a topic's subtree (itself + descendants) — the input to the
 // 🔒 AnyLocked/LockedTier badge (architecture §5.2), by comparing against
 // the user's currently-unlocked tier set.
@@ -192,7 +192,7 @@ type RecomputeTopicProgressRow struct {
 	GoodShapeItems  int32
 }
 
-// v2 (internal/study.TopicService, architecture §5.2 TopicRow): aggregate
+// internal/study.TopicService, architecture §5.2 TopicRow: aggregate
 // progress across an ENTIRE topic subtree (the topic itself plus every
 // descendant, via the topic_paths recursive view) for one user — a
 // container topic like "languages" rolls up every quizzable topic beneath
@@ -232,7 +232,7 @@ type RecomputeTopicTierBreakdownRow struct {
 	GoodShapeItems  int32
 }
 
-// v2 (internal/study.TopicService, architecture §5.2 TierRow): per-tier
+// internal/study.TopicService, architecture §5.2 TierRow: per-tier
 // progress within ONE quizzable topic's OWN items (non-recursive — a
 // quizzable topic holds items directly, never a mix of items and child
 // topics), for one user.

@@ -1,6 +1,6 @@
 # Design: Flags quiz (`quiz_kind='flag_country'`)
 
-Architecture-only design for the flags topic (orchestrator brief item C1 / architecture §6 family). Cross-references are to `vibe/geodrill-v2-architecture.md` by section number. No data fill: no country lists, no image URLs, no per-country tiers — those are haiku/data tasks that consume this design.
+Architecture-only design for the flags topic (orchestrator brief item C1 / architecture §6 family). Cross-references are to `vibe/geodrill-architecture.md` by section number. No data fill: no country lists, no image URLs, no per-country tiers — those are haiku/data tasks that consume this design.
 
 ## 1. Goal
 

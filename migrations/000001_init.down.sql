@@ -1,10 +1,20 @@
--- Reverse of 000001_init.up.sql. Drop in dependency order (children first).
+-- Reverse of 000001_init.up.sql. Views first, then tables in dependency
+-- order (children before parents).
+
+DROP VIEW IF EXISTS topic_paths;
+DROP VIEW IF EXISTS item_tiers;
 
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS exercises;
+DROP TABLE IF EXISTS user_tier_progress;
+DROP TABLE IF EXISTS user_topics;
+DROP TABLE IF EXISTS media_files;
 DROP TABLE IF EXISTS content_items;
-DROP TABLE IF EXISTS user_skills;
-DROP TABLE IF EXISTS user_decks;
-DROP TABLE IF EXISTS skills;
-DROP TABLE IF EXISTS decks;
+DROP TABLE IF EXISTS country_facts;
+DROP TABLE IF EXISTS fact_defs;
+DROP TABLE IF EXISTS introductions;
+DROP TABLE IF EXISTS user_items;
+DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS countries;
+DROP TABLE IF EXISTS topics;
 DROP TABLE IF EXISTS users;

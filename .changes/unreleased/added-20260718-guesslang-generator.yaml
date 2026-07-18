@@ -1,2 +1,0 @@
-kind: Added
-body: "Add internal/topics/guesslang.Generator (quiz_kind \"language_id\"): the pre-v2 sentence-guess-the-language quiz carried onto the topic/item framework — same content sampling (SampleContent, falling back to SampleContentAny), same distractor-from-group-siblings generation via engram/quiz.Generate, and same internal/tips recognition tips (architecture §3.4)"

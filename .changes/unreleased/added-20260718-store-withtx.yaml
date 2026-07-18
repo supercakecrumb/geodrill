@@ -1,2 +1,0 @@
-kind: Added
-body: Add Store.WithTx to run a callback inside a single pgx transaction against a tx-bound *db.Queries, for the atomic lifecycle+gating writes v2 introductions/reviews will need

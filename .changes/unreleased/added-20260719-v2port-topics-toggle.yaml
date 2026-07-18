@@ -1,2 +1,0 @@
-kind: Changed
-body: '/decks now aliases /topics (falling back to the legacy deck picker if TopicService isn''t wired) -- the confusion-group on/off affordance moved there: drilling into a quizzable topic shows a new toggle row ("Enabled -- tap to disable" / "Disabled -- tap to enable", topen:/topoff: callbacks) and every topic row in a listing now carries a leading checkmark/blank-square so disabled topics are visible without drilling in. TopicService gained SetTopicEnabled and TopicRow/TopicView gained an Enabled field'

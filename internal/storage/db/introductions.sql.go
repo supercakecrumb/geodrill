@@ -51,7 +51,7 @@ type AnswerIntroductionOnceParams struct {
 	AnsweredAt pgtype.Timestamptz
 }
 
-// v2 single-use answer guard for introductions (mirrors MarkExerciseAnswered):
+// Single-use answer guard for introductions (mirrors MarkExerciseAnswered):
 // flips outcome/answered_at only if still open. A returned row means this
 // caller owns the answer; no row means it was already answered (a stale
 // second tap on the same intro card, architecture §5.1/§5.5).
@@ -97,7 +97,7 @@ const getIntroductionByID = `-- name: GetIntroductionByID :one
 SELECT id, user_id, item_id, seq, outcome, shown_at, answered_at, message_id FROM introductions WHERE id = $1
 `
 
-// v2 (internal/study.Service.AnswerIntro): resolve the item an introduction
+// internal/study.Service.AnswerIntro: resolve the item an introduction
 // callback refers to.
 func (q *Queries) GetIntroductionByID(ctx context.Context, id uuid.UUID) (Introduction, error) {
 	row := q.db.QueryRow(ctx, getIntroductionByID, id)

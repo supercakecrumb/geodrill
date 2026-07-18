@@ -1,6 +1,6 @@
 # Design: Country profiles (`quiz_kind='country_profile'`)
 
-Architecture-only design (orchestrator brief item C2). Cross-references are to `vibe/geodrill-v2-architecture.md` by section number. No data fill: no fact values, no per-country tiers, no religion/language datasets.
+Architecture-only design (orchestrator brief item C2). Cross-references are to `vibe/geodrill-architecture.md` by section number. No data fill: no fact values, no per-country tiers, no religion/language datasets.
 
 ## 1. Goal
 

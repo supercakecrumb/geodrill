@@ -22,8 +22,8 @@ const (
 
 // studyDormantText is what /study and /introduce reply with when
 // Config.StudyService is nil (no wave-4 wiring yet) — the same nil-safe
-// convention every optional v2 command follows.
-const studyDormantText = "🚧 /study is coming with v2 wiring."
+// convention every optional command follows.
+const studyDormantText = "🚧 /study is coming soon."
 
 // ── /study, /introduce ───────────────────────────────────────────────────
 

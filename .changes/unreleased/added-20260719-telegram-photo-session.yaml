@@ -1,2 +1,0 @@
-kind: Added
-body: Add Session.SendPhoto/EditCaption (photo-message-from-birth support, architecture §5.1 decision 6) so v2 media introduction/exercise cards can render as photos with captions instead of text-then-media

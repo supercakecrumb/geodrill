@@ -1,5 +1,5 @@
-// stats.go implements telegram.TrainerV2's Stats method: the /stats view
-// model computed over v2 reviews/user_items.
+// stats.go implements telegram.Trainer's Stats method: the /stats view
+// model computed over reviews/user_items.
 package study
 
 import (
@@ -13,70 +13,70 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 )
 
-// forecastDaysV2 is how many days /stats projects the due forecast over.
-const forecastDaysV2 = 7
+// forecastDays is how many days /stats projects the due forecast over.
+const forecastDays = 7
 
-// maxConfusionV2 is how many top confusion pairs /stats reports.
-const maxConfusionV2 = 5
+// maxConfusion is how many top confusion pairs /stats reports.
+const maxConfusion = 5
 
-// Stats implements telegram.TrainerV2.
+// Stats implements telegram.Trainer.
 //
 // Reviews today/week and the accuracy/streak log intentionally read the
-// WHOLE reviews table, not just item_id-tagged v2 rows: reviews is the same
+// WHOLE reviews table, not just item_id-tagged rows: reviews is the same
 // table the legacy /train wrote to, so a user's activity from before this
 // port still contributes to their streak and accuracy — only the
 // item-linked views (per-topic accuracy, confusion) need the item_id IS NOT
 // NULL restriction, since a legacy row carries no topic/item to attribute
 // to.
-func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2, error) {
+func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.Stats, error) {
 	now := s.now()
 	user, err := s.store.GetUserByID(ctx, userID)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 	loc := locationFor(user)
 	epoch := time.Unix(0, 0).UTC()
 
 	today, err := s.store.CountReviewsSince(ctx, userID, startOfDay(now, loc))
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 	week, err := s.store.CountReviewsSince(ctx, userID, now.AddDate(0, 0, -7))
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 
 	log, err := s.reviewLog(ctx, userID, epoch)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 
 	topicStats, err := s.store.ReviewStatsByTopic(ctx, userID, epoch)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
-	byTopic := make([]telegram.TopicAccuracyV2, len(topicStats))
+	byTopic := make([]telegram.TopicAccuracy, len(topicStats))
 	for i, t := range topicStats {
 		acc := 0.0
 		if t.Total > 0 {
 			acc = float64(t.Correct) / float64(t.Total)
 		}
-		byTopic[i] = telegram.TopicAccuracyV2{Name: t.Name, Total: t.Total, Correct: t.Correct, Accuracy: acc}
+		byTopic[i] = telegram.TopicAccuracy{Name: t.Name, Total: t.Total, Correct: t.Correct, Accuracy: acc}
 	}
 
 	cardRows, err := s.store.ListUserItemCardsInFSRS(ctx, userID)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 	cards := make([]engram.CardState, len(cardRows))
 	for i, c := range cardRows {
 		cards[i] = cardStateFrom(c)
 	}
-	forecast := engram.DueForecast(cards, forecastDaysV2, now, loc)
+	forecast := engram.DueForecast(cards, forecastDays, now, loc)
 
-	attemptRows, err := s.store.ListAttemptsSinceV2(ctx, userID, epoch)
+	attemptRows, err := s.store.ListAttemptsSince(ctx, userID, epoch)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 	attempts := make([]quiz.Attempt, len(attemptRows))
 	for i, a := range attemptRows {
@@ -89,17 +89,17 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 		}
 	}
 	pairs := quiz.Confusion(attempts)
-	if len(pairs) > maxConfusionV2 {
-		pairs = pairs[:maxConfusionV2]
+	if len(pairs) > maxConfusion {
+		pairs = pairs[:maxConfusion]
 	}
 
 	labels, err := s.store.ListAllItemKeyLabels(ctx)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
-	confusion := make([]telegram.ConfusionRowV2, len(pairs))
+	confusion := make([]telegram.ConfusionRow, len(pairs))
 	for i, p := range pairs {
-		confusion[i] = telegram.ConfusionRowV2{
+		confusion[i] = telegram.ConfusionRow{
 			TargetLabel: labelOrKey(labels, p.TargetKey),
 			ChosenLabel: labelOrKey(labels, p.ChosenKey),
 			Count:       p.Count,
@@ -109,14 +109,14 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 
 	introduced, err := s.store.CountIntroducedItems(ctx, userID)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 	known, err := s.store.CountKnownItems(ctx, userID)
 	if err != nil {
-		return telegram.StatsV2{}, err
+		return telegram.Stats{}, err
 	}
 
-	return telegram.StatsV2{
+	return telegram.Stats{
 		ReviewsToday: today,
 		ReviewsWeek:  week,
 		Streak:       engram.Streak(log, now, loc),
@@ -129,7 +129,7 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 	}, nil
 }
 
-// DueCount implements telegram.TrainerV2: how many of userID's v2 cards
+// DueCount implements telegram.Trainer: how many of userID's cards
 // (user_items in lifecycle Introduced/Reviewing) are due right now, feeding
 // the reminder loop's due-review count (architecture §5.3).
 func (s *Service) DueCount(ctx context.Context, userID uuid.UUID) (int, error) {
@@ -148,7 +148,7 @@ func (s *Service) reviewLog(ctx context.Context, userID uuid.UUID, since time.Ti
 	out := make([]engram.Review, len(recs))
 	for i, r := range recs {
 		out[i] = engram.Review{
-			SkillID:          engram.SkillID(r.SkillID.String()),
+			SkillID:          engram.SkillID(r.ItemID.String()),
 			Rating:           engram.Rating(r.Rating),
 			ReviewedAt:       r.ReviewedAt,
 			StabilityBefore:  r.StabilityBefore,

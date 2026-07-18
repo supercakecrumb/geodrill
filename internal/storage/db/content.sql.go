@@ -77,7 +77,7 @@ type GetContentByKindKeyRow struct {
 	CharLength int32
 }
 
-// v2 (internal/study's bridge content row): exact (kind,key) lookup, unlike
+// internal/study's bridge content row: exact (kind,key) lookup, unlike
 // SampleContent/SampleContentAny which are hardcoded to kind='sentence' and
 // pick randomly among multiple rows.
 func (q *Queries) GetContentByKindKey(ctx context.Context, arg GetContentByKindKeyParams) (GetContentByKindKeyRow, error) {
@@ -126,7 +126,7 @@ WHERE ci.kind = 'sentence' AND ci.key = $1
   AND ci.id NOT IN (
     SELECT r.content_id
     FROM reviews r
-    WHERE r.user_id = $2 AND r.correct_key = $1 AND r.content_id IS NOT NULL
+    WHERE r.user_id = $2 AND r.correct_answer = $1 AND r.content_id IS NOT NULL
     ORDER BY r.reviewed_at DESC
     LIMIT 50
   )
@@ -148,7 +148,7 @@ type SampleContentRow struct {
 	CharLength int32
 }
 
-// Random sentence for a skill key, excluding the user's last-50 seen content
+// Random sentence for an item key, excluding the user's last-50 seen content
 // for that key (recently-seen exclusion, contract §4).
 func (q *Queries) SampleContent(ctx context.Context, arg SampleContentParams) (SampleContentRow, error) {
 	row := q.db.QueryRow(ctx, sampleContent, arg.Key, arg.UserID)

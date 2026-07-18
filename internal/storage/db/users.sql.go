@@ -13,7 +13,7 @@ import (
 )
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap FROM users WHERE id = $1
+SELECT id, telegram_id, username, daily_new_cap, daily_intro_cap, reminders_enabled, timezone, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, created_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -24,20 +24,20 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.TelegramID,
 		&i.Username,
 		&i.DailyNewCap,
+		&i.DailyIntroCap,
 		&i.RemindersEnabled,
 		&i.Timezone,
-		&i.CreatedAt,
 		&i.LabelStyle,
 		&i.ReminderHour,
 		&i.FollowUpEnabled,
 		&i.FollowUpDelayMin,
-		&i.DailyIntroCap,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap FROM users WHERE telegram_id = $1
+SELECT id, telegram_id, username, daily_new_cap, daily_intro_cap, reminders_enabled, timezone, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, created_at FROM users WHERE telegram_id = $1
 `
 
 func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error) {
@@ -48,14 +48,14 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID int64) (Us
 		&i.TelegramID,
 		&i.Username,
 		&i.DailyNewCap,
+		&i.DailyIntroCap,
 		&i.RemindersEnabled,
 		&i.Timezone,
-		&i.CreatedAt,
 		&i.LabelStyle,
 		&i.ReminderHour,
 		&i.FollowUpEnabled,
 		&i.FollowUpDelayMin,
-		&i.DailyIntroCap,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -111,7 +111,7 @@ type SetIntroCapParams struct {
 	DailyIntroCap int32
 }
 
-// v2: the /settings daily intro-cap row (architecture §2.10/§8 IntroCapStore).
+// The /settings daily intro-cap row (architecture §2.10/§8 IntroCapStore).
 func (q *Queries) SetIntroCap(ctx context.Context, arg SetIntroCapParams) error {
 	_, err := q.db.Exec(ctx, setIntroCap, arg.ID, arg.DailyIntroCap)
 	return err
@@ -178,7 +178,7 @@ INSERT INTO users (telegram_id, username)
 VALUES ($1, $2)
 ON CONFLICT (telegram_id)
 DO UPDATE SET username = EXCLUDED.username
-RETURNING id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap
+RETURNING id, telegram_id, username, daily_new_cap, daily_intro_cap, reminders_enabled, timezone, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, created_at
 `
 
 type UpsertUserParams struct {
@@ -194,20 +194,20 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.TelegramID,
 		&i.Username,
 		&i.DailyNewCap,
+		&i.DailyIntroCap,
 		&i.RemindersEnabled,
 		&i.Timezone,
-		&i.CreatedAt,
 		&i.LabelStyle,
 		&i.ReminderHour,
 		&i.FollowUpEnabled,
 		&i.FollowUpDelayMin,
-		&i.DailyIntroCap,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const usersWithReminders = `-- name: UsersWithReminders :many
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap FROM users WHERE reminders_enabled = true ORDER BY created_at
+SELECT id, telegram_id, username, daily_new_cap, daily_intro_cap, reminders_enabled, timezone, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, created_at FROM users WHERE reminders_enabled = true ORDER BY created_at
 `
 
 func (q *Queries) UsersWithReminders(ctx context.Context) ([]User, error) {
@@ -224,14 +224,14 @@ func (q *Queries) UsersWithReminders(ctx context.Context) ([]User, error) {
 			&i.TelegramID,
 			&i.Username,
 			&i.DailyNewCap,
+			&i.DailyIntroCap,
 			&i.RemindersEnabled,
 			&i.Timezone,
-			&i.CreatedAt,
 			&i.LabelStyle,
 			&i.ReminderHour,
 			&i.FollowUpEnabled,
 			&i.FollowUpDelayMin,
-			&i.DailyIntroCap,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

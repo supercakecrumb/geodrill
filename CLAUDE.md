@@ -27,6 +27,6 @@ GitHub Actions in `.github/workflows/`: lint, test, build on every push; release
 
 ## Context
 
-- Plans/design docs live in `vibe/`. Current: `vibe/geodrill-v2-orchestrator-prompt.md` — the multi-topic v2 restructure brief.
+- Plans/design docs live in `vibe/`. Current: `vibe/geodrill-orchestrator-brief.md` — the multi-topic v2 restructure brief.
 - Knowledge base: Obsidian vault at `../../Projects/wiki/` (read `hot.md` first, then the geodrill page).
 - Build history: `PROGRESS.md`.

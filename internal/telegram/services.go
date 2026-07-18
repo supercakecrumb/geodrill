@@ -1,13 +1,13 @@
 package telegram
 
-// v2_types.go declares the seam between this package and the v2 service
+// services.go declares the seam between this package and the service
 // layer that lands in a later wave (architecture §5, §8 W3.4/W4.3):
 // StudyService (/study introductions), TopicService (/topics browser),
-// TrainerV2 (mode-aware exercises), and IntroCapStore (the /settings
+// Trainer (mode-aware exercises), and IntroCapStore (the /settings
 // intro-cap row). Every interface here is an OPTIONAL field on Config
 // (bot.go) — a nil value keeps the corresponding command/flow dormant, so
 // cmd/bot (which this package cannot touch) keeps compiling and the
-// pre-v2 bot keeps working unchanged until wave 4 wires a real
+// legacy bot keeps working unchanged until wave 4 wires a real
 // implementation. Handlers built against these interfaces are unit-tested
 // with hand-written fakes, per the existing trainer/userStore pattern in
 // handlers.go.
@@ -179,58 +179,58 @@ type TopicService interface {
 	SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error
 }
 
-// ── TrainerV2 — mode-aware exercises (architecture §1.6) ────────────────────
+// ── Trainer — mode-aware exercises (architecture §1.6) ────────────────────
 
-// PromptV2Kind describes the outcome of NextExerciseV2, mirroring
-// train.NextKind for the v2 exercise path.
-type PromptV2Kind int8
+// PromptKind describes the outcome of NextExercise, mirroring
+// train.NextKind for the exercise path.
+type PromptKind int8
 
 const (
-	// PromptV2KindExercise: a new exercise is ready (the other PromptV2
+	// PromptKindExercise: a new exercise is ready (the other Prompt
 	// fields are populated).
-	PromptV2KindExercise PromptV2Kind = iota
-	// PromptV2KindNothingDue: nothing is due now (DueAt may hold the next
+	PromptKindExercise PromptKind = iota
+	// PromptKindNothingDue: nothing is due now (DueAt may hold the next
 	// due time).
-	PromptV2KindNothingDue
-	// PromptV2KindNoContent: due (or, for /practice, tier-unlocked) items
+	PromptKindNothingDue
+	// PromptKindNoContent: due (or, for /practice, tier-unlocked) items
 	// exist but none have content ready.
-	PromptV2KindNoContent
-	// PromptV2KindNoTopics: /practice found no enabled+quizzable topics at
-	// all (nudge the caller to /topics) — the v2 counterpart of the legacy
+	PromptKindNoContent
+	// PromptKindNoTopics: /practice found no enabled+quizzable topics at
+	// all (nudge the caller to /topics) — the counterpart of the legacy
 	// KindNoDecks.
-	PromptV2KindNoTopics
+	PromptKindNoTopics
 )
 
-// OptionV2 is one answer option for a PromptV2 in ModeSingle/ModeSet. Label
+// Option is one answer option for a Prompt in ModeSingle/ModeSet. Label
 // arrives already flag-prefixed by the service — this package never builds
 // flag logic (see the package doc in flags.go). Index is the stable
 // position used by the index-based answer callback: architecture §5.4
 // reserves the "ans:"/"prac:" prefixes for a later wave's key→index
-// migration, so v2 exercises answer through their own "v2a:" prefix
-// instead (see dataV2AnswerPrefix in trainv2.go).
-type OptionV2 struct {
+// migration, so exercises answer through their own "ans:" prefix
+// instead (see dataAnswerPrefix in train.go).
+type Option struct {
 	Index int
 	Label string
 }
 
-// PromptV2 is a ready-to-send v2 exercise: mode-aware (ModeSingle/ModeSet
+// Prompt is a ready-to-send exercise: mode-aware (ModeSingle/ModeSet
 // render as buttons; ModeText renders as a bare "type your answer" prompt
 // with no buttons) and media-aware (MediaPath non-empty ⇒ a photo message
 // from birth, decision 6, instead of a text message).
-type PromptV2 struct {
-	Kind       PromptV2Kind
+type Prompt struct {
+	Kind       PromptKind
 	ExerciseID uuid.UUID
 	// Text is the prompt body when MediaPath == "", or the photo caption
-	// when MediaPath != "". Meaningful when Kind == PromptV2KindExercise.
+	// when MediaPath != "". Meaningful when Kind == PromptKindExercise.
 	Text      string
 	MediaPath string
-	Mode      quiz.Mode  // ModeSingle | ModeSet | ModeText
-	Options   []OptionV2 // populated for ModeSingle/ModeSet; empty for ModeText
-	DueAt     time.Time  // set when Kind == PromptV2KindNothingDue and a future due exists
+	Mode      quiz.Mode // ModeSingle | ModeSet | ModeText
+	Options   []Option  // populated for ModeSingle/ModeSet; empty for ModeText
+	DueAt     time.Time // set when Kind == PromptKindNothingDue and a future due exists
 
-	// Practice is true for a /practice exercise (NextPracticeV2): the
+	// Practice is true for a /practice exercise (NextPractice): the
 	// telegram layer adds a Stop control and answers route through the
-	// v2p: callback prefix instead of v2a:, mirroring the legacy
+	// prac: callback prefix instead of ans:, mirroring the legacy
 	// train.Prompt.Practice flag.
 	Practice bool
 }
@@ -265,100 +265,100 @@ func DecorateLabel(label string, m Mark) string {
 // the legacy trainer's DataNoop constant).
 const DataNoop = "noop"
 
-// GradedOptionV2 is one OptionV2 after grading, for the in-place edit.
-type GradedOptionV2 struct {
+// GradedOption is one Option after grading, for the in-place edit.
+type GradedOption struct {
 	Index int
 	Label string
 	Mark  Mark
 }
 
-// AnswerResultV2 is the outcome of grading a v2 tap (AnswerV2) or a typed
+// AnswerResult is the outcome of grading a tap (Answer) or a typed
 // answer (AnswerText).
-type AnswerResultV2 struct {
+type AnswerResult struct {
 	Stale   bool // the exercise was already answered (or unknown) — show a toast
 	Correct bool
 
 	// Text/MediaPath re-render the exercise message for the in-place edit:
 	// MediaPath != "" ⇒ the caller must use EditCaption (photo), otherwise
-	// EditMessage (text) — mirroring PromptV2's own Text/MediaPath split.
+	// EditMessage (text) — mirroring Prompt's own Text/MediaPath split.
 	Text      string
 	MediaPath string
-	Options   []GradedOptionV2
+	Options   []GradedOption
 
 	MessageID  int64
 	HasMessage bool
 
 	// Practice echoes back the graded exercise's Practice flag (read from
-	// storage.ExerciseV2 at answer time) — handleText has no callback
+	// storage.Exercise at answer time) — handleText has no callback
 	// prefix to tell a practice tap from a scheduled one, so it reads this
-	// field to decide whether the "next" step is NextPracticeV2 or
-	// NextExerciseV2.
+	// field to decide whether the "next" step is NextPractice or
+	// NextExercise.
 	Practice bool
 }
 
-// TrainerV2 supplements trainer with the mode-aware v2 exercise path
-// (architecture §1.6: single/set/text). A nil TrainerV2 keeps /train on the
+// Trainer supplements trainer with the mode-aware exercise path
+// (architecture §1.6: single/set/text). A nil Trainer keeps /train on the
 // legacy path and leaves the free-text OnText handler unregistered (see
 // bot.go's New).
-type TrainerV2 interface {
-	NextExerciseV2(ctx context.Context, userID uuid.UUID) (PromptV2, error)
-	// NextPracticeV2 generates an unscheduled practice exercise (PromptV2.
+type Trainer interface {
+	NextExercise(ctx context.Context, userID uuid.UUID) (Prompt, error)
+	// NextPractice generates an unscheduled practice exercise (Prompt.
 	// Practice=true) from a random active item across the caller's
-	// enabled+tier-unlocked topics — the v2 counterpart of the legacy
+	// enabled+tier-unlocked topics — the counterpart of the legacy
 	// trainer.NextPractice.
-	NextPracticeV2(ctx context.Context, userID uuid.UUID) (PromptV2, error)
-	AnswerV2(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResultV2, error)
+	NextPractice(ctx context.Context, userID uuid.UUID) (Prompt, error)
+	Answer(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResult, error)
 	// AnswerText grades a free-typed message against the caller's single
 	// open ModeText exercise (answered_at IS NULL, newest). ok=false means
 	// there is no such exercise — the caller must treat the message as
 	// ordinary, unhandled text rather than silently swallowing it.
-	AnswerText(ctx context.Context, userID uuid.UUID, typed string) (result AnswerResultV2, ok bool, err error)
-	// Stats builds the /stats view model over v2 reviews/user_items — the
-	// v2 counterpart of the legacy trainer.Stats.
-	Stats(ctx context.Context, userID uuid.UUID) (StatsV2, error)
-	// DueCount reports how many of the user's v2 cards (user_items in
-	// lifecycle Introduced/Reviewing) are due right now — the v2
+	AnswerText(ctx context.Context, userID uuid.UUID, typed string) (result AnswerResult, ok bool, err error)
+	// Stats builds the /stats view model over reviews/user_items — the
+	// counterpart of the legacy trainer.Stats.
+	Stats(ctx context.Context, userID uuid.UUID) (Stats, error)
+	// DueCount reports how many of the user's cards (user_items in
+	// lifecycle Introduced/Reviewing) are due right now — the
 	// counterpart of the legacy trainer.DueCount, feeding the reminder
 	// loop's due-review count (architecture §5.3).
 	DueCount(ctx context.Context, userID uuid.UUID) (int, error)
 }
 
-// ── /stats — v2 view model ──────────────────────────────────────────────
+// ── /stats — view model ───────────────────────────────────────────────
 
-// TopicAccuracyV2 is per-topic accuracy for /stats (the v2 counterpart of
+// TopicAccuracy is per-topic accuracy for /stats (the counterpart of
 // the legacy DeckAccuracy).
-type TopicAccuracyV2 struct {
+type TopicAccuracy struct {
 	Name     string
 	Total    int
 	Correct  int
 	Accuracy float64 // 0..1; 0 when Total == 0
 }
 
-// ConfusionRowV2 is one "you mistake X for Y" line for /stats (the v2
-// counterpart of ConfusionRow), computed over v2 attempts (quiz.Confusion).
+// ConfusionRow is one "you mistake X for Y" line for /stats, computed
+// over item-based attempts (quiz.Confusion).
 // TargetLabel/ChosenLabel are resolved via a best-effort global item
 // key->label map (see storage.Store.ListAllItemKeyLabels): they fall back
 // to the raw key when no item currently carries it.
-type ConfusionRowV2 struct {
+type ConfusionRow struct {
 	TargetLabel string
 	ChosenLabel string
 	Count       int
 	Share       float64
 }
 
-// StatsV2 is the /stats view model, computed over v2 reviews/user_items
-// (the v2 counterpart of the legacy train.Stats): ByTopic replaces ByDeck,
+// Stats is the /stats view model, computed over reviews/user_items
+// (the counterpart of the legacy train.Stats): ByTopic replaces ByDeck,
 // and Introduced/Known are new (architecture §2.3 lifecycle counts).
-type StatsV2 struct {
+type Stats struct {
 	ReviewsToday int
 	ReviewsWeek  int
 	Streak       int
 	Accuracy     float64 // overall, 0..1
-	ByTopic      []TopicAccuracyV2
-	DueForecast  []int            // due counts for the next N days (index 0 = today)
-	Confusion    []ConfusionRowV2 // top pairs, most-confused first
-	Introduced   int              // items with lifecycle != new
-	Known        int              // items with lifecycle == known
+	ByTopic      []TopicAccuracy
+	DueForecast  []int          // due counts for the next N days (index 0 = today)
+	Confusion    []ConfusionRow // top pairs, most-confused first
+	Introduced   int            // items with lifecycle != new
+	Known        int            // items with lifecycle == known
 }
 
 // ── /settings — daily intro cap ─────────────────────────────────────────────

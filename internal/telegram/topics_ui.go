@@ -15,7 +15,7 @@ const dataTopicsRoot = "top:root"
 
 // topicsDormantText is what /topics replies with when Config.TopicService
 // is nil (no wave-4 wiring yet).
-const topicsDormantText = "🚧 /topics is coming with v2 wiring."
+const topicsDormantText = "🚧 /topics is coming soon."
 
 // topicsRootText is the static header sent with the root topic listing.
 const topicsRootText = "🌍 Topics — tap a row to drill in."
@@ -158,8 +158,8 @@ func (b *Bot) handleTopicToggle(ctx context.Context, s Session, data string) err
 
 // handleTopicCallback re-renders the /topics message in place for a "top:"
 // tap: drilling into a topic, going up to a parent, or back to the root
-// listing all edit the SAME message (mirroring rerenderDeckPicker /
-// rerenderSettings), so browsing the tree never spams new messages.
+// listing all edit the SAME message (mirroring rerenderSettings), so
+// browsing the tree never spams new messages.
 func (b *Bot) handleTopicCallback(ctx context.Context, s Session, data string) error {
 	if b.topics == nil {
 		return s.Respond("")

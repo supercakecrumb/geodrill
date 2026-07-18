@@ -88,7 +88,7 @@ type GetUserTopicEnabledParams struct {
 	ID     uuid.UUID
 }
 
-// v2 (internal/study.Service, the /topics enable/disable toggle): a single
+// internal/study.Service, the /topics enable/disable toggle: a single
 // topic's enabled flag for a user (default-on when no user_topics row
 // exists), for rendering the toggle's current state without listing every
 // topic (ListUserTopics).

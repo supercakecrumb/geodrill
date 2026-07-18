@@ -1,2 +1,0 @@
-kind: Removed
-body: '/train, /practice, /stats, and the reminder loop''s due count no longer fall back to the legacy trainer -- Config.TrainerV2 is required from here on. Old in-flight messages carrying a pre-v2 "ans:"/"prac:" answer button now get a friendly "This quiz expired -- run /train" toast instead of being graded. The legacy rendering path this replaced (button-face flag lookup, blockquote-tip composition, graded-keyboard rendering) is deleted with it -- functionally identical behavior now lives entirely in the v2 exercise/practice path'

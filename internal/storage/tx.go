@@ -11,7 +11,7 @@ import (
 
 // WithTx runs fn inside a single pgx transaction, exposing a tx-bound
 // *db.Queries so fn can call any generated query with the same
-// begin/commit-or-rollback semantics. Two v2 flows need this (architecture
+// begin/commit-or-rollback semantics. Two flows need this (architecture
 // §5.5): answer (PutCard + InsertReview + tier recompute) and introduce
 // (user_items upsert + introductions insert + tier recompute) — both need
 // the lifecycle/gating writes to commit atomically or not at all.
@@ -40,11 +40,11 @@ func (s *Store) WithTx(ctx context.Context, fn func(q *db.Queries) error) (err e
 
 // WithTxStore is the ergonomic counterpart to WithTx: instead of a raw
 // *db.Queries, fn receives a *Store bound to the same transaction, so every
-// existing high-level Store method (PutUserItem, InsertReviewV2,
+// existing high-level Store method (PutUserItem, InsertReview,
 // RecomputeTierProgressForTier, UpsertTierProgress, MarkExerciseAnswered,
 // AnswerIntroductionOnce, ...) can be called transactionally without the
 // caller hand-building db.XxxParams/pgtype conversions itself. Additive
-// convenience over WithTx (architecture §5.5) for v2 callers (internal/study)
+// convenience over WithTx (architecture §5.5) for callers (internal/study)
 // that want the same API surface they already use outside a transaction.
 func (s *Store) WithTxStore(ctx context.Context, fn func(tx *Store) error) error {
 	return s.WithTx(ctx, func(q *db.Queries) error {

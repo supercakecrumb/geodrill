@@ -1,2 +1,0 @@
-kind: Added
-body: Add /study + /introduce (architecture §5.1) — steps introduction cards (text or photo-from-birth) with the three-button ✅/🧠/🎯 outcome flow, editing each card to a confirmation and auto-advancing to the next or a "nothing to introduce"/"budget spent" closer. Dormant (🚧) until Config.StudyService is wired

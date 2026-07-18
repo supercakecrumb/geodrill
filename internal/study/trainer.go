@@ -1,4 +1,4 @@
-// trainer.go implements telegram.TrainerV2: the mode-aware v2 exercise path
+// trainer.go implements telegram.Trainer: the mode-aware exercise path
 // (architecture §1.6).
 package study
 
@@ -18,46 +18,46 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/topics"
 )
 
-var _ telegram.TrainerV2 = (*Service)(nil)
+var _ telegram.Trainer = (*Service)(nil)
 
-// ── NextExerciseV2 ───────────────────────────────────────────────────────
+// ── NextExercise ───────────────────────────────────────────────────────
 
-// NextExerciseV2 implements telegram.TrainerV2. Due candidates are
+// NextExercise implements telegram.Trainer. Due candidates are
 // Introduced/Reviewing items whose topic is enabled for the user
 // (architecture §1.6 step 4) — no tier filter is needed here: an item only
 // ever reaches lifecycle Introduced/Reviewing by passing the tier gate at
 // introduction time (architecture §4.2), and tiers only ever unlock, never
 // re-lock, so an already-introduced item stays valid regardless of the
 // user's CURRENT unlocked-tier set.
-func (s *Service) NextExerciseV2(ctx context.Context, userID uuid.UUID) (telegram.PromptV2, error) {
+func (s *Service) NextExercise(ctx context.Context, userID uuid.UUID) (telegram.Prompt, error) {
 	now := s.now()
 	user, err := s.store.GetUserByID(ctx, userID)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	due, err := s.store.ListDueUserItems(ctx, userID, now)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	userTopics, err := s.store.ListUserTopics(ctx, userID)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	disabled := disabledTopicSet(userTopics)
 	work := filterEnabledDue(due, disabled)
 
 	for len(work) > 0 {
-		picked, ok := engram.NextReview(toQueueItemsV2(work), now)
+		picked, ok := engram.NextReview(toQueueItems(work), now)
 		if !ok {
 			break
 		}
 		itemID, err := uuid.Parse(string(picked.Skill.ID))
 		if err != nil {
-			return telegram.PromptV2{}, err
+			return telegram.Prompt{}, err
 		}
-		prompt, built, err := s.buildExerciseV2(ctx, user, itemID, now)
+		prompt, built, err := s.buildExercise(ctx, user, itemID, now)
 		if err != nil {
-			return telegram.PromptV2{}, err
+			return telegram.Prompt{}, err
 		}
 		if built {
 			return prompt, nil
@@ -70,22 +70,22 @@ func (s *Service) NextExerciseV2(ctx context.Context, userID uuid.UUID) (telegra
 
 	dueAt, err := s.earliestFutureDue(ctx, userID, now)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 	if len(due) == 0 {
-		return telegram.PromptV2{Kind: telegram.PromptV2KindNothingDue, DueAt: dueAt}, nil
+		return telegram.Prompt{Kind: telegram.PromptKindNothingDue, DueAt: dueAt}, nil
 	}
 	// due was non-empty but every candidate was filtered out (disabled
 	// topics) or failed to build an exercise for every configured mode.
 	if dueAt.IsZero() {
-		return telegram.PromptV2{Kind: telegram.PromptV2KindNoContent}, nil
+		return telegram.Prompt{Kind: telegram.PromptKindNoContent}, nil
 	}
-	return telegram.PromptV2{Kind: telegram.PromptV2KindNothingDue, DueAt: dueAt}, nil
+	return telegram.Prompt{Kind: telegram.PromptKindNothingDue, DueAt: dueAt}, nil
 }
 
 // earliestFutureDue scans every Introduced/Reviewing item for userID (not
 // just currently-due ones — ListDueUserItems only returns due <= now rows)
-// for the earliest Due strictly after now, for PromptV2's "come back at ..."
+// for the earliest Due strictly after now, for Prompt's "come back at ..."
 // hint. Best-effort: unlike ListDueUserItems it can't cheaply exclude
 // disabled topics (ListUserItemsByLifecycle carries no topic_id), so a
 // disabled topic's item could rarely skew this cosmetic hint — acceptable,
@@ -106,15 +106,15 @@ func (s *Service) earliestFutureDue(ctx context.Context, userID uuid.UUID, now t
 	return best, nil
 }
 
-// buildExerciseV2 loads itemID's item and delegates to buildExerciseForItem
+// buildExercise loads itemID's item and delegates to buildExerciseForItem
 // for the (non-practice) /train path.
-func (s *Service) buildExerciseV2(ctx context.Context, user storage.User, itemID uuid.UUID, now time.Time) (telegram.PromptV2, bool, error) {
+func (s *Service) buildExercise(ctx context.Context, user storage.User, itemID uuid.UUID, now time.Time) (telegram.Prompt, bool, error) {
 	item, found, err := s.store.GetItemByID(ctx, itemID)
 	if err != nil {
-		return telegram.PromptV2{}, false, err
+		return telegram.Prompt{}, false, err
 	}
 	if !found {
-		return telegram.PromptV2{}, false, nil
+		return telegram.Prompt{}, false, nil
 	}
 	return s.buildExerciseForItem(ctx, user, item, false, now)
 }
@@ -123,32 +123,32 @@ func (s *Service) buildExerciseV2(ctx context.Context, user storage.User, itemID
 // topic's configured exercise modes in rotation order (modeRotationOrder)
 // until one builds successfully, persisting the result with practice's
 // value (architecture: /practice exercises are marked practice=true at
-// creation time so AnswerV2/AnswerText's shared grading path — finishAnswer
+// creation time so Answer/AnswerText's shared grading path — finishAnswer
 // — knows to skip FSRS movement without the answer callback needing to say
 // so again). built=false means every configured mode failed (the item
 // currently can't be quizzed) — the caller skips it.
-func (s *Service) buildExerciseForItem(ctx context.Context, user storage.User, item storage.Item, practice bool, now time.Time) (telegram.PromptV2, bool, error) {
+func (s *Service) buildExerciseForItem(ctx context.Context, user storage.User, item storage.Item, practice bool, now time.Time) (telegram.Prompt, bool, error) {
 	topic, found, err := s.store.GetTopicByID(ctx, item.TopicID)
 	if err != nil {
-		return telegram.PromptV2{}, false, err
+		return telegram.Prompt{}, false, err
 	}
 	if !found {
-		return telegram.PromptV2{}, false, nil
+		return telegram.Prompt{}, false, nil
 	}
 	gen, ok := s.reg.Get(topic.QuizKind)
 	if !ok {
-		return telegram.PromptV2{}, false, fmt.Errorf("study: no generator registered for quiz_kind %q (topic %s)", topic.QuizKind, topic.Slug)
+		return telegram.Prompt{}, false, fmt.Errorf("study: no generator registered for quiz_kind %q (topic %s)", topic.QuizKind, topic.Slug)
 	}
 
 	siblings, err := s.store.ListActiveItemsByTopic(ctx, item.TopicID)
 	if err != nil {
-		return telegram.PromptV2{}, false, err
+		return telegram.Prompt{}, false, err
 	}
 	siblings = removeItemFromSlice(siblings, item.ID)
 
 	userItem, _, err := s.store.GetUserItem(ctx, user.ID, item.ID)
 	if err != nil {
-		return telegram.PromptV2{}, false, err
+		return telegram.Prompt{}, false, err
 	}
 
 	for _, modeStr := range modeRotationOrder(topic.ExerciseModes, userItem.Card.Reps) {
@@ -161,13 +161,13 @@ func (s *Service) buildExerciseForItem(ctx context.Context, user storage.User, i
 		if buildErr != nil {
 			continue
 		}
-		prompt, err := s.persistExerciseV2(ctx, user.ID, item, ex, practice, now)
+		prompt, err := s.persistExercise(ctx, user.ID, item, ex, practice, now)
 		if err != nil {
-			return telegram.PromptV2{}, false, err
+			return telegram.Prompt{}, false, err
 		}
 		return prompt, true, nil
 	}
-	return telegram.PromptV2{}, false, nil
+	return telegram.Prompt{}, false, nil
 }
 
 // modeRotationOrder is the exercise-mode-choice rule for a multi-mode topic
@@ -214,29 +214,19 @@ func modeFromString(m string) quiz.Mode {
 	}
 }
 
-// persistExerciseV2 serializes ex per its mode (model.go) and inserts the
-// exercises row, returning the ready-to-send PromptV2. practice is persisted
+// persistExercise serializes ex per its mode (model.go) and inserts the
+// exercises row, returning the ready-to-send Prompt. practice is persisted
 // on the row (exercises.practice) so the answer path (finishAnswer) can tell
 // a /practice exercise from a /train one without any extra caller state.
-func (s *Service) persistExerciseV2(ctx context.Context, userID uuid.UUID, item storage.Item, ex topics.Exercise, practice bool, now time.Time) (telegram.PromptV2, error) {
-	optionsJSON, correctAnswer, err := serializeExerciseV2(ex)
+func (s *Service) persistExercise(ctx context.Context, userID uuid.UUID, item storage.Item, ex topics.Exercise, practice bool, now time.Time) (telegram.Prompt, error) {
+	optionsJSON, correctAnswer, err := serializeExercise(ex)
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 
-	bridgeSkill, bridgeContent, err := s.bridgeIDs(ctx)
-	if err != nil {
-		return telegram.PromptV2{}, err
-	}
-	contentID := bridgeContent
-	if ex.ContentID != nil {
-		contentID = *ex.ContentID
-	}
-
-	exID, _, err := s.store.InsertExerciseV2(ctx, storage.InsertExerciseV2Params{
+	exID, _, err := s.store.InsertExercise(ctx, storage.InsertExerciseParams{
 		UserID:        userID,
-		SkillID:       bridgeSkill,
-		ContentID:     contentID,
+		ContentID:     ex.ContentID,
 		ItemID:        item.ID,
 		Mode:          int16(ex.Mode),
 		Prompt:        ex.Prompt,
@@ -246,16 +236,16 @@ func (s *Service) persistExerciseV2(ctx context.Context, userID uuid.UUID, item 
 		Practice:      practice,
 	})
 	if err != nil {
-		return telegram.PromptV2{}, err
+		return telegram.Prompt{}, err
 	}
 
-	return telegram.PromptV2{
-		Kind:       telegram.PromptV2KindExercise,
+	return telegram.Prompt{
+		Kind:       telegram.PromptKindExercise,
 		ExerciseID: exID,
 		Text:       ex.Prompt,
 		MediaPath:  ex.MediaPath,
 		Mode:       ex.Mode,
-		Options:    optionV2sFor(ex),
+		Options:    optionsFor(ex),
 		Practice:   practice,
 	}, nil
 }
@@ -267,9 +257,9 @@ func canonicalSetString(keys []string) string {
 	return strings.Join(quiz.CanonSet(keys...), ",")
 }
 
-// serializeExerciseV2 renders a topics.Exercise into its persisted
+// serializeExercise renders a topics.Exercise into its persisted
 // exercises.options jsonb + correct_answer pair (architecture §2.5, model.go).
-func serializeExerciseV2(ex topics.Exercise) ([]byte, string, error) {
+func serializeExercise(ex topics.Exercise) ([]byte, string, error) {
 	switch ex.Mode {
 	case quiz.ModeSet:
 		opts := make([]setOptionJSON, len(ex.OptionSets))
@@ -291,22 +281,22 @@ func serializeExerciseV2(ex topics.Exercise) ([]byte, string, error) {
 	}
 }
 
-// optionV2sFor renders a topics.Exercise's options into PromptV2's index-
-// ordered OptionV2 list (empty for ModeText, which has no buttons).
-func optionV2sFor(ex topics.Exercise) []telegram.OptionV2 {
+// optionsFor renders a topics.Exercise's options into Prompt's index-
+// ordered Option list (empty for ModeText, which has no buttons).
+func optionsFor(ex topics.Exercise) []telegram.Option {
 	switch ex.Mode {
 	case quiz.ModeSet:
-		out := make([]telegram.OptionV2, len(ex.OptionSets))
+		out := make([]telegram.Option, len(ex.OptionSets))
 		for i, o := range ex.OptionSets {
-			out[i] = telegram.OptionV2{Index: i, Label: o.Label}
+			out[i] = telegram.Option{Index: i, Label: o.Label}
 		}
 		return out
 	case quiz.ModeText:
 		return nil
 	default:
-		out := make([]telegram.OptionV2, len(ex.Options))
+		out := make([]telegram.Option, len(ex.Options))
 		for i, o := range ex.Options {
-			out[i] = telegram.OptionV2{Index: i, Label: o.Label}
+			out[i] = telegram.Option{Index: i, Label: o.Label}
 		}
 		return out
 	}
@@ -314,23 +304,23 @@ func optionV2sFor(ex topics.Exercise) []telegram.OptionV2 {
 
 // ── grading ──────────────────────────────────────────────────────────────
 
-// gradeIndexed grades a tapped option position against a persisted v2
+// gradeIndexed grades a tapped option position against a persisted
 // exercise (architecture §1.6 step 5): ModeSingle compares the option's key
 // to correct_answer; ModeSet compares the option's canonicalized key-set
 // string to correct_answer (both sides canonicalized the same way,
 // canonicalSetString). Pure given ex — no I/O — so index/set-canonicalization
 // grading is unit-testable without a database. Out-of-range idx grades wrong
 // (chosen == "") rather than erroring.
-func gradeIndexed(ex storage.ExerciseV2, idx int) (correct bool, chosen string, graded []telegram.GradedOptionV2, err error) {
+func gradeIndexed(ex storage.Exercise, idx int) (correct bool, chosen string, graded []telegram.GradedOption, err error) {
 	switch quiz.Mode(ex.Mode) {
 	case quiz.ModeSet:
 		var opts []setOptionJSON
 		if uerr := json.Unmarshal(ex.Options, &opts); uerr != nil {
 			return false, "", nil, uerr
 		}
-		graded = make([]telegram.GradedOptionV2, len(opts))
+		graded = make([]telegram.GradedOption, len(opts))
 		for i, o := range opts {
-			graded[i] = telegram.GradedOptionV2{Index: i, Label: o.Label, Mark: markFor(canonicalSetString(o.Keys), ex.CorrectAnswer, i, idx)}
+			graded[i] = telegram.GradedOption{Index: i, Label: o.Label, Mark: markFor(canonicalSetString(o.Keys), ex.CorrectAnswer, i, idx)}
 		}
 		if idx >= 0 && idx < len(opts) {
 			chosen = canonicalSetString(opts[idx].Keys)
@@ -342,9 +332,9 @@ func gradeIndexed(ex storage.ExerciseV2, idx int) (correct bool, chosen string, 
 		if uerr := json.Unmarshal(ex.Options, &opts); uerr != nil {
 			return false, "", nil, uerr
 		}
-		graded = make([]telegram.GradedOptionV2, len(opts))
+		graded = make([]telegram.GradedOption, len(opts))
 		for i, o := range opts {
-			graded[i] = telegram.GradedOptionV2{Index: i, Label: o.Label, Mark: markFor(o.Key, ex.CorrectAnswer, i, idx)}
+			graded[i] = telegram.GradedOption{Index: i, Label: o.Label, Mark: markFor(o.Key, ex.CorrectAnswer, i, idx)}
 		}
 		if idx >= 0 && idx < len(opts) {
 			chosen = opts[idx].Key
@@ -383,74 +373,71 @@ func markFor(optKey, correctAnswer string, i, chosenIdx int) telegram.Mark {
 	}
 }
 
-// ── AnswerV2 / AnswerText ────────────────────────────────────────────────
+// ── Answer / AnswerText ────────────────────────────────────────────────
 
-// AnswerV2 implements telegram.TrainerV2.
-func (s *Service) AnswerV2(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (telegram.AnswerResultV2, error) {
-	ex, found, err := s.store.GetExerciseByIDV2(ctx, exerciseID)
+// Answer implements telegram.Trainer.
+func (s *Service) Answer(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (telegram.AnswerResult, error) {
+	ex, found, err := s.store.GetExerciseByID(ctx, exerciseID)
 	if err != nil {
-		return telegram.AnswerResultV2{}, err
+		return telegram.AnswerResult{}, err
 	}
-	if !found || ex.ItemID == nil {
-		return telegram.AnswerResultV2{Stale: true}, nil
+	if !found {
+		return telegram.AnswerResult{Stale: true}, nil
 	}
 	correct, chosen, graded, err := gradeIndexed(ex, optionIndex)
 	if err != nil {
-		return telegram.AnswerResultV2{}, err
+		return telegram.AnswerResult{}, err
 	}
 	return s.finishAnswer(ctx, userID, ex, chosen, correct, graded, s.now())
 }
 
-// AnswerText implements telegram.TrainerV2: grades a free-typed reply
+// AnswerText implements telegram.Trainer: grades a free-typed reply
 // against the caller's single open ModeText exercise (architecture §1.6
 // step 6). ok=false means there is no such exercise.
-func (s *Service) AnswerText(ctx context.Context, userID uuid.UUID, typed string) (telegram.AnswerResultV2, bool, error) {
-	ex, found, err := s.store.GetOpenExerciseV2ByMode(ctx, userID, int16(quiz.ModeText))
+func (s *Service) AnswerText(ctx context.Context, userID uuid.UUID, typed string) (telegram.AnswerResult, bool, error) {
+	ex, found, err := s.store.GetOpenExerciseByMode(ctx, userID, int16(quiz.ModeText))
 	if err != nil {
-		return telegram.AnswerResultV2{}, false, err
+		return telegram.AnswerResult{}, false, err
 	}
-	if !found || ex.ItemID == nil {
-		return telegram.AnswerResultV2{}, false, nil
+	if !found {
+		return telegram.AnswerResult{}, false, nil
 	}
 
 	correct, err := matchTypedText(ex.Options, typed)
 	if err != nil {
-		return telegram.AnswerResultV2{}, true, err
+		return telegram.AnswerResult{}, true, err
 	}
 
 	res, err := s.finishAnswer(ctx, userID, ex, typed, correct, nil, s.now())
 	if err != nil {
-		return telegram.AnswerResultV2{}, true, err
+		return telegram.AnswerResult{}, true, err
 	}
 	return res, true, nil
 }
 
-// finishAnswer is the shared atomic write path for AnswerV2/AnswerText
+// finishAnswer is the shared atomic write path for Answer/AnswerText
 // (architecture §1.6 steps 5/6, §5.5). Both callers already guard
-// ex.ItemID != nil before calling in, so itemID is always valid here.
+// found before calling in, so ex.ItemID is always valid here.
 //
 // Scheduled answers (ex.Practice == false): single-use MarkExerciseAnswered
 // guard, engram Scheduler.Next on the item's current card, PutUserItem
-// (with lifecycle promotion via engram.LifecycleFor), InsertReviewV2, and
+// (with lifecycle promotion via engram.LifecycleFor), InsertReview, and
 // the affected tier's progress recompute, all inside one transaction.
 //
 // Practice answers (ex.Practice == true, set at exercise-creation time by
-// NextPracticeV2): the single-use guard plus InsertReviewV2 with
+// NextPractice): the single-use guard plus InsertReview with
 // practice=true and every FSRS field zeroed — "count in stats, never touch
 // scheduling." No PutUserItem, no tier recompute: practice must never move
 // an item's lifecycle or due date.
 //
 // A stale (already-answered) exercise is detected by the guard and returns
-// AnswerResultV2{Stale: true} without touching anything else.
-func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage.ExerciseV2, chosen string, correct bool, gradedOptions []telegram.GradedOptionV2, now time.Time) (telegram.AnswerResultV2, error) {
-	itemID := *ex.ItemID
+// AnswerResult{Stale: true} without touching anything else.
+func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage.Exercise, chosen string, correct bool, gradedOptions []telegram.GradedOption, now time.Time) (telegram.AnswerResult, error) {
+	itemID := ex.ItemID
 	rating := engram.RatingForAnswer(correct)
-	bridgeSkill, _, err := s.bridgeIDs(ctx)
-	if err != nil {
-		return telegram.AnswerResultV2{}, err
-	}
 
 	var stale bool
+	var err error
 	if ex.Practice {
 		err = s.store.WithTxStore(ctx, func(tx *storage.Store) error {
 			owned, err := tx.MarkExerciseAnswered(ctx, ex.ID, now)
@@ -463,20 +450,18 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 			}
 			ms := max0(int(now.Sub(ex.CreatedAt).Milliseconds()))
 			exID := ex.ID
-			return tx.InsertReviewV2(ctx, storage.ReviewInsertV2{
-				ReviewInsert: storage.ReviewInsert{
-					UserID: userID, SkillID: bridgeSkill, ExerciseID: &exID, ContentID: ex.ContentID,
-					ChosenKey: chosen, CorrectKey: ex.CorrectAnswer, Correct: correct, Rating: int16(rating), ResponseMS: &ms,
-					ReviewedAt: now, Practice: true,
-				},
-				ItemID: &itemID, Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
+			return tx.InsertReview(ctx, storage.ReviewInsert{
+				UserID: userID, ItemID: itemID, ExerciseID: &exID, ContentID: ex.ContentID,
+				Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
+				Correct: correct, Rating: int16(rating), ResponseMS: &ms,
+				ReviewedAt: now, Practice: true,
 			})
 		})
 	} else {
 		var effectiveTier int16
 		effectiveTier, err = s.store.GetItemEffectiveTier(ctx, itemID)
 		if err != nil {
-			return telegram.AnswerResultV2{}, err
+			return telegram.AnswerResult{}, err
 		}
 		err = s.store.WithTxStore(ctx, func(tx *storage.Store) error {
 			owned, err := tx.MarkExerciseAnswered(ctx, ex.ID, now)
@@ -506,16 +491,14 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 
 			ms := max0(int(now.Sub(ex.CreatedAt).Milliseconds()))
 			exID := ex.ID
-			if err := tx.InsertReviewV2(ctx, storage.ReviewInsertV2{
-				ReviewInsert: storage.ReviewInsert{
-					UserID: userID, SkillID: bridgeSkill, ExerciseID: &exID, ContentID: ex.ContentID,
-					ChosenKey: chosen, CorrectKey: ex.CorrectAnswer, Correct: correct, Rating: int16(rating), ResponseMS: &ms,
-					StabilityBefore: rev.StabilityBefore, DifficultyBefore: rev.DifficultyBefore,
-					StabilityAfter: rev.StabilityAfter, DifficultyAfter: rev.DifficultyAfter,
-					StateBefore: int16(rev.StateBefore), ScheduledDays: rev.ScheduledDays, ElapsedDays: rev.ElapsedDays,
-					ReviewedAt: now, Practice: false,
-				},
-				ItemID: &itemID, Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
+			if err := tx.InsertReview(ctx, storage.ReviewInsert{
+				UserID: userID, ItemID: itemID, ExerciseID: &exID, ContentID: ex.ContentID,
+				Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
+				Correct: correct, Rating: int16(rating), ResponseMS: &ms,
+				StabilityBefore: rev.StabilityBefore, DifficultyBefore: rev.DifficultyBefore,
+				StabilityAfter: rev.StabilityAfter, DifficultyAfter: rev.DifficultyAfter,
+				StateBefore: int16(rev.StateBefore), ScheduledDays: rev.ScheduledDays, ElapsedDays: rev.ElapsedDays,
+				ReviewedAt: now, Practice: false,
 			}); err != nil {
 				return err
 			}
@@ -534,17 +517,17 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 		})
 	}
 	if err != nil {
-		return telegram.AnswerResultV2{}, err
+		return telegram.AnswerResult{}, err
 	}
 	if stale {
-		return telegram.AnswerResultV2{Stale: true}, nil
+		return telegram.AnswerResult{Stale: true}, nil
 	}
 
 	text := ex.Prompt
 	if tip := s.tipFor(ctx, itemID, ex, chosen, correct); tip != "" {
 		text += "\n\n💡 " + tip
 	}
-	return telegram.AnswerResultV2{
+	return telegram.AnswerResult{
 		Correct:  correct,
 		Text:     text,
 		Options:  gradedOptions,
@@ -557,7 +540,7 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 // AFTER the answer's write path has already committed, and any failure
 // degrades to "no tip" (returns "") rather than propagating — tips are
 // decoration and must never fail the answer.
-func (s *Service) tipFor(ctx context.Context, itemID uuid.UUID, ex storage.ExerciseV2, chosen string, correct bool) string {
+func (s *Service) tipFor(ctx context.Context, itemID uuid.UUID, ex storage.Exercise, chosen string, correct bool) string {
 	item, found, err := s.store.GetItemByID(ctx, itemID)
 	if err != nil || !found {
 		return ""
@@ -612,9 +595,9 @@ func filterEnabledDue(due []storage.DueUserItem, disabled map[uuid.UUID]bool) []
 	return out
 }
 
-// toQueueItemsV2 adapts due items to engram.QueueItem for engram.NextReview.
+// toQueueItems adapts due items to engram.QueueItem for engram.NextReview.
 // Only Skill.ID (carrying the item id) and Card matter to NextReview.
-func toQueueItemsV2(due []storage.DueUserItem) []engram.QueueItem {
+func toQueueItems(due []storage.DueUserItem) []engram.QueueItem {
 	out := make([]engram.QueueItem, len(due))
 	for i, d := range due {
 		out[i] = engram.QueueItem{

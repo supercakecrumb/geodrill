@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/tips"
 )
 
 // ── narrow dependency interfaces (for unit-testing without a DB) ───────────
@@ -22,9 +21,6 @@ type userStore interface {
 	UpsertUser(ctx context.Context, telegramID int64, username string) (storage.User, error)
 	GetUserByTelegramID(ctx context.Context, telegramID int64) (storage.User, bool, error)
 	SetExerciseMessageID(ctx context.Context, exerciseID uuid.UUID, messageID int64) error
-	ListUserDecks(ctx context.Context, userID uuid.UUID) ([]storage.UserDeck, error)
-	SetUserDeckEnabled(ctx context.Context, userID, deckID uuid.UUID, enabled bool) error
-	CountEnabledDecks(ctx context.Context, userID uuid.UUID) (int, error)
 	SetDailyCap(ctx context.Context, userID uuid.UUID, cap int) error
 	SetReminders(ctx context.Context, userID uuid.UUID, enabled bool) error
 	SetReminderHour(ctx context.Context, userID uuid.UUID, hour int) error
@@ -37,8 +33,7 @@ type userStore interface {
 }
 
 // dataStopPractice is the callback payload for the /practice Stop control. It
-// deliberately avoids the "ans:"/"prac:" prefixes so isLegacyAnswerCallback
-// never mistakes it for a stale legacy answer tap.
+// deliberately avoids the "ans:"/"prac:" prefixes reserved for answer taps.
 const dataStopPractice = "pstop"
 
 // dataStartTrain is the callback payload for the "Start reviewing" button on
@@ -118,8 +113,12 @@ const fallbackText = "Something went wrong on my end. Please try again in a mome
 const staleToast = "⏳ already answered"
 const correctToast = "✅ correct"
 const wrongToast = "❌ wrong"
-const decksPickerText = "Your decks — tap to turn confusion groups on/off.\n(Daily cap, reminders & button style live in /settings.)"
 const settingsText = "⚙️ Settings — daily new-skill cap, button style, and reminders:"
+
+// decksUnavailableText is what the retired /decks command replies with when
+// TopicService isn't wired: the legacy per-deck picker was removed along
+// with the decks/user_decks tables, so there's no fallback left to render.
+const decksUnavailableText = "Topic browser is unavailable right now."
 
 const helpText = "🌍 geodrill — train the languages you keep confusing in GeoGuessr.\n\n" +
 	"I show you a short real sentence; you tap the flag of the language it's in. " +
@@ -143,14 +142,16 @@ const helpText = "🌍 geodrill — train the languages you keep confusing in Ge
 // ── /start ───────────────────────────────────────────────────────────────
 
 func (b *Bot) handleStart(ctx context.Context, s Session) error {
-	user, err := b.store.UpsertUser(ctx, s.UserID(), s.Username())
-	if err != nil {
+	if _, err := b.store.UpsertUser(ctx, s.UserID(), s.Username()); err != nil {
 		return err
 	}
 	if err := s.Send(welcomeText); err != nil {
 		return err
 	}
-	return b.sendDeckPicker(ctx, s, user)
+	// The legacy deck picker that used to follow the welcome message was
+	// removed along with the decks/user_decks tables; /topics (via
+	// handleTopics, which is itself nil-safe) is its replacement.
+	return b.handleTopics(ctx, s)
 }
 
 // ── /train ───────────────────────────────────────────────────────────────
@@ -201,7 +202,7 @@ func (b *Bot) handleStopPractice(ctx context.Context, s Session) error {
 
 // handleStartTrainCallback runs the /train flow from the "Start reviewing"
 // button on the daily reminder: it acks the tap (clearing the button's
-// spinner) and sends the next due exercise (V2 when wired) as a new message.
+// spinner) and sends the next due exercise (when wired) as a new message.
 func (b *Bot) handleStartTrainCallback(ctx context.Context, s Session) error {
 	if err := s.Respond(""); err != nil {
 		return err
@@ -218,16 +219,13 @@ func (b *Bot) handleStartTrainCallback(ctx context.Context, s Session) error {
 // handleDecks serves the retired /decks command: it now aliases /topics
 // (architecture: confusion-group on/off moved to the per-topic toggle in a
 // quizzable TopicView, topics_ui.go's topicToggleButton) when TopicService
-// is wired, falling back to the legacy deck picker otherwise.
+// is wired, replying that the topic browser is unavailable otherwise (the
+// legacy deck picker was removed along with the decks/user_decks tables).
 func (b *Bot) handleDecks(ctx context.Context, s Session) error {
 	if b.topics != nil {
 		return b.handleTopics(ctx, s)
 	}
-	user, err := b.loadOrCreateUser(ctx, s)
-	if err != nil {
-		return err
-	}
-	return b.sendDeckPicker(ctx, s, user)
+	return s.Send(decksUnavailableText)
 }
 
 // ── /settings ─────────────────────────────────────────────────────────────
@@ -323,8 +321,8 @@ func (b *Bot) handleHelp(ctx context.Context, s Session) error {
 }
 
 // helpTextFor appends a mention of /study and/or /topics to the base
-// helpText when the corresponding v2 service is wired, so /help never
-// advertises a command that would just reply "🚧 coming with v2 wiring".
+// helpText when the corresponding service is wired, so /help never
+// advertises a command that would just reply "🚧 coming soon".
 // Returns helpText verbatim when both are nil (today's exact message).
 func helpTextFor(hasStudy, hasTopics bool) string {
 	if !hasStudy && !hasTopics {
@@ -344,25 +342,25 @@ func helpTextFor(hasStudy, hasTopics bool) string {
 
 // ── /stats ───────────────────────────────────────────────────────────────
 
-// statsDormantText is what /stats replies with when Config.TrainerV2 is
-// nil, matching the /study and /topics "coming with v2 wiring" convention:
-// /stats is now computed entirely over v2 reviews/user_items (study.
+// statsDormantText is what /stats replies with when Config.Trainer is
+// nil, matching the /study and /topics "coming soon" convention:
+// /stats is now computed entirely over reviews/user_items (study.
 // Service.Stats), so there is no legacy fallback to degrade to.
-const statsDormantText = "🚧 /stats is coming with v2 wiring."
+const statsDormantText = "🚧 /stats is coming soon."
 
 func (b *Bot) handleStats(ctx context.Context, s Session) error {
-	if b.trainerV2 == nil {
+	if b.trainer == nil {
 		return s.Send(statsDormantText)
 	}
 	user, err := b.loadOrCreateUser(ctx, s)
 	if err != nil {
 		return err
 	}
-	st, err := b.trainerV2.Stats(ctx, user.ID)
+	st, err := b.trainer.Stats(ctx, user.ID)
 	if err != nil {
 		return err
 	}
-	return s.Send(formatStatsV2(st))
+	return s.Send(formatStats(st))
 }
 
 // ── callbacks ────────────────────────────────────────────────────────────
@@ -370,18 +368,7 @@ func (b *Bot) handleStats(ctx context.Context, s Session) error {
 func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 	data := s.Data()
 
-	// Old in-flight messages from before the v2 cutover may still carry a
-	// legacy "ans:"/"prac:" answer button; the legacy trainer that graded
-	// them is gone, so tapping one now gets a friendly "expired" toast
-	// instead (deliverable 5: /train and /practice answers only ever
-	// arrive via v2a:/v2p: from here on).
-	if isLegacyAnswerCallback(data) {
-		return s.Respond(legacyAnswerExpiredToast)
-	}
-
 	switch {
-	case strings.HasPrefix(data, "deck:"):
-		return b.handleDeckToggle(ctx, s, strings.TrimPrefix(data, "deck:"))
 	case strings.HasPrefix(data, "intro:"):
 		return b.handleIntroCallback(ctx, s, data)
 	case data == dataStudyStart, data == dataStudyNext:
@@ -390,10 +377,10 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleTopicToggle(ctx, s, data)
 	case strings.HasPrefix(data, "top:"):
 		return b.handleTopicCallback(ctx, s, data)
-	case strings.HasPrefix(data, dataV2AnswerPrefix):
-		return b.handleV2AnswerCallback(ctx, s, data)
-	case strings.HasPrefix(data, dataV2PracticePrefix):
-		return b.handleV2PracticeAnswerCallback(ctx, s, data)
+	case strings.HasPrefix(data, dataAnswerPrefix):
+		return b.handleAnswerCallback(ctx, s, data)
+	case strings.HasPrefix(data, dataPracticePrefix):
+		return b.handlePracticeAnswerCallback(ctx, s, data)
 	case data == "cap:inc":
 		return b.handleCapChange(ctx, s, 1)
 	case data == "cap:dec":
@@ -425,50 +412,6 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 	default: // includes DataNoop and any unrecognized payload
 		return s.Respond("")
 	}
-}
-
-// isLegacyAnswerCallback reports whether data has the shape of a pre-v2
-// "ans:<uuid>:<key>" or "prac:<uuid>:<key>" answer tap — recognized only by
-// shape now, since the legacy trainer that graded them no longer exists.
-func isLegacyAnswerCallback(data string) bool {
-	return strings.HasPrefix(data, "ans:") || strings.HasPrefix(data, "prac:")
-}
-
-// legacyAnswerExpiredToast is shown when a stale "ans:"/"prac:" button from
-// before the v2 cutover is tapped.
-const legacyAnswerExpiredToast = "⏳ This quiz expired — run /train"
-
-func (b *Bot) handleDeckToggle(ctx context.Context, s Session, idStr string) error {
-	deckID, err := uuid.Parse(idStr)
-	if err != nil {
-		return s.Respond("")
-	}
-	user, err := b.loadOrCreateUser(ctx, s)
-	if err != nil {
-		return err
-	}
-	decks, err := b.store.ListUserDecks(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-	var (
-		enabled bool
-		found   bool
-	)
-	for _, d := range decks {
-		if d.ID == deckID {
-			enabled = d.Enabled
-			found = true
-			break
-		}
-	}
-	if !found {
-		return s.Respond("")
-	}
-	if err := b.store.SetUserDeckEnabled(ctx, user.ID, deckID, !enabled); err != nil {
-		return err
-	}
-	return b.rerenderDeckPicker(ctx, s, user)
 }
 
 func (b *Bot) handleCapChange(ctx context.Context, s Session, delta int) error {
@@ -526,30 +469,6 @@ func startOfLocalDay(user storage.User, now time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, loc)
 }
 
-// sendDeckPicker loads the user's decks and renders the picker keyboard as a
-// new message.
-func (b *Bot) sendDeckPicker(ctx context.Context, s Session, user storage.User) error {
-	decks, err := b.store.ListUserDecks(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-	_, err = s.SendKeyboard(decksPickerText, deckPickerRows(decks))
-	return err
-}
-
-// rerenderDeckPicker re-renders the picker keyboard in place (in response to
-// a deck toggle) and acks the callback.
-func (b *Bot) rerenderDeckPicker(ctx context.Context, s Session, user storage.User) error {
-	decks, err := b.store.ListUserDecks(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-	if err := s.EditKeyboard(s.MessageID(), deckPickerRows(decks)); err != nil {
-		return err
-	}
-	return s.Respond("")
-}
-
 // loadOrCreateUser fetches the caller's user row, registering them on the
 // fly if /start was never sent (defensive; commands should still work).
 func (b *Bot) loadOrCreateUser(ctx context.Context, s Session) (storage.User, error) {
@@ -564,24 +483,6 @@ func (b *Bot) loadOrCreateUser(ctx context.Context, s Session) (storage.User, er
 }
 
 // ── pure, unit-tested formatting ─────────────────────────────────────────
-
-// deckPickerRows renders one row per deck (✅/⬜ + name, toggling it). All the
-// non-deck controls (cap, reminders, style) live in settingsRows / /settings.
-func deckPickerRows(decks []storage.UserDeck) [][]Btn {
-	rows := make([][]Btn, 0, len(decks))
-	for _, d := range decks {
-		mark := "⬜"
-		if d.Enabled {
-			mark = "✅"
-		}
-		label := mark + " " + d.Name
-		if tips.DeckHasTips(d.Slug) {
-			label = mark + " " + d.Name + " 💡"
-		}
-		rows = append(rows, []Btn{{Label: label, Data: "deck:" + d.ID.String()}})
-	}
-	return rows
-}
 
 // settingsRows renders the /settings keyboard: the daily new-skill cap stepper,
 // the label-style cycle, and the reminder controls (on/off, local hour, and
@@ -637,10 +538,10 @@ func settingsRows(user storage.User, introCap *int) [][]Btn {
 	return rows
 }
 
-// formatStatsV2 renders the /stats view model as a readable multi-line
+// formatStats renders the /stats view model as a readable multi-line
 // message. Pure function — no Session/store dependency — so it's directly
 // unit-testable.
-func formatStatsV2(st StatsV2) string {
+func formatStats(st Stats) string {
 	var b strings.Builder
 
 	b.WriteString("📊 Your stats\n\n")

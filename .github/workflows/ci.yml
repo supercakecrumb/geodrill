@@ -3,7 +3,7 @@ name: CI
 # Every job below checks out BOTH geodrill and engram: geodrill's go.work
 # resolves github.com/supercakecrumb/engram ONLY via the relative path
 # ../../Packages/engram (no versioned `require` yet — see go.mod's comment
-# and vibe/geodrill-v2-architecture.md §7.3), so we reproduce the same
+# and vibe/geodrill-architecture.md §7.3), so we reproduce the same
 # relative layout on the runner: geodrill under PersonalProjects/geodrill,
 # engram under Packages/engram. `../../Packages/engram` from
 # PersonalProjects/geodrill resolves to <workspace>/Packages/engram, which is

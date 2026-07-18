@@ -67,32 +67,10 @@ type User struct {
 	LabelStyle       string
 	Timezone         string
 	CreatedAt        time.Time
-	// DailyIntroCap is the v2 daily introduction budget (architecture §2.10,
+	// DailyIntroCap is the daily introduction budget (architecture §2.10,
 	// users.daily_intro_cap). 0 = unlimited (engram.RemainingIntroBudget's
 	// convention).
 	DailyIntroCap int
-}
-
-// Deck is a confusion group.
-type Deck struct {
-	ID           uuid.UUID
-	Slug         string
-	Name         string
-	ExerciseType string
-}
-
-// UserDeck is a deck with a per-user enabled flag.
-type UserDeck struct {
-	Deck
-	Enabled bool
-}
-
-// Skill is one answer target within a deck (an ISO-639-3 language here).
-type Skill struct {
-	ID     uuid.UUID
-	DeckID uuid.UUID
-	Key    string
-	Label  string
 }
 
 // CardFields is the FSRS memory state for one user+skill (engram.CardState,
@@ -107,14 +85,6 @@ type CardFields struct {
 	LastReview time.Time // zero if never reviewed
 }
 
-// SkillCard pairs a skill with its optional card state. HasCard is false when
-// the user has never been scheduled for this skill (treat as engram.StateNew).
-type SkillCard struct {
-	Skill
-	Card    CardFields
-	HasCard bool
-}
-
 // Content is one sentence (or, later, image ref) with attribution.
 type Content struct {
 	ID         uuid.UUID
@@ -125,47 +95,11 @@ type Content struct {
 	CharLength int
 }
 
-// Exercise is an open (or answered) multiple-choice question.
-type Exercise struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	SkillID    uuid.UUID
-	ContentID  uuid.UUID
-	Options    []byte // jsonb: [{"key":..,"label":..}] as shown
-	CreatedAt  time.Time
-	AnsweredAt time.Time // zero if still open
-	Answered   bool
-	MessageID  int64
-	HasMessage bool
-}
-
-// ReviewInsert is the full reviews row: engram.Review FSRS fields merged with
-// quiz.Attempt data. This is geodrill's single review write path.
-type ReviewInsert struct {
-	UserID           uuid.UUID
-	SkillID          uuid.UUID
-	ExerciseID       *uuid.UUID
-	ContentID        *uuid.UUID
-	ChosenKey        string
-	CorrectKey       string
-	Correct          bool
-	Rating           int16
-	ResponseMS       *int
-	StabilityBefore  float64
-	DifficultyBefore float64
-	StabilityAfter   float64
-	DifficultyAfter  float64
-	StateBefore      int16
-	ScheduledDays    int
-	ElapsedDays      int
-	ReviewedAt       time.Time
-	Practice         bool
-}
-
 // ReviewRecord is a persisted review, carrying both the FSRS fields (for
-// engram.Review mapping / accuracy / streak) and the answer keys.
+// engram.Review mapping / accuracy / streak) and the generalized, mode-based
+// answer fields (architecture §2.5).
 type ReviewRecord struct {
-	SkillID          uuid.UUID
+	ItemID           uuid.UUID
 	Rating           int16
 	ReviewedAt       time.Time
 	StabilityBefore  float64
@@ -176,30 +110,12 @@ type ReviewRecord struct {
 	ScheduledDays    int
 	ElapsedDays      int
 	Correct          bool
-	ChosenKey        string
-	CorrectKey       string
+	Chosen           string
+	CorrectAnswer    string
 	Practice         bool
 }
 
-// Attempt is the minimal per-answer record for quiz.Confusion.
-type Attempt struct {
-	SkillID    uuid.UUID
-	CorrectKey string
-	ChosenKey  string
-	Correct    bool
-	ResponseMS int
-	AnsweredAt time.Time
-}
-
-// DeckStat is aggregate accuracy for one deck over a window.
-type DeckStat struct {
-	Slug    string
-	Name    string
-	Total   int
-	Correct int
-}
-
-// ── v2 app model types (architecture §2: topics/items/introductions/tiers) ──
+// ── App model types (architecture §2: topics/items/introductions/tiers) ──
 
 // Topic is one node in the topic tree (parent_id + slug, architecture §2.1).
 // ParentID is nil for a root topic.
@@ -256,7 +172,7 @@ type IntroCandidate struct {
 }
 
 // UserItem is the per-user lifecycle + FSRS card state for one item
-// (architecture §2.3, replaces user_skills for v2 topics).
+// (architecture §2.3, replaces user_skills for the topic/item model).
 type UserItem struct {
 	UserID       uuid.UUID
 	ItemID       uuid.UUID

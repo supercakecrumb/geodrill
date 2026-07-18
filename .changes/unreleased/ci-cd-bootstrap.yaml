@@ -1,2 +1,0 @@
-kind: Added
-body: Bootstrap GitHub Actions CI (lint, unit+integration test, build), a tag-triggered GHCR release workflow, and an inert deploy seam.

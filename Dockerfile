@@ -13,7 +13,7 @@
 # because the replace target is a local directory, not a proxy-fetched
 # module). Once engram v0.3.0 is tagged, geodrill's go.mod pins a real
 # `require github.com/supercakecrumb/engram vX.Y.Z`, and go.work is dropped
-# (final wave, per vibe/geodrill-v2-architecture.md §7.3): delete the
+# (final wave, per vibe/geodrill-architecture.md §7.3): delete the
 # `COPY engram/` line and both `go mod edit` lines below, and go back to a
 # plain `go mod download` before `COPY . .`.
 #

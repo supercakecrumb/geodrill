@@ -13,49 +13,45 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/storage"
 )
 
-// dataV2AnswerPrefix is the callback prefix for TrainerV2's index-based
-// answers: "v2a:<exercise-uuid>:<index>". The legacy "ans:"/"prac:"
-// key-based prefixes are retired (isLegacyAnswerCallback in handlers.go
-// now only recognizes their shape, to toast a stale button as expired) —
-// v2 exercises have always answered through this separate index-based
-// prefix instead. Budget: "v2a:"(4) + uuid(36) + ":"(1) + index(up to 3
-// digits) = 44, comfortably under Telegram's 64-byte callback_data cap.
-const dataV2AnswerPrefix = "v2a:"
+// dataAnswerPrefix is the callback prefix for Trainer's index-based
+// answers: "ans:<exercise-uuid>:<index>". Budget: "ans:"(4) + uuid(36) +
+// ":"(1) + index(up to 3 digits) = 44, comfortably under Telegram's
+// 64-byte callback_data cap.
+const dataAnswerPrefix = "ans:"
 
-// v2AnswerCallbackData builds one option button's payload.
-func v2AnswerCallbackData(exerciseID uuid.UUID, index int) string {
-	return dataV2AnswerPrefix + exerciseID.String() + ":" + strconv.Itoa(index)
+// answerCallbackData builds one option button's payload.
+func answerCallbackData(exerciseID uuid.UUID, index int) string {
+	return dataAnswerPrefix + exerciseID.String() + ":" + strconv.Itoa(index)
 }
 
-// parseV2AnswerCallback parses a payload built by v2AnswerCallbackData. ok
+// parseAnswerCallback parses a payload built by answerCallbackData. ok
 // is false for anything malformed.
-func parseV2AnswerCallback(data string) (exerciseID uuid.UUID, index int, ok bool) {
-	return parseV2IndexCallback(dataV2AnswerPrefix, data)
+func parseAnswerCallback(data string) (exerciseID uuid.UUID, index int, ok bool) {
+	return parseIndexCallback(dataAnswerPrefix, data)
 }
 
-// dataV2PracticePrefix is the callback prefix for TrainerV2's /practice
-// answers: "v2p:<exercise-uuid>:<index>" — the practice counterpart of
-// v2a:. A separate prefix (rather than reusing v2a: with an extra flag)
+// dataPracticePrefix is the callback prefix for Trainer's /practice
+// answers: "prac:<exercise-uuid>:<index>" — the practice counterpart of
+// ans:. A separate prefix (rather than reusing ans: with an extra flag)
 // lets handleCallback's routing alone decide which "next" step follows
-// grading (sendNextPractice vs sendNextTrain), mirroring how the legacy
-// ans:/prac: prefixes split scheduled from practice taps.
-const dataV2PracticePrefix = "v2p:"
+// grading (sendNextPractice vs sendNextTrain).
+const dataPracticePrefix = "prac:"
 
-// v2PracticeCallbackData builds one practice option button's payload.
-func v2PracticeCallbackData(exerciseID uuid.UUID, index int) string {
-	return dataV2PracticePrefix + exerciseID.String() + ":" + strconv.Itoa(index)
+// practiceCallbackData builds one practice option button's payload.
+func practiceCallbackData(exerciseID uuid.UUID, index int) string {
+	return dataPracticePrefix + exerciseID.String() + ":" + strconv.Itoa(index)
 }
 
-// parseV2PracticeCallback parses a payload built by v2PracticeCallbackData.
+// parsePracticeCallback parses a payload built by practiceCallbackData.
 // ok is false for anything malformed.
-func parseV2PracticeCallback(data string) (exerciseID uuid.UUID, index int, ok bool) {
-	return parseV2IndexCallback(dataV2PracticePrefix, data)
+func parsePracticeCallback(data string) (exerciseID uuid.UUID, index int, ok bool) {
+	return parseIndexCallback(dataPracticePrefix, data)
 }
 
-// parseV2IndexCallback parses a "<prefix><exercise-uuid>:<index>" payload —
-// the shared shape behind both parseV2AnswerCallback and
-// parseV2PracticeCallback. ok is false for anything malformed.
-func parseV2IndexCallback(prefix, data string) (exerciseID uuid.UUID, index int, ok bool) {
+// parseIndexCallback parses a "<prefix><exercise-uuid>:<index>" payload —
+// the shared shape behind both parseAnswerCallback and
+// parsePracticeCallback. ok is false for anything malformed.
+func parseIndexCallback(prefix, data string) (exerciseID uuid.UUID, index int, ok bool) {
 	rest, hasPrefix := strings.CutPrefix(data, prefix)
 	if !hasPrefix {
 		return uuid.UUID{}, 0, false
@@ -77,62 +73,62 @@ func parseV2IndexCallback(prefix, data string) (exerciseID uuid.UUID, index int,
 
 // ── /train ───────────────────────────────────────────────────────────────
 
-// sendNextTrain sends the next due exercise for user via TrainerV2
-// (Config.TrainerV2 is required from here on — the legacy trainer fallback
+// sendNextTrain sends the next due exercise for user via Trainer
+// (Config.Trainer is required from here on — the legacy trainer fallback
 // is gone). Both /train and the reminder's "▶️ Start reviewing" button go
 // through this.
 func (b *Bot) sendNextTrain(ctx context.Context, s Session, user storage.User) error {
-	p, err := b.trainerV2.NextExerciseV2(ctx, user.ID)
+	p, err := b.trainer.NextExercise(ctx, user.ID)
 	if err != nil {
 		return err
 	}
-	return b.sendPromptV2(s, user, p)
+	return b.sendPrompt(s, user, p)
 }
 
 // sendNextPractice sends the next practice exercise for user via
-// TrainerV2's v2 practice pool (across enabled+tier-unlocked topics) — the
+// Trainer's practice pool (across enabled+tier-unlocked topics) — the
 // legacy unscheduled-practice fallback is gone.
 func (b *Bot) sendNextPractice(ctx context.Context, s Session, user storage.User) error {
-	p, err := b.trainerV2.NextPracticeV2(ctx, user.ID)
+	p, err := b.trainer.NextPractice(ctx, user.ID)
 	if err != nil {
 		return err
 	}
-	return b.sendPromptV2(s, user, p)
+	return b.sendPrompt(s, user, p)
 }
 
-// sendPromptV2 renders a PromptV2 result, mirroring sendNextResult's
-// Kind switch for the v2 exercise path.
-func (b *Bot) sendPromptV2(s Session, user storage.User, p PromptV2) error {
+// sendPrompt renders a Prompt result, mirroring sendNextResult's
+// Kind switch for the exercise path.
+func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 	switch p.Kind {
-	case PromptV2KindExercise:
-		return b.sendExerciseV2(s, p)
-	case PromptV2KindNothingDue:
+	case PromptKindExercise:
+		return b.sendExercise(s, p)
+	case PromptKindNothingDue:
 		if !p.DueAt.IsZero() {
 			loc := locationFor(user)
 			return s.Send(fmt.Sprintf("Nothing due right now. Come back at %s.", p.DueAt.In(loc).Format("15:04")))
 		}
 		return s.Send(allCaughtUpText)
-	case PromptV2KindNoContent:
+	case PromptKindNoContent:
 		return s.Send(noContentText)
-	case PromptV2KindNoTopics:
+	case PromptKindNoTopics:
 		return s.Send(noTopicsText)
 	default:
 		return s.Send(fallbackText)
 	}
 }
 
-// sendExerciseV2 sends one ready PromptV2: a photo-from-birth or text
+// sendExercise sends one ready Prompt: a photo-from-birth or text
 // message, with option buttons for ModeSingle/ModeSet or a bare "type your
 // answer" prompt (no buttons) for ModeText. A practice exercise (p.Practice)
 // gets a trailing "⏹ Stop practice" control, same as the legacy /practice
 // prompt.
-func (b *Bot) sendExerciseV2(s Session, p PromptV2) error {
+func (b *Bot) sendExercise(s Session, p Prompt) error {
 	text := p.Text
 	var rows [][]Btn
 	if p.Mode == quiz.ModeText {
 		text += "\n\n✏️ Type your answer."
 	} else {
-		rows = optionRowsV2(p.ExerciseID, p.Options, p.Practice)
+		rows = optionRows(p.ExerciseID, p.Options, p.Practice)
 	}
 	if p.Practice {
 		rows = append(rows, []Btn{{Label: "⏹ Stop practice", Data: dataStopPractice}})
@@ -147,18 +143,18 @@ func (b *Bot) sendExerciseV2(s Session, p PromptV2) error {
 	return err
 }
 
-// optionRowsV2 lays out a PromptV2's options two per row (a trailing odd
+// optionRows lays out a Prompt's options two per row (a trailing odd
 // option sits alone on the last row), mirroring buttonRows' layout for the
 // legacy exercise path. practice selects which callback prefix each
-// option's Data carries (v2p: vs v2a:), so handleCallback's routing alone
+// option's Data carries (prac: vs ans:), so handleCallback's routing alone
 // decides whether grading advances via sendNextPractice or sendNextTrain.
-func optionRowsV2(exerciseID uuid.UUID, options []OptionV2, practice bool) [][]Btn {
+func optionRows(exerciseID uuid.UUID, options []Option, practice bool) [][]Btn {
 	if len(options) == 0 {
 		return nil
 	}
-	callbackData := v2AnswerCallbackData
+	callbackData := answerCallbackData
 	if practice {
-		callbackData = v2PracticeCallbackData
+		callbackData = practiceCallbackData
 	}
 	rows := make([][]Btn, 0, (len(options)+1)/2)
 	for i := 0; i < len(options); i += 2 {
@@ -172,49 +168,49 @@ func optionRowsV2(exerciseID uuid.UUID, options []OptionV2, practice bool) [][]B
 	return rows
 }
 
-// ── v2a: / v2p: callbacks (button answer) ───────────────────────────────
+// ── ans: / prac: callbacks (button answer) ───────────────────────────────
 
-// handleV2AnswerCallback grades one v2a: tap (a /train exercise) via
-// TrainerV2.AnswerV2, edits the exercise in place, toasts the result, and
+// handleAnswerCallback grades one ans: tap (a /train exercise) via
+// Trainer.Answer, edits the exercise in place, toasts the result, and
 // sends the next due exercise.
-func (b *Bot) handleV2AnswerCallback(ctx context.Context, s Session, data string) error {
-	if b.trainerV2 == nil {
+func (b *Bot) handleAnswerCallback(ctx context.Context, s Session, data string) error {
+	if b.trainer == nil {
 		return s.Respond("")
 	}
-	exerciseID, index, ok := parseV2AnswerCallback(data)
+	exerciseID, index, ok := parseAnswerCallback(data)
 	if !ok {
 		return s.Respond("")
 	}
-	return b.answerV2AndAdvance(ctx, s, exerciseID, index, (*Bot).sendNextTrain)
+	return b.answerAndAdvance(ctx, s, exerciseID, index, (*Bot).sendNextTrain)
 }
 
-// handleV2PracticeAnswerCallback grades one v2p: tap (a /practice exercise)
-// through the SAME AnswerV2 grading path as v2a: — the exercise row already
-// carries practice=true (set at NextPracticeV2 time), so AnswerV2's
+// handlePracticeAnswerCallback grades one prac: tap (a /practice exercise)
+// through the SAME Answer grading path as ans: — the exercise row already
+// carries practice=true (set at NextPractice time), so Answer's
 // underlying finishAnswer already knows to skip FSRS movement without this
 // callback saying so again — then sends the next practice exercise instead
 // of the next due one.
-func (b *Bot) handleV2PracticeAnswerCallback(ctx context.Context, s Session, data string) error {
-	if b.trainerV2 == nil {
+func (b *Bot) handlePracticeAnswerCallback(ctx context.Context, s Session, data string) error {
+	if b.trainer == nil {
 		return s.Respond("")
 	}
-	exerciseID, index, ok := parseV2PracticeCallback(data)
+	exerciseID, index, ok := parsePracticeCallback(data)
 	if !ok {
 		return s.Respond("")
 	}
-	return b.answerV2AndAdvance(ctx, s, exerciseID, index, (*Bot).sendNextPractice)
+	return b.answerAndAdvance(ctx, s, exerciseID, index, (*Bot).sendNextPractice)
 }
 
-// answerV2AndAdvance is the shared grading flow behind both v2a: and v2p:
-// taps: grade via AnswerV2, edit the exercise message/caption in place,
+// answerAndAdvance is the shared grading flow behind both ans: and prac:
+// taps: grade via Answer, edit the exercise message/caption in place,
 // toast the result, then advance via next (sendNextTrain or
 // sendNextPractice, picked by the caller per the tapped prefix).
-func (b *Bot) answerV2AndAdvance(ctx context.Context, s Session, exerciseID uuid.UUID, index int, next func(*Bot, context.Context, Session, storage.User) error) error {
+func (b *Bot) answerAndAdvance(ctx context.Context, s Session, exerciseID uuid.UUID, index int, next func(*Bot, context.Context, Session, storage.User) error) error {
 	user, err := b.loadOrCreateUser(ctx, s)
 	if err != nil {
 		return err
 	}
-	res, err := b.trainerV2.AnswerV2(ctx, user.ID, exerciseID, index)
+	res, err := b.trainer.Answer(ctx, user.ID, exerciseID, index)
 	if err != nil {
 		return err
 	}
@@ -222,8 +218,8 @@ func (b *Bot) answerV2AndAdvance(ctx context.Context, s Session, exerciseID uuid
 		return s.Respond(staleToast)
 	}
 
-	b.applyV2AnswerEdit(s, res)
-	if err := s.Respond(answerToastV2(res.Correct)); err != nil {
+	b.applyAnswerEdit(s, res)
+	if err := s.Respond(answerToast(res.Correct)); err != nil {
 		return err
 	}
 	return next(b, ctx, s, user)
@@ -231,15 +227,15 @@ func (b *Bot) answerV2AndAdvance(ctx context.Context, s Session, exerciseID uuid
 
 // ── free-typed answers (telebot.OnText) ─────────────────────────────────
 
-// handleText routes a plain-text message to TrainerV2.AnswerText when
-// TrainerV2 is wired and the message isn't a command (telebot still
+// handleText routes a plain-text message to Trainer.AnswerText when
+// Trainer is wired and the message isn't a command (telebot still
 // dispatches OnText for an UNREGISTERED "/foo" command after its command
 // match fails — see telebot's update.go ProcessContext — so this guard is
 // required, not defensive fluff). Grading, then sending the next exercise,
-// mirrors handleV2AnswerCallback exactly, except there is no callback to
+// mirrors handleAnswerCallback exactly, except there is no callback to
 // Respond to: the toast becomes a plain follow-up message.
 func (b *Bot) handleText(ctx context.Context, s Session) error {
-	if b.trainerV2 == nil {
+	if b.trainer == nil {
 		return nil
 	}
 	text := s.MessageText()
@@ -251,7 +247,7 @@ func (b *Bot) handleText(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	res, ok, err := b.trainerV2.AnswerText(ctx, user.ID, text)
+	res, ok, err := b.trainer.AnswerText(ctx, user.ID, text)
 	if err != nil {
 		return err
 	}
@@ -262,12 +258,12 @@ func (b *Bot) handleText(ctx context.Context, s Session) error {
 		return s.Send(staleToast)
 	}
 
-	b.applyV2AnswerEdit(s, res)
-	if err := s.Send(answerToastV2(res.Correct)); err != nil {
+	b.applyAnswerEdit(s, res)
+	if err := s.Send(answerToast(res.Correct)); err != nil {
 		return err
 	}
 	// A free-typed reply carries no callback prefix to tell a practice
-	// answer from a scheduled one, unlike v2a:/v2p: — res.Practice (echoed
+	// answer from a scheduled one, unlike ans:/prac: — res.Practice (echoed
 	// from the graded exercise's own practice flag) is what decides here.
 	if res.Practice {
 		return b.sendNextPractice(ctx, s, user)
@@ -277,18 +273,18 @@ func (b *Bot) handleText(ctx context.Context, s Session) error {
 
 // ── shared grading render ────────────────────────────────────────────────
 
-// applyV2AnswerEdit edits the exercise message/caption in place to res's
+// applyAnswerEdit edits the exercise message/caption in place to res's
 // graded re-render: EditCaption for a photo exercise, EditMessage for text
-// — mirroring PromptV2's own Text/MediaPath split. Falls back to the
+// — mirroring Prompt's own Text/MediaPath split. Falls back to the
 // session's current message id when res doesn't carry its own (the same
 // HasMessage fallback handleAnswerCallback uses for the legacy path). Edit
 // failures are logged, not fatal — grading has already happened.
-func (b *Bot) applyV2AnswerEdit(s Session, res AnswerResultV2) {
+func (b *Bot) applyAnswerEdit(s Session, res AnswerResult) {
 	msgID := s.MessageID()
 	if res.HasMessage {
 		msgID = res.MessageID
 	}
-	rows := gradedOptionRowsV2(res.Options)
+	rows := gradedOptionRows(res.Options)
 	text := html.EscapeString(res.Text)
 
 	var err error
@@ -298,17 +294,17 @@ func (b *Bot) applyV2AnswerEdit(s Session, res AnswerResultV2) {
 		err = s.EditMessage(msgID, text, rows)
 	}
 	if err != nil {
-		b.logger.Warn("telegram: edit v2 answer", "error", err)
+		b.logger.Warn("telegram: edit answer", "error", err)
 	}
 }
 
-// gradedOptionRowsV2 lays out graded v2 options two per row, decorated with
+// gradedOptionRows lays out graded options two per row, decorated with
 // ✅/❌ (DecorateLabel) and wired to the inert noop callback.
-func gradedOptionRowsV2(options []GradedOptionV2) [][]Btn {
+func gradedOptionRows(options []GradedOption) [][]Btn {
 	if len(options) == 0 {
 		return nil
 	}
-	graded := func(o GradedOptionV2) Btn {
+	graded := func(o GradedOption) Btn {
 		return Btn{Label: DecorateLabel(o.Label, o.Mark), Data: DataNoop}
 	}
 	rows := make([][]Btn, 0, (len(options)+1)/2)
@@ -322,9 +318,9 @@ func gradedOptionRowsV2(options []GradedOptionV2) [][]Btn {
 	return rows
 }
 
-// answerToastV2 picks the correct/wrong toast text, shared by the callback
+// answerToast picks the correct/wrong toast text, shared by the callback
 // and free-text answer paths.
-func answerToastV2(correct bool) string {
+func answerToast(correct bool) string {
 	if correct {
 		return correctToast
 	}

@@ -1,6 +1,6 @@
 package study_test
 
-// End-to-end test of the FULL v2 loop (architecture §1, §4, §5) against a
+// End-to-end test of the FULL loop (architecture §1, §4, §5) against a
 // real PostgreSQL 18: seed every topic package, then drive
 // intro -> answer -> exercise -> answer -> topic browser through
 // internal/study.Service exactly as cmd/bot wires it, asserting the
@@ -150,7 +150,7 @@ func findSingleLanguageItem(items []storage.Item) (storage.Item, bool) {
 // persisted options (mirrors internal/study's own serialization: ModeSingle
 // options are {key,label}; ModeSet options are {keys,label} compared via
 // the canonical sorted-join form).
-func correctOptionIndex(t *testing.T, ex storage.ExerciseV2) int {
+func correctOptionIndex(t *testing.T, ex storage.Exercise) int {
 	t.Helper()
 	switch quiz.Mode(ex.Mode) {
 	case quiz.ModeSet:
@@ -213,7 +213,7 @@ func equalIntSets(a, b []int) bool {
 	return true
 }
 
-func TestV2FullLoop(t *testing.T) {
+func TestFullLoop(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
 
@@ -230,7 +230,7 @@ func TestV2FullLoop(t *testing.T) {
 	sched := engram.NewScheduler()
 	svc := study.New(store, sched, study.GlobalRegistry, nil, 42)
 
-	user, err := store.UpsertUser(ctx, 900001, "v2-integration")
+	user, err := store.UpsertUser(ctx, 900001, "integration")
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -360,7 +360,7 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("stale re-tap must not change lifecycle: still expected Introduced, got %d", uiAfterStale.Lifecycle)
 	}
 
-	// ── TrainerV2: NextExerciseV2 / AnswerV2 (correct, wrong, stale) ─────
+	// ── Trainer: NextExercise / Answer (correct, wrong, stale) ─────
 	// Roadside items always have exactly two fixed options (Left/Right), so
 	// picking any two avoids the "not enough distractors" edge case a
 	// sparsely-seeded specialchars item could hit.
@@ -376,7 +376,7 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("expected at least 2 roadside items in the seed data, got %d", len(roadsideItems))
 	}
 
-	gradeUser, err := store.UpsertUser(ctx, 900002, "v2-grade-tester")
+	gradeUser, err := store.UpsertUser(ctx, 900002, "grade-tester")
 	if err != nil {
 		t.Fatalf("create grade user: %v", err)
 	}
@@ -389,29 +389,29 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("DueCount before answering = %d, want 2 (err=%v)", due, err)
 	}
 
-	promptA, err := svc.NextExerciseV2(ctx, gradeUser.ID)
+	promptA, err := svc.NextExercise(ctx, gradeUser.ID)
 	if err != nil {
-		t.Fatalf("NextExerciseV2 (A): %v", err)
+		t.Fatalf("NextExercise (A): %v", err)
 	}
-	if promptA.Kind != telegram.PromptV2KindExercise {
+	if promptA.Kind != telegram.PromptKindExercise {
 		t.Fatalf("expected an exercise for the earliest-due item, got kind=%v", promptA.Kind)
 	}
 	if len(promptA.Options) != 2 {
 		t.Fatalf("expected 2 options (Left/Right) for a roadside exercise, got %d", len(promptA.Options))
 	}
-	exA, found, err := store.GetExerciseByIDV2(ctx, promptA.ExerciseID)
+	exA, found, err := store.GetExerciseByID(ctx, promptA.ExerciseID)
 	if err != nil || !found {
-		t.Fatalf("GetExerciseByIDV2 (A): found=%v err=%v", found, err)
+		t.Fatalf("GetExerciseByID (A): found=%v err=%v", found, err)
 	}
-	if exA.ItemID == nil || *exA.ItemID != itemA.ID {
+	if exA.ItemID != itemA.ID {
 		t.Fatalf("expected item A (earliest due) to be picked first, got exercise item %v", exA.ItemID)
 	}
 	correctA := correctOptionIndex(t, exA)
 	wrongA := (correctA + 1) % len(promptA.Options)
 
-	wrongRes, err := svc.AnswerV2(ctx, gradeUser.ID, promptA.ExerciseID, wrongA)
+	wrongRes, err := svc.Answer(ctx, gradeUser.ID, promptA.ExerciseID, wrongA)
 	if err != nil {
-		t.Fatalf("AnswerV2 (wrong): %v", err)
+		t.Fatalf("Answer (wrong): %v", err)
 	}
 	if wrongRes.Stale || wrongRes.Correct {
 		t.Fatalf("expected a fresh, incorrect answer, got %+v", wrongRes)
@@ -427,9 +427,9 @@ func TestV2FullLoop(t *testing.T) {
 	}
 
 	// Stale second tap on the SAME exercise must not double-record.
-	staleRes, err := svc.AnswerV2(ctx, gradeUser.ID, promptA.ExerciseID, correctA)
+	staleRes, err := svc.Answer(ctx, gradeUser.ID, promptA.ExerciseID, correctA)
 	if err != nil {
-		t.Fatalf("AnswerV2 (stale): %v", err)
+		t.Fatalf("Answer (stale): %v", err)
 	}
 	if !staleRes.Stale {
 		t.Fatalf("second tap on an already-answered exercise should be Stale")
@@ -447,26 +447,26 @@ func TestV2FullLoop(t *testing.T) {
 	}
 
 	// item A's due date must have moved forward (FSRS movement) — it can no
-	// longer be "due now", so the next NextExerciseV2 call picks item B.
-	promptB, err := svc.NextExerciseV2(ctx, gradeUser.ID)
+	// longer be "due now", so the next NextExercise call picks item B.
+	promptB, err := svc.NextExercise(ctx, gradeUser.ID)
 	if err != nil {
-		t.Fatalf("NextExerciseV2 (B): %v", err)
+		t.Fatalf("NextExercise (B): %v", err)
 	}
-	if promptB.Kind != telegram.PromptV2KindExercise {
+	if promptB.Kind != telegram.PromptKindExercise {
 		t.Fatalf("expected an exercise for item B, got kind=%v", promptB.Kind)
 	}
-	exB, found, err := store.GetExerciseByIDV2(ctx, promptB.ExerciseID)
+	exB, found, err := store.GetExerciseByID(ctx, promptB.ExerciseID)
 	if err != nil || !found {
-		t.Fatalf("GetExerciseByIDV2 (B): found=%v err=%v", found, err)
+		t.Fatalf("GetExerciseByID (B): found=%v err=%v", found, err)
 	}
-	if exB.ItemID == nil || *exB.ItemID != itemB.ID {
+	if exB.ItemID != itemB.ID {
 		t.Fatalf("expected item B next (item A rescheduled past due), got exercise item %v", exB.ItemID)
 	}
 	correctB := correctOptionIndex(t, exB)
 
-	correctRes, err := svc.AnswerV2(ctx, gradeUser.ID, promptB.ExerciseID, correctB)
+	correctRes, err := svc.Answer(ctx, gradeUser.ID, promptB.ExerciseID, correctB)
 	if err != nil {
-		t.Fatalf("AnswerV2 (correct): %v", err)
+		t.Fatalf("Answer (correct): %v", err)
 	}
 	if !correctRes.Correct {
 		t.Fatalf("expected a correct answer, got %+v", correctRes)
@@ -489,7 +489,7 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("expected item B's due date to move forward past %v, got %v", now, uiB.Card.Due)
 	}
 
-	// ── Service.Stats over v2 reviews/user_items ─────────────────────────
+	// ── Service.Stats over reviews/user_items ─────────────────────────
 	gradeStats, err := svc.Stats(ctx, gradeUser.ID)
 	if err != nil {
 		t.Fatalf("Stats: %v", err)
@@ -534,7 +534,7 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("expected at least one single-language item in seeds/special_chars.yaml")
 	}
 
-	textUser, err := store.UpsertUser(ctx, 900003, "v2-text-tester")
+	textUser, err := store.UpsertUser(ctx, 900003, "text-tester")
 	if err != nil {
 		t.Fatalf("create text user: %v", err)
 	}
@@ -543,20 +543,20 @@ func TestV2FullLoop(t *testing.T) {
 	// single-language item's shape also supports, so it succeeds.
 	seedDueItem(t, ctx, store, textUser.ID, singleItem.ID, now, 2)
 
-	textPrompt, err := svc.NextExerciseV2(ctx, textUser.ID)
+	textPrompt, err := svc.NextExercise(ctx, textUser.ID)
 	if err != nil {
-		t.Fatalf("NextExerciseV2 (text): %v", err)
+		t.Fatalf("NextExercise (text): %v", err)
 	}
-	if textPrompt.Kind != telegram.PromptV2KindExercise || textPrompt.Mode != quiz.ModeText {
+	if textPrompt.Kind != telegram.PromptKindExercise || textPrompt.Mode != quiz.ModeText {
 		t.Fatalf("expected a ModeText exercise, got kind=%v mode=%v", textPrompt.Kind, textPrompt.Mode)
 	}
 	if len(textPrompt.Options) != 0 {
 		t.Fatalf("ModeText should render no button options, got %d", len(textPrompt.Options))
 	}
 
-	exText, found, err := store.GetExerciseByIDV2(ctx, textPrompt.ExerciseID)
+	exText, found, err := store.GetExerciseByID(ctx, textPrompt.ExerciseID)
 	if err != nil || !found {
-		t.Fatalf("GetExerciseByIDV2 (text): found=%v err=%v", found, err)
+		t.Fatalf("GetExerciseByID (text): found=%v err=%v", found, err)
 	}
 	textRes, ok, err := svc.AnswerText(ctx, textUser.ID, exText.CorrectAnswer)
 	if err != nil {
@@ -585,45 +585,45 @@ func TestV2FullLoop(t *testing.T) {
 		t.Fatalf("expected ok=false once the open ModeText exercise has been answered")
 	}
 
-	// ── NextPracticeV2 / AnswerV2 (practice=true): counts in stats but
+	// ── NextPractice / Answer (practice=true): counts in stats but
 	// applies ZERO FSRS movement (architecture: /practice's contract) ────
-	practiceUser, err := store.UpsertUser(ctx, 900010, "v2-practice-tester")
+	practiceUser, err := store.UpsertUser(ctx, 900010, "practice-tester")
 	if err != nil {
 		t.Fatalf("create practice user: %v", err)
 	}
-	practicePrompt, err := svc.NextPracticeV2(ctx, practiceUser.ID)
+	practicePrompt, err := svc.NextPractice(ctx, practiceUser.ID)
 	if err != nil {
-		t.Fatalf("NextPracticeV2: %v", err)
+		t.Fatalf("NextPractice: %v", err)
 	}
-	if practicePrompt.Kind != telegram.PromptV2KindExercise || !practicePrompt.Practice {
+	if practicePrompt.Kind != telegram.PromptKindExercise || !practicePrompt.Practice {
 		t.Fatalf("expected a practice exercise (a fresh user has every topic enabled by default), got kind=%v practice=%v", practicePrompt.Kind, practicePrompt.Practice)
 	}
-	exPractice, found, err := store.GetExerciseByIDV2(ctx, practicePrompt.ExerciseID)
+	exPractice, found, err := store.GetExerciseByID(ctx, practicePrompt.ExerciseID)
 	if err != nil || !found {
-		t.Fatalf("GetExerciseByIDV2 (practice): found=%v err=%v", found, err)
+		t.Fatalf("GetExerciseByID (practice): found=%v err=%v", found, err)
 	}
 	if !exPractice.Practice {
 		t.Fatalf("expected the persisted exercise row to carry practice=true")
 	}
-	if exPractice.ItemID == nil {
+	if exPractice.ItemID == uuid.Nil {
 		t.Fatalf("expected the practice exercise to carry an item_id")
 	}
-	practiceItemID := *exPractice.ItemID
+	practiceItemID := exPractice.ItemID
 	cardBefore, foundBefore, err := store.GetUserItem(ctx, practiceUser.ID, practiceItemID)
 	if err != nil {
 		t.Fatalf("GetUserItem before practice answer: %v", err)
 	}
 
 	practiceCorrectIdx := correctOptionIndex(t, exPractice)
-	practiceRes, err := svc.AnswerV2(ctx, practiceUser.ID, practicePrompt.ExerciseID, practiceCorrectIdx)
+	practiceRes, err := svc.Answer(ctx, practiceUser.ID, practicePrompt.ExerciseID, practiceCorrectIdx)
 	if err != nil {
-		t.Fatalf("AnswerV2 (practice): %v", err)
+		t.Fatalf("Answer (practice): %v", err)
 	}
 	if !practiceRes.Correct {
 		t.Fatalf("expected the correct-option tap to grade correct, got %+v", practiceRes)
 	}
 	if !practiceRes.Practice {
-		t.Fatalf("expected AnswerResultV2.Practice=true so the caller advances via NextPracticeV2")
+		t.Fatalf("expected AnswerResult.Practice=true so the caller advances via NextPractice")
 	}
 
 	cardAfter, foundAfter, err := store.GetUserItem(ctx, practiceUser.ID, practiceItemID)
@@ -656,9 +656,9 @@ func TestV2FullLoop(t *testing.T) {
 
 	// A second tap on the same practice exercise must be stale (single-use
 	// guard applies to practice exercises too).
-	stalePractice, err := svc.AnswerV2(ctx, practiceUser.ID, practicePrompt.ExerciseID, practiceCorrectIdx)
+	stalePractice, err := svc.Answer(ctx, practiceUser.ID, practicePrompt.ExerciseID, practiceCorrectIdx)
 	if err != nil {
-		t.Fatalf("AnswerV2 (practice, stale): %v", err)
+		t.Fatalf("Answer (practice, stale): %v", err)
 	}
 	if !stalePractice.Stale {
 		t.Fatalf("second tap on an already-answered practice exercise should be Stale")
@@ -727,7 +727,7 @@ func TestV2FullLoop(t *testing.T) {
 	}
 
 	// ── TopicService.SetTopicEnabled: the /decks-retired-onto-/topics
-	// toggle, and NextPracticeV2 respecting it ───────────────────────────
+	// toggle, and NextPractice respecting it ───────────────────────────
 	if err := svc.SetTopicEnabled(ctx, user.ID, quizzableChild.TopicID, false); err != nil {
 		t.Fatalf("SetTopicEnabled(false): %v", err)
 	}
@@ -759,7 +759,7 @@ func TestV2FullLoop(t *testing.T) {
 	}
 
 	// ── Budget exhaustion: cap=1 => the second NextIntro is exhausted ────
-	budgetUser, err := store.UpsertUser(ctx, 900004, "v2-budget-tester")
+	budgetUser, err := store.UpsertUser(ctx, 900004, "budget-tester")
 	if err != nil {
 		t.Fatalf("create budget user: %v", err)
 	}
@@ -794,7 +794,7 @@ func TestV2FullLoop(t *testing.T) {
 
 	// ── Gating: with only tiers {0,1} unlocked, a tier>=2 item never
 	// appears in intro candidates (architecture §4.2) ───────────────────
-	gatingUser, err := store.UpsertUser(ctx, 900005, "v2-gating-tester")
+	gatingUser, err := store.UpsertUser(ctx, 900005, "gating-tester")
 	if err != nil {
 		t.Fatalf("create gating user: %v", err)
 	}

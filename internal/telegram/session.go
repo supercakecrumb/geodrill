@@ -51,6 +51,6 @@ type Session interface {
 	Data() string
 	// MessageText is the raw text of an incoming plain-text message (a
 	// telebot.OnText update, never a callback) — used to route free-typed
-	// answers to TrainerV2.AnswerText. Empty outside a plain text message.
+	// answers to Trainer.AnswerText. Empty outside a plain text message.
 	MessageText() string
 }

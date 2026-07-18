@@ -1,6 +1,6 @@
 # geodrill v2 — Architecture & Implementation Plan
 
-Scope note: this is the design deliverable. Every "Decisions already made" item in `vibe/geodrill-v2-orchestrator-prompt.md` is treated as final. Signatures and DDL below are the contract subagents implement; they are concrete but not full implementations.
+Scope note: this is the design deliverable. Every "Decisions already made" item in `vibe/geodrill-orchestrator-brief.md` is treated as final. Signatures and DDL below are the contract subagents implement; they are concrete but not full implementations.
 
 Verified baselines that shape the design:
 - `engram.CardState` ↔ `fsrs.Card` round-trips losslessly *by design* (see the comment block in `scheduler.go` `toFSRSCard`). The lifecycle layer must NOT be stuffed into `CardState` or that guarantee breaks.

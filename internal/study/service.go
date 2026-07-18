@@ -1,9 +1,9 @@
-// Package study is geodrill's v2 service layer (architecture §1.6, §4, §5):
+// Package study is geodrill's service layer (architecture §1.6, §4, §5):
 // the single place that wires internal/topics' Generator registry + gating
-// service, internal/storage's v2 tables, and engram's Scheduler/lifecycle
-// helpers into the four interfaces internal/telegram/v2_types.go declares —
+// service, internal/storage's tables, and engram's Scheduler/lifecycle
+// helpers into the four interfaces internal/telegram/services.go declares —
 // StudyService (/study introductions), TopicService (/topics browser),
-// TrainerV2 (mode-aware exercises), and IntroCapStore (/settings daily
+// Trainer (mode-aware exercises), and IntroCapStore (/settings daily
 // cap). cmd/bot constructs one Service and hands it to telegram.Config as
 // all four fields.
 //
@@ -12,24 +12,6 @@
 // construction, guarded by a mutex — math/rand.Rand is not
 // concurrency-safe) and an injectable now func() time.Time, so tests can
 // fix both.
-//
-// # Contract friction: the bridge row (see bridge.go)
-//
-// exercises.skill_id/content_id and reviews.skill_id/chosen_key/correct_key
-// are still NOT NULL (architecture §3.1 schedules dropping them in a later
-// migration, 000007, out of this package's scope — internal/study's file
-// scope is additive-only and explicitly excludes migrations/). Three of the
-// four wave-3 topic generators (specialchars, roadside, words) have no
-// natural "skill" counterpart at all, and specialchars/roadside/words
-// exercises often have no sampled content either (their payload is
-// self-contained). Service satisfies those legacy NOT NULL columns with a
-// single idempotently-upserted placeholder deck/skill/content row (bridge.go)
-// — real values are used instead whenever a generator supplies them (e.g.
-// guesslang's sampled content_id). This is a deliberate, documented shim:
-// it means legacy /stats' per-deck breakdown (train.Service.Stats ->
-// ReviewStatsByDeck, which has no mode filter) will show one extra
-// "v2 bridge (internal)" deck entry once any non-guesslang v2 exercise is
-// answered, until 000007 lands and the shim can be deleted outright.
 package study
 
 import (
@@ -37,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
@@ -74,8 +55,8 @@ func (globalRegistry) Get(kind string) (topics.Generator, bool) { return topics.
 // topics.Register).
 var GlobalRegistry Registry = globalRegistry{}
 
-// Service implements StudyService, TopicService, TrainerV2, and
-// IntroCapStore (internal/telegram/v2_types.go) over internal/storage +
+// Service implements StudyService, TopicService, Trainer, and
+// IntroCapStore (internal/telegram/services.go) over internal/storage +
 // internal/topics + engram.
 type Service struct {
 	store  *storage.Store
@@ -87,13 +68,6 @@ type Service struct {
 	rng *rand.Rand
 
 	now func() time.Time // injectable clock (defaults to time.Now)
-
-	// bridge* cache the placeholder skill/content ids ensureBridge resolves
-	// (bridge.go), populated lazily and at most once per process.
-	bridgeOnce      sync.Once
-	bridgeErr       error
-	bridgeSkillID   uuid.UUID
-	bridgeContentID uuid.UUID
 }
 
 // New builds a Service. store/sched are shared with the rest of the app;

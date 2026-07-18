@@ -1,5 +1,5 @@
 # Special characters dataset — chars distinctive within the geodrill deck languages.
-# languages: ISO 639-3, only in-scope codes. tier per the v2 rubric.
+# languages: ISO 639-3, only in-scope codes. tier per the architecture's rubric.
 # Claims audited against the Tatoeba corpus; entries failing audit get pruned.
 topic: languages/special-characters
 chars:

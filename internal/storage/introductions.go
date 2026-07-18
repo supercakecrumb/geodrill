@@ -95,8 +95,8 @@ func (s *Store) GetLatestOpenIntroduction(ctx context.Context, userID uuid.UUID)
 	return introductionFrom(i), true, nil
 }
 
-// GetIntroductionByID looks up one introduction row by primary key (v2
-// internal/study.Service.AnswerIntro: resolve the item an intro-card
+// GetIntroductionByID looks up one introduction row by primary key
+// (internal/study.Service.AnswerIntro: resolve the item an intro-card
 // callback refers to).
 func (s *Store) GetIntroductionByID(ctx context.Context, id uuid.UUID) (Introduction, bool, error) {
 	i, err := s.q.GetIntroductionByID(ctx, id)

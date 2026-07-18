@@ -1,6 +1,6 @@
 # Design: Domains / TLDs (`quiz_kind='tld_country'`)
 
-Architecture-only design (orchestrator brief item C3). Cross-references are to `vibe/geodrill-v2-architecture.md` by section number, and to `vibe/design-country-profiles.md` where the two topics share infrastructure. No data fill: no TLD-to-country table.
+Architecture-only design (orchestrator brief item C3). Cross-references are to `vibe/geodrill-architecture.md` by section number, and to `vibe/design-country-profiles.md` where the two topics share infrastructure. No data fill: no TLD-to-country table.
 
 ## 1. Goal
 

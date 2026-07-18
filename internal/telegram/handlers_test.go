@@ -148,18 +148,6 @@ func (s *stubStore) SetExerciseMessageID(ctx context.Context, exerciseID uuid.UU
 	return nil
 }
 
-func (s *stubStore) ListUserDecks(ctx context.Context, userID uuid.UUID) ([]storage.UserDeck, error) {
-	return nil, nil
-}
-
-func (s *stubStore) SetUserDeckEnabled(ctx context.Context, userID, deckID uuid.UUID, enabled bool) error {
-	return nil
-}
-
-func (s *stubStore) CountEnabledDecks(ctx context.Context, userID uuid.UUID) (int, error) {
-	return 0, nil
-}
-
 func (s *stubStore) SetDailyCap(ctx context.Context, userID uuid.UUID, cap int) error {
 	s.user.DailyNewCap = cap
 	return nil
@@ -214,9 +202,9 @@ func newTestBot(st *stubStore) *Bot {
 
 // ── /practice Stop control ───────────────────────────────────────────────
 //
-// The Stop button itself (its v2 rendering) is covered by trainv2_test.go's
-// TestSendExerciseV2_PracticeUsesV2pPrefixAndStopButton; the tests below
-// cover handleStopPractice, which is independent of TrainerV2/legacy trainer
+// The Stop button itself (its rendering) is covered by train_test.go's
+// TestSendExercise_PracticeUsesPracPrefixAndStopButton; the tests below
+// cover handleStopPractice, which is independent of Trainer/legacy trainer
 // (it only reads storage.Store.PracticeStatsSince).
 
 func TestHandleStopPractice(t *testing.T) {
@@ -278,9 +266,9 @@ func TestHandleStopPractice_NoAnswers(t *testing.T) {
 func TestHandleCallback_StartTrain(t *testing.T) {
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{next: PromptV2{
-		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "Uma frase.",
-		Options: []OptionV2{{Index: 0, Label: "🇵🇹 Portuguese"}, {Index: 1, Label: "🇪🇸 Spanish"}},
+	b.trainer = &stubTrainer{next: Prompt{
+		Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "Uma frase.",
+		Options: []Option{{Index: 0, Label: "🇵🇹 Portuguese"}, {Index: 1, Label: "🇪🇸 Spanish"}},
 	}}
 
 	s := &fakeSession{userID: 1, data: dataStartTrain}
@@ -292,38 +280,12 @@ func TestHandleCallback_StartTrain(t *testing.T) {
 	if len(s.responses) != 1 || s.responses[0] != "" {
 		t.Fatalf("expected exactly one empty ack response, got %v", s.responses)
 	}
-	// The next exercise must be sent as a keyboard message (via TrainerV2).
+	// The next exercise must be sent as a keyboard message (via Trainer).
 	if len(s.keyboards) != 1 {
 		t.Fatalf("expected exactly one exercise keyboard, got %d", len(s.keyboards))
 	}
 	if s.keyboards[0].text != "Uma frase." {
 		t.Fatalf("expected the prompt text, got %q", s.keyboards[0].text)
-	}
-}
-
-// ── handleCallback: legacy ans:/prac: buttons ────────────────────────────
-//
-// The legacy trainer that graded "ans:"/"prac:" taps is gone: an old
-// in-flight message carrying one of these buttons now gets a friendly
-// "expired" toast instead of being routed anywhere for grading.
-// The equivalent v2 grading coverage (stale/correct/wrong/tips) lives in
-// trainv2_test.go's TestHandleV2AnswerCallback_* tests.
-
-func TestHandleCallback_LegacyAnswerIsExpired(t *testing.T) {
-	b := newTestBot(&stubStore{user: newTestUser()})
-
-	for _, data := range []string{"ans:" + uuid.NewString() + ":por", "prac:" + uuid.NewString() + ":fin"} {
-		s := &fakeSession{userID: 1, messageID: 42, data: data}
-		if err := b.handleCallback(context.Background(), s); err != nil {
-			t.Fatalf("handleCallback(%q): %v", data, err)
-		}
-		if len(s.responses) != 1 || s.responses[0] != legacyAnswerExpiredToast {
-			t.Fatalf("handleCallback(%q): expected the expired toast, got %v", data, s.responses)
-		}
-		if len(s.edits) != 0 || len(s.editedMsgs) != 0 || len(s.sent) != 0 {
-			t.Fatalf("handleCallback(%q): expected no edits or sends, got edits=%d editedMsgs=%d sent=%d",
-				data, len(s.edits), len(s.editedMsgs), len(s.sent))
-		}
 	}
 }
 
@@ -342,7 +304,7 @@ func TestHandleDecks_AliasesTopicsWhenWired(t *testing.T) {
 	}
 }
 
-func TestHandleDecks_LegacyPickerWhenTopicsNil(t *testing.T) {
+func TestHandleDecks_UnavailableWhenTopicsNil(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
 
@@ -350,39 +312,8 @@ func TestHandleDecks_LegacyPickerWhenTopicsNil(t *testing.T) {
 	if err := b.handleDecks(context.Background(), s); err != nil {
 		t.Fatalf("handleDecks: %v", err)
 	}
-	if len(s.keyboards) != 1 || s.keyboards[0].text != decksPickerText {
-		t.Fatalf("expected the legacy deck picker, got %+v", s.keyboards)
-	}
-}
-
-// ── deckPickerRows ───────────────────────────────────────────────────────
-
-func TestDeckPickerRows(t *testing.T) {
-	enabledID := uuid.New()
-	disabledID := uuid.New()
-	decks := []storage.UserDeck{
-		{Deck: storage.Deck{ID: enabledID, Slug: "romance", Name: "Romance languages"}, Enabled: true},
-		{Deck: storage.Deck{ID: disabledID, Slug: "nordic", Name: "Nordic"}, Enabled: false},
-	}
-
-	rows := deckPickerRows(decks)
-
-	var all []Btn
-	for _, row := range rows {
-		all = append(all, row...)
-	}
-
-	// Romance has a curated + audited tips dataset (tips.DeckHasTips), so its
-	// button carries the 💡 marker; Nordic doesn't have tips yet and stays plain.
-	assertHasBtn(t, all, Btn{Label: "✅ Romance languages 💡", Data: "deck:" + enabledID.String()})
-	assertHasBtn(t, all, Btn{Label: "⬜ Nordic", Data: "deck:" + disabledID.String()})
-
-	// The deck picker is now deck-toggles only — cap/reminder/style controls
-	// moved to /settings and must not leak back in.
-	for _, b := range all {
-		if b.Data == "cap:inc" || b.Data == "rem:toggle" || b.Data == "style:cycle" {
-			t.Fatalf("deck picker must not carry the %q control (it belongs in /settings)", b.Data)
-		}
+	if len(s.sent) != 1 || s.sent[0] != decksUnavailableText {
+		t.Fatalf("expected the topic-browser-unavailable message, got %+v", s.sent)
 	}
 }
 
@@ -769,26 +700,26 @@ func TestReminderButtonRows(t *testing.T) {
 	}
 }
 
-// ── formatStatsV2 ────────────────────────────────────────────────────────
+// ── formatStats ────────────────────────────────────────────────────────
 
-func TestFormatStatsV2(t *testing.T) {
-	st := StatsV2{
+func TestFormatStats(t *testing.T) {
+	st := Stats{
 		ReviewsToday: 12,
 		ReviewsWeek:  50,
 		Streak:       4,
 		Accuracy:     0.83,
-		ByTopic: []TopicAccuracyV2{
+		ByTopic: []TopicAccuracy{
 			{Name: "Languages", Total: 20, Correct: 18, Accuracy: 0.9},
 		},
 		DueForecast: []int{3, 5, 0, 1, 2, 0, 4},
-		Confusion: []ConfusionRowV2{
+		Confusion: []ConfusionRow{
 			{TargetLabel: "Portuguese", ChosenLabel: "Spanish", Count: 7, Share: 0.4},
 		},
 		Introduced: 30,
 		Known:      5,
 	}
 
-	out := formatStatsV2(st)
+	out := formatStats(st)
 
 	for _, want := range []string{
 		"Reviews today: 12",
@@ -801,13 +732,13 @@ func TestFormatStatsV2(t *testing.T) {
 		"You mistake Portuguese for Spanish — 7 times (40%)",
 	} {
 		if !strings.Contains(out, want) {
-			t.Fatalf("expected formatStatsV2 output to contain %q; got:\n%s", want, out)
+			t.Fatalf("expected formatStats output to contain %q; got:\n%s", want, out)
 		}
 	}
 }
 
-func TestFormatStatsV2_SingularStreak(t *testing.T) {
-	out := formatStatsV2(StatsV2{Streak: 1})
+func TestFormatStats_SingularStreak(t *testing.T) {
+	out := formatStats(Stats{Streak: 1})
 	if !strings.Contains(out, "Streak: 1 day\n") {
 		t.Fatalf("expected singular 'day' for a streak of 1; got:\n%s", out)
 	}

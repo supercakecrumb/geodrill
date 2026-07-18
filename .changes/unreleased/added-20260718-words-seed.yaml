@@ -1,2 +1,0 @@
-kind: Added
-body: Add internal/topics/words.Seed — idempotent loader for seeds/common_words.yaml into the languages/common-words topic and its items (architecture §6.3)

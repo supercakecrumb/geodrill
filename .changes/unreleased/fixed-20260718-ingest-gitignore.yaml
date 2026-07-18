@@ -1,2 +1,0 @@
-kind: Fixed
-body: "Anchor the /geodrill and /ingest build-output .gitignore patterns to the repo root so they no longer shadow the cmd/ingest source directory (cmd/ingest/main.go had never been committed; the release Docker build, go build ./cmd/ingest, was silently broken on GitHub)"

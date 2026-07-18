@@ -30,10 +30,10 @@ func (q *Queries) CountReviewsSince(ctx context.Context, arg CountReviewsSincePa
 }
 
 const getReviewsByItem = `-- name: GetReviewsByItem :many
-SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice, item_id, mode, chosen, correct_answer FROM reviews WHERE item_id = $1 ORDER BY reviewed_at
+SELECT id, user_id, item_id, exercise_id, content_id, mode, chosen, correct_answer, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, practice, reviewed_at FROM reviews WHERE item_id = $1 ORDER BY reviewed_at
 `
 
-func (q *Queries) GetReviewsByItem(ctx context.Context, itemID *uuid.UUID) ([]Review, error) {
+func (q *Queries) GetReviewsByItem(ctx context.Context, itemID uuid.UUID) ([]Review, error) {
 	rows, err := q.db.Query(ctx, getReviewsByItem, itemID)
 	if err != nil {
 		return nil, err
@@ -45,11 +45,12 @@ func (q *Queries) GetReviewsByItem(ctx context.Context, itemID *uuid.UUID) ([]Re
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.SkillID,
+			&i.ItemID,
 			&i.ExerciseID,
 			&i.ContentID,
-			&i.ChosenKey,
-			&i.CorrectKey,
+			&i.Mode,
+			&i.Chosen,
+			&i.CorrectAnswer,
 			&i.Correct,
 			&i.Rating,
 			&i.ResponseMs,
@@ -60,12 +61,8 @@ func (q *Queries) GetReviewsByItem(ctx context.Context, itemID *uuid.UUID) ([]Re
 			&i.StateBefore,
 			&i.ScheduledDays,
 			&i.ElapsedDays,
-			&i.ReviewedAt,
 			&i.Practice,
-			&i.ItemID,
-			&i.Mode,
-			&i.Chosen,
-			&i.CorrectAnswer,
+			&i.ReviewedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -79,115 +76,51 @@ func (q *Queries) GetReviewsByItem(ctx context.Context, itemID *uuid.UUID) ([]Re
 
 const insertReview = `-- name: InsertReview :exec
 INSERT INTO reviews (
-  user_id, skill_id, exercise_id, content_id,
-  chosen_key, correct_key, correct, rating, response_ms,
+  user_id, item_id, exercise_id, content_id, mode, chosen, correct_answer,
+  correct, rating, response_ms,
   stability_before, difficulty_before, stability_after, difficulty_after,
-  state_before, scheduled_days, elapsed_days, reviewed_at, practice
+  state_before, scheduled_days, elapsed_days, practice, reviewed_at
 ) VALUES (
-  $1, $2, $3, $4,
-  $5, $6, $7, $8, $9,
-  $10, $11, $12, $13,
-  $14, $15, $16, $17, $18
+  $1, $2, $3, $4, $5, $6, $7,
+  $8, $9, $10,
+  $11, $12, $13, $14,
+  $15, $16, $17, $18, $19
 )
 `
 
 type InsertReviewParams struct {
 	UserID           uuid.UUID
-	SkillID          uuid.UUID
+	ItemID           uuid.UUID
 	ExerciseID       *uuid.UUID
 	ContentID        *uuid.UUID
-	ChosenKey        string
-	CorrectKey       string
-	Correct          bool
-	Rating           int16
-	ResponseMs       pgtype.Int4
-	StabilityBefore  float64
-	DifficultyBefore float64
-	StabilityAfter   float64
-	DifficultyAfter  float64
-	StateBefore      int16
-	ScheduledDays    int32
-	ElapsedDays      int32
-	ReviewedAt       pgtype.Timestamptz
-	Practice         bool
-}
-
-func (q *Queries) InsertReview(ctx context.Context, arg InsertReviewParams) error {
-	_, err := q.db.Exec(ctx, insertReview,
-		arg.UserID,
-		arg.SkillID,
-		arg.ExerciseID,
-		arg.ContentID,
-		arg.ChosenKey,
-		arg.CorrectKey,
-		arg.Correct,
-		arg.Rating,
-		arg.ResponseMs,
-		arg.StabilityBefore,
-		arg.DifficultyBefore,
-		arg.StabilityAfter,
-		arg.DifficultyAfter,
-		arg.StateBefore,
-		arg.ScheduledDays,
-		arg.ElapsedDays,
-		arg.ReviewedAt,
-		arg.Practice,
-	)
-	return err
-}
-
-const insertReviewV2 = `-- name: InsertReviewV2 :exec
-INSERT INTO reviews (
-  user_id, skill_id, exercise_id, content_id,
-  chosen_key, correct_key, correct, rating, response_ms,
-  stability_before, difficulty_before, stability_after, difficulty_after,
-  state_before, scheduled_days, elapsed_days, reviewed_at, practice,
-  item_id, mode, chosen, correct_answer
-) VALUES (
-  $1, $2, $3, $4,
-  $5, $6, $7, $8, $9,
-  $10, $11, $12, $13,
-  $14, $15, $16, $17, $18,
-  $19, $20, $21, $22
-)
-`
-
-type InsertReviewV2Params struct {
-	UserID           uuid.UUID
-	SkillID          uuid.UUID
-	ExerciseID       *uuid.UUID
-	ContentID        *uuid.UUID
-	ChosenKey        string
-	CorrectKey       string
-	Correct          bool
-	Rating           int16
-	ResponseMs       pgtype.Int4
-	StabilityBefore  float64
-	DifficultyBefore float64
-	StabilityAfter   float64
-	DifficultyAfter  float64
-	StateBefore      int16
-	ScheduledDays    int32
-	ElapsedDays      int32
-	ReviewedAt       pgtype.Timestamptz
-	Practice         bool
-	ItemID           *uuid.UUID
 	Mode             int16
 	Chosen           pgtype.Text
 	CorrectAnswer    pgtype.Text
+	Correct          bool
+	Rating           int16
+	ResponseMs       pgtype.Int4
+	StabilityBefore  float64
+	DifficultyBefore float64
+	StabilityAfter   float64
+	DifficultyAfter  float64
+	StateBefore      int16
+	ScheduledDays    int32
+	ElapsedDays      int32
+	Practice         bool
+	ReviewedAt       pgtype.Timestamptz
 }
 
-// v2: append a review carrying both the legacy skill_id/chosen_key/correct_key
-// (still NOT NULL until 000007 drops them) and the generalized item_id/mode/
-// chosen/correct_answer columns (architecture §2.5, transitional).
-func (q *Queries) InsertReviewV2(ctx context.Context, arg InsertReviewV2Params) error {
-	_, err := q.db.Exec(ctx, insertReviewV2,
+// Append a review carrying the item-based, mode-aware column set
+// (architecture §2.5).
+func (q *Queries) InsertReview(ctx context.Context, arg InsertReviewParams) error {
+	_, err := q.db.Exec(ctx, insertReview,
 		arg.UserID,
-		arg.SkillID,
+		arg.ItemID,
 		arg.ExerciseID,
 		arg.ContentID,
-		arg.ChosenKey,
-		arg.CorrectKey,
+		arg.Mode,
+		arg.Chosen,
+		arg.CorrectAnswer,
 		arg.Correct,
 		arg.Rating,
 		arg.ResponseMs,
@@ -198,20 +131,16 @@ func (q *Queries) InsertReviewV2(ctx context.Context, arg InsertReviewV2Params) 
 		arg.StateBefore,
 		arg.ScheduledDays,
 		arg.ElapsedDays,
-		arg.ReviewedAt,
 		arg.Practice,
-		arg.ItemID,
-		arg.Mode,
-		arg.Chosen,
-		arg.CorrectAnswer,
+		arg.ReviewedAt,
 	)
 	return err
 }
 
 const listAttemptsSince = `-- name: ListAttemptsSince :many
-SELECT skill_id, correct_key, chosen_key, correct, response_ms, reviewed_at
+SELECT correct_answer, chosen, correct, response_ms, reviewed_at
 FROM reviews
-WHERE user_id = $1 AND reviewed_at >= $2
+WHERE user_id = $1 AND reviewed_at >= $2 AND item_id IS NOT NULL
 ORDER BY reviewed_at
 `
 
@@ -221,14 +150,17 @@ type ListAttemptsSinceParams struct {
 }
 
 type ListAttemptsSinceRow struct {
-	SkillID    uuid.UUID
-	CorrectKey string
-	ChosenKey  string
-	Correct    bool
-	ResponseMs pgtype.Int4
-	ReviewedAt pgtype.Timestamptz
+	CorrectAnswer pgtype.Text
+	Chosen        pgtype.Text
+	Correct       bool
+	ResponseMs    pgtype.Int4
+	ReviewedAt    pgtype.Timestamptz
 }
 
+// internal/study.Service.Stats: answer records for quiz.Confusion,
+// restricted to item-based attempts (item_id IS NOT NULL, so chosen/correct_answer
+// are always populated by the item-based write path — see internal/study's
+// finishAnswer).
 func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error) {
 	rows, err := q.db.Query(ctx, listAttemptsSince, arg.UserID, arg.ReviewedAt)
 	if err != nil {
@@ -238,57 +170,6 @@ func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSincePa
 	items := []ListAttemptsSinceRow{}
 	for rows.Next() {
 		var i ListAttemptsSinceRow
-		if err := rows.Scan(
-			&i.SkillID,
-			&i.CorrectKey,
-			&i.ChosenKey,
-			&i.Correct,
-			&i.ResponseMs,
-			&i.ReviewedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listAttemptsSinceV2 = `-- name: ListAttemptsSinceV2 :many
-SELECT correct_answer, chosen, correct, response_ms, reviewed_at
-FROM reviews
-WHERE user_id = $1 AND reviewed_at >= $2 AND item_id IS NOT NULL
-ORDER BY reviewed_at
-`
-
-type ListAttemptsSinceV2Params struct {
-	UserID     uuid.UUID
-	ReviewedAt pgtype.Timestamptz
-}
-
-type ListAttemptsSinceV2Row struct {
-	CorrectAnswer pgtype.Text
-	Chosen        pgtype.Text
-	Correct       bool
-	ResponseMs    pgtype.Int4
-	ReviewedAt    pgtype.Timestamptz
-}
-
-// v2 (internal/study.Service.Stats): answer records for quiz.Confusion,
-// restricted to v2 attempts (item_id IS NOT NULL, so chosen/correct_answer
-// are always populated by the v2 write path — see internal/study's
-// finishAnswer).
-func (q *Queries) ListAttemptsSinceV2(ctx context.Context, arg ListAttemptsSinceV2Params) ([]ListAttemptsSinceV2Row, error) {
-	rows, err := q.db.Query(ctx, listAttemptsSinceV2, arg.UserID, arg.ReviewedAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListAttemptsSinceV2Row{}
-	for rows.Next() {
-		var i ListAttemptsSinceV2Row
 		if err := rows.Scan(
 			&i.CorrectAnswer,
 			&i.Chosen,
@@ -307,7 +188,7 @@ func (q *Queries) ListAttemptsSinceV2(ctx context.Context, arg ListAttemptsSince
 }
 
 const listReviewsSince = `-- name: ListReviewsSince :many
-SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice, item_id, mode, chosen, correct_answer FROM reviews
+SELECT id, user_id, item_id, exercise_id, content_id, mode, chosen, correct_answer, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, practice, reviewed_at FROM reviews
 WHERE user_id = $1 AND reviewed_at >= $2
 ORDER BY reviewed_at
 `
@@ -329,11 +210,12 @@ func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSincePara
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.SkillID,
+			&i.ItemID,
 			&i.ExerciseID,
 			&i.ContentID,
-			&i.ChosenKey,
-			&i.CorrectKey,
+			&i.Mode,
+			&i.Chosen,
+			&i.CorrectAnswer,
 			&i.Correct,
 			&i.Rating,
 			&i.ResponseMs,
@@ -344,12 +226,8 @@ func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSincePara
 			&i.StateBefore,
 			&i.ScheduledDays,
 			&i.ElapsedDays,
-			&i.ReviewedAt,
 			&i.Practice,
-			&i.ItemID,
-			&i.Mode,
-			&i.Chosen,
-			&i.CorrectAnswer,
+			&i.ReviewedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -386,55 +264,6 @@ func (q *Queries) PracticeStatsSince(ctx context.Context, arg PracticeStatsSince
 	return i, err
 }
 
-const reviewStatsByDeck = `-- name: ReviewStatsByDeck :many
-SELECT d.slug, d.name,
-       count(*) AS total,
-       count(*) FILTER (WHERE r.correct) AS correct
-FROM reviews r
-JOIN skills s ON s.id = r.skill_id
-JOIN decks d ON d.id = s.deck_id
-WHERE r.user_id = $1 AND r.reviewed_at >= $2
-GROUP BY d.slug, d.name
-ORDER BY d.slug
-`
-
-type ReviewStatsByDeckParams struct {
-	UserID     uuid.UUID
-	ReviewedAt pgtype.Timestamptz
-}
-
-type ReviewStatsByDeckRow struct {
-	Slug    string
-	Name    string
-	Total   int64
-	Correct int64
-}
-
-func (q *Queries) ReviewStatsByDeck(ctx context.Context, arg ReviewStatsByDeckParams) ([]ReviewStatsByDeckRow, error) {
-	rows, err := q.db.Query(ctx, reviewStatsByDeck, arg.UserID, arg.ReviewedAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ReviewStatsByDeckRow{}
-	for rows.Next() {
-		var i ReviewStatsByDeckRow
-		if err := rows.Scan(
-			&i.Slug,
-			&i.Name,
-			&i.Total,
-			&i.Correct,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const reviewStatsByTopic = `-- name: ReviewStatsByTopic :many
 SELECT t.id AS topic_id, t.name,
        count(*) AS total,
@@ -459,9 +288,8 @@ type ReviewStatsByTopicRow struct {
 	Correct int64
 }
 
-// v2 (internal/study.Service.Stats): per-topic accuracy since a time,
-// restricted to v2 attempts (item_id IS NOT NULL) — replaces ReviewStatsByDeck
-// for the /stats view once every write path is item-based (architecture §2.5).
+// internal/study.Service.Stats: per-topic accuracy since a time,
+// restricted to item-based attempts (item_id IS NOT NULL) — the /stats view.
 func (q *Queries) ReviewStatsByTopic(ctx context.Context, arg ReviewStatsByTopicParams) ([]ReviewStatsByTopicRow, error) {
 	rows, err := q.db.Query(ctx, reviewStatsByTopic, arg.UserID, arg.ReviewedAt)
 	if err != nil {

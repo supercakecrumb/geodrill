@@ -34,11 +34,10 @@ ORDER BY i.position, i.key;
 SELECT tier FROM item_tiers WHERE item_id = $1;
 
 -- name: ListActiveItemsForPractice :many
--- v2 (internal/study.Service.NextPracticeV2): active items across a set of
+-- internal/study.Service.NextPractice: active items across a set of
 -- topics (the caller's enabled+quizzable topics), restricted to a set of
 -- tiers (the caller's currently-unlocked tiers) — the /practice candidate
--- pool, mirroring the legacy ListEnabledSkills' "across a user's enabled
--- decks" shape but tier-gated like every other v2 read.
+-- pool, tier-gated like every other item-based read.
 SELECT i.* FROM items i
 JOIN item_tiers it ON it.item_id = i.id
 WHERE i.active = true
@@ -47,10 +46,9 @@ WHERE i.active = true
 ORDER BY i.topic_id, i.position;
 
 -- name: ListAllItemKeyLabels :many
--- Global key->label lookup for confusion display (mirrors the legacy
--- ListAllSkills key->label map). Best-effort: item keys are only unique
--- WITHIN a topic (items' UNIQUE (topic_id, key) constraint), so a key shared
--- by two topics resolves to whichever row this query returns last for it —
--- an acceptable approximation for a "which language/character/word" hint,
--- exactly like the legacy per-deck assumption it replaces.
+-- Global key->label lookup for confusion display. Best-effort: item keys
+-- are only unique WITHIN a topic (items' UNIQUE (topic_id, key) constraint),
+-- so a key shared by two topics resolves to whichever row this query
+-- returns last for it — an acceptable approximation for a "which
+-- language/character/word" hint.
 SELECT key, label FROM items;

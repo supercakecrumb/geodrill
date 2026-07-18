@@ -1,2 +1,0 @@
-kind: Changed
-body: '/practice now runs on the v2 topic/item model instead of legacy decks/skills: it draws a random active item across your enabled+tier-unlocked topics (internal/study.Service.NextPracticeV2), answers through new v2p:<uuid>:<idx> callbacks (mirroring /train''s v2a: prefix) or free-typed replies, and still applies ZERO FSRS movement — same "counts toward stats, never touches scheduling" contract as before. The Stop control is unchanged. If you have no topics enabled, /practice now points you at /topics instead of the old deck picker'

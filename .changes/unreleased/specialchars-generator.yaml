@@ -1,2 +1,0 @@
-kind: Added
-body: "Add internal/topics/specialchars.Generator (quiz_kind char_language): single-language MCQ + free-text modes and subgroup set-choice mode for special characters, with distractors drawn deterministically from same-script sibling items and a small internal language-alias table for ModeText"

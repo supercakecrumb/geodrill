@@ -1,2 +1,0 @@
-kind: Changed
-body: '/stats now runs entirely on v2 reviews/user_items (study.Service.Stats): per-topic accuracy replaces the old per-deck breakdown, and two new lines appear -- introduced/known item counts. Reviews-today/week, overall accuracy, streak, and the 7-day due forecast are computed the same way as before (engram''s stats helpers), and top mix-ups still come from quiz.Confusion, now over v2 attempts. /stats shows a "coming with v2 wiring" placeholder if the v2 service isn''t wired, matching /study and /topics'

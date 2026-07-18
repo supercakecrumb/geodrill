@@ -22,9 +22,8 @@ type CountDueUserItemsParams struct {
 	Due    pgtype.Timestamptz
 }
 
-// v2 (internal/study.Service.DueCount / the reminder loop's due count):
-// Introduced/Reviewing cards due at or before now — replaces
-// CountDueSkills for the v2 review path.
+// internal/study.Service.DueCount / the reminder loop's due count:
+// Introduced/Reviewing cards due at or before now.
 func (q *Queries) CountDueUserItems(ctx context.Context, arg CountDueUserItemsParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countDueUserItems, arg.UserID, arg.Due)
 	var count int64
@@ -36,7 +35,7 @@ const countIntroducedItems = `-- name: CountIntroducedItems :one
 SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2, 3)
 `
 
-// v2 (internal/study.Service.Stats, "introduced" count): items that have
+// internal/study.Service.Stats, "introduced" count: items that have
 // left lifecycle=new (Introduced, Reviewing, or Known).
 func (q *Queries) CountIntroducedItems(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countIntroducedItems, userID)
@@ -49,7 +48,7 @@ const countKnownItems = `-- name: CountKnownItems :one
 SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle = 3
 `
 
-// v2 (internal/study.Service.Stats, "known" count): items marked known via
+// internal/study.Service.Stats, "known" count: items marked known via
 // the "I know this" intro outcome.
 func (q *Queries) CountKnownItems(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countKnownItems, userID)
@@ -220,8 +219,8 @@ const listUserItemCardsInFSRS = `-- name: ListUserItemCardsInFSRS :many
 SELECT user_id, item_id, lifecycle, due, stability, difficulty, reps, lapses, state, last_review, introduced_at, known_at, updated_at FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2)
 `
 
-// v2 (internal/study.Service.Stats' DueForecast input): every Introduced/
-// Reviewing card for a user — replaces ListCardsForUser for the v2 review
+// internal/study.Service.Stats' DueForecast input: every Introduced/
+// Reviewing card for a user — replaces ListCardsForUser for the item-based review
 // path. Known/new rows are excluded: they carry a zeroed/absent due date
 // that would otherwise skew engram.DueForecast's "due today" bucket.
 func (q *Queries) ListUserItemCardsInFSRS(ctx context.Context, userID uuid.UUID) ([]UserItem, error) {

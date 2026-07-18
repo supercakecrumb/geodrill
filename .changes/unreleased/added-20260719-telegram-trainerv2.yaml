@@ -1,2 +1,0 @@
-kind: Added
-body: 'Add the TrainerV2 mode-aware exercise path (architecture §1.6) — /train and the reminder''s "Start reviewing" button prefer it when wired, single/set exercises answer via new index-based v2a:<uuid>:<idx> callbacks (ans:/prac: stay reserved for a later wave''s migration), and free-typed answers route through a new OnText handler (registered only when TrainerV2 is configured) into TrainerV2.AnswerText'

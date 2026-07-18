@@ -82,7 +82,7 @@ LEFT JOIN user_topics ut ON ut.topic_id = t.id AND ut.user_id = $1
 ORDER BY t.position, t.slug;
 
 -- name: GetUserTopicEnabled :one
--- v2 (internal/study.Service, the /topics enable/disable toggle): a single
+-- internal/study.Service, the /topics enable/disable toggle: a single
 -- topic's enabled flag for a user (default-on when no user_topics row
 -- exists), for rendering the toggle's current state without listing every
 -- topic (ListUserTopics).

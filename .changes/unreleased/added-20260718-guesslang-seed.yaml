@@ -1,2 +1,0 @@
-kind: Added
-body: "Add internal/topics/guesslang.Seed — idempotent loader for seeds/decks.yaml into the languages/guess-the-language topic tree (one child topic per confusion group, base_tier 1, one item per language keyed by ISO-639-3, architecture §2.11/§3.4)"

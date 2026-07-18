@@ -7,7 +7,7 @@ ON CONFLICT (kind, key, payload) DO NOTHING;
 SELECT count(*) FROM content_items WHERE kind = $1 AND key = $2;
 
 -- name: SampleContent :one
--- Random sentence for a skill key, excluding the user's last-50 seen content
+-- Random sentence for an item key, excluding the user's last-50 seen content
 -- for that key (recently-seen exclusion, contract §4).
 SELECT ci.id, ci.kind, ci.key, ci.payload, ci.source, ci.char_length
 FROM content_items ci
@@ -15,7 +15,7 @@ WHERE ci.kind = 'sentence' AND ci.key = $1
   AND ci.id NOT IN (
     SELECT r.content_id
     FROM reviews r
-    WHERE r.user_id = $2 AND r.correct_key = $1 AND r.content_id IS NOT NULL
+    WHERE r.user_id = $2 AND r.correct_answer = $1 AND r.content_id IS NOT NULL
     ORDER BY r.reviewed_at DESC
     LIMIT 50
   )
@@ -37,7 +37,7 @@ ORDER BY random()
 LIMIT 1;
 
 -- name: GetContentByKindKey :one
--- v2 (internal/study's bridge content row): exact (kind,key) lookup, unlike
+-- internal/study's bridge content row: exact (kind,key) lookup, unlike
 -- SampleContent/SampleContentAny which are hardcoded to kind='sentence' and
 -- pick randomly among multiple rows.
 SELECT ci.id, ci.kind, ci.key, ci.payload, ci.source, ci.char_length

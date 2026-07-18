@@ -12,15 +12,15 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/storage"
 )
 
-// stubTrainerV2 implements TrainerV2 with canned results. next backs
-// NextExerciseV2; practice backs NextPracticeV2 — kept separate since a test
+// stubTrainer implements Trainer with canned results. next backs
+// NextExercise; practice backs NextPractice — kept separate since a test
 // exercising /practice's "next" step must not accidentally observe /train's
 // canned result (or vice versa).
-type stubTrainerV2 struct {
-	next     PromptV2
-	practice PromptV2
-	answer   AnswerResultV2
-	stats    StatsV2
+type stubTrainer struct {
+	next     Prompt
+	practice Prompt
+	answer   AnswerResult
+	stats    Stats
 	statsErr error
 	due      int
 	dueErr   error
@@ -37,108 +37,108 @@ type stubTrainerV2 struct {
 	}
 }
 
-func (s *stubTrainerV2) NextExerciseV2(ctx context.Context, userID uuid.UUID) (PromptV2, error) {
+func (s *stubTrainer) NextExercise(ctx context.Context, userID uuid.UUID) (Prompt, error) {
 	return s.next, nil
 }
 
-func (s *stubTrainerV2) NextPracticeV2(ctx context.Context, userID uuid.UUID) (PromptV2, error) {
+func (s *stubTrainer) NextPractice(ctx context.Context, userID uuid.UUID) (Prompt, error) {
 	return s.practice, nil
 }
 
-func (s *stubTrainerV2) AnswerV2(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResultV2, error) {
+func (s *stubTrainer) Answer(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResult, error) {
 	s.answerCall.userID = userID
 	s.answerCall.exerciseID = exerciseID
 	s.answerCall.index = optionIndex
 	return s.answer, nil
 }
 
-func (s *stubTrainerV2) AnswerText(ctx context.Context, userID uuid.UUID, typed string) (AnswerResultV2, bool, error) {
+func (s *stubTrainer) AnswerText(ctx context.Context, userID uuid.UUID, typed string) (AnswerResult, bool, error) {
 	s.textCall.userID = userID
 	s.textCall.typed = typed
 	return s.answer, s.textOK, s.textErr
 }
 
-func (s *stubTrainerV2) Stats(ctx context.Context, userID uuid.UUID) (StatsV2, error) {
+func (s *stubTrainer) Stats(ctx context.Context, userID uuid.UUID) (Stats, error) {
 	return s.stats, s.statsErr
 }
 
-func (s *stubTrainerV2) DueCount(ctx context.Context, userID uuid.UUID) (int, error) {
+func (s *stubTrainer) DueCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	return s.due, s.dueErr
 }
 
-// ── v2a: callback parsing ────────────────────────────────────────────────
+// ── ans: callback parsing ────────────────────────────────────────────────
 
-func TestV2AnswerCallbackData_RoundTrip(t *testing.T) {
+func TestAnswerCallbackData_RoundTrip(t *testing.T) {
 	id := uuid.New()
-	data := v2AnswerCallbackData(id, 3)
-	gotID, gotIdx, ok := parseV2AnswerCallback(data)
+	data := answerCallbackData(id, 3)
+	gotID, gotIdx, ok := parseAnswerCallback(data)
 	if !ok || gotID != id || gotIdx != 3 {
 		t.Fatalf("round-trip failed: got (%v,%v,%v), want (%v,3,true)", gotID, gotIdx, ok, id)
 	}
 	if len(data) > 64 {
-		t.Fatalf("v2a callback data exceeds Telegram's 64-byte budget: %d bytes", len(data))
+		t.Fatalf("ans callback data exceeds Telegram's 64-byte budget: %d bytes", len(data))
 	}
 }
 
-func TestParseV2AnswerCallback_Invalid(t *testing.T) {
+func TestParseAnswerCallback_Invalid(t *testing.T) {
 	cases := []string{
 		"",
 		"noop",
 		"ans:" + uuid.New().String() + ":por",
-		"v2a:" + uuid.New().String(), // missing index
-		"v2a:not-a-uuid:0",
-		"v2a:" + uuid.New().String() + ":-1", // negative index
-		"v2a:" + uuid.New().String() + ":x",  // non-numeric index
+		"ans:" + uuid.New().String(), // missing index
+		"ans:not-a-uuid:0",
+		"ans:" + uuid.New().String() + ":-1", // negative index
+		"ans:" + uuid.New().String() + ":x",  // non-numeric index
 	}
 	for _, data := range cases {
-		if _, _, ok := parseV2AnswerCallback(data); ok {
-			t.Fatalf("parseV2AnswerCallback(%q) unexpectedly succeeded", data)
+		if _, _, ok := parseAnswerCallback(data); ok {
+			t.Fatalf("parseAnswerCallback(%q) unexpectedly succeeded", data)
 		}
 	}
 }
 
-// ── v2p: callback parsing ────────────────────────────────────────────────
+// ── prac: callback parsing ────────────────────────────────────────────────
 
-func TestV2PracticeCallbackData_RoundTrip(t *testing.T) {
+func TestPracticeCallbackData_RoundTrip(t *testing.T) {
 	id := uuid.New()
-	data := v2PracticeCallbackData(id, 2)
-	gotID, gotIdx, ok := parseV2PracticeCallback(data)
+	data := practiceCallbackData(id, 2)
+	gotID, gotIdx, ok := parsePracticeCallback(data)
 	if !ok || gotID != id || gotIdx != 2 {
 		t.Fatalf("round-trip failed: got (%v,%v,%v), want (%v,2,true)", gotID, gotIdx, ok, id)
 	}
 	if len(data) > 64 {
-		t.Fatalf("v2p callback data exceeds Telegram's 64-byte budget: %d bytes", len(data))
+		t.Fatalf("prac callback data exceeds Telegram's 64-byte budget: %d bytes", len(data))
 	}
-	// v2a: and v2p: must never parse as each other's shape.
-	if _, _, ok := parseV2AnswerCallback(data); ok {
-		t.Fatalf("a v2p: payload must not parse as a v2a: callback")
+	// ans: and prac: must never parse as each other's shape.
+	if _, _, ok := parseAnswerCallback(data); ok {
+		t.Fatalf("a prac: payload must not parse as a ans: callback")
 	}
 }
 
-func TestParseV2PracticeCallback_Invalid(t *testing.T) {
+func TestParsePracticeCallback_Invalid(t *testing.T) {
 	cases := []string{
 		"",
 		"noop",
-		"v2a:" + uuid.New().String() + ":0", // the /train prefix, not /practice
-		"v2p:" + uuid.New().String(),        // missing index
-		"v2p:not-a-uuid:0",
-		"v2p:" + uuid.New().String() + ":-1",
+		"ans:" + uuid.New().String() + ":0", // the /train prefix, not /practice
+		"prac:" + uuid.New().String(),       // missing index
+		"prac:not-a-uuid:0",
+		"prac:" + uuid.New().String() + ":-1",
 	}
 	for _, data := range cases {
-		if _, _, ok := parseV2PracticeCallback(data); ok {
-			t.Fatalf("parseV2PracticeCallback(%q) unexpectedly succeeded", data)
+		if _, _, ok := parsePracticeCallback(data); ok {
+			t.Fatalf("parsePracticeCallback(%q) unexpectedly succeeded", data)
 		}
 	}
 }
 
-// ── /train V2 preference ─────────────────────────────────────────────────
+// ── /train uses the wired trainer ──────────────────────────────────────────────────
 
-func TestHandleTrain_PrefersV2WhenWired(t *testing.T) {
+func TestHandleTrain_UsesTrainerWhenWired(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{next: PromptV2{
-		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "hola",
-		Options: []OptionV2{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
+	b.trainer = &stubTrainer{next: Prompt{
+		Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "hola",
+		Options: []Option{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
 	}}
 
 	s := &fakeSession{userID: 1}
@@ -146,18 +146,18 @@ func TestHandleTrain_PrefersV2WhenWired(t *testing.T) {
 		t.Fatalf("handleTrain: %v", err)
 	}
 	if len(s.keyboards) != 1 || s.keyboards[0].text != "hola" {
-		t.Fatalf("expected the v2 prompt sent, got %+v", s.keyboards)
+		t.Fatalf("expected the prompt sent, got %+v", s.keyboards)
 	}
 }
 
-// ── /practice V2 preference ──────────────────────────────────────────────
+// ── /practice uses the wired trainer ───────────────────────────────────────────────
 
-func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
+func TestHandlePractice_UsesTrainerWhenWired(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{practice: PromptV2{
-		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "hola", Practice: true,
-		Options: []OptionV2{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
+	b.trainer = &stubTrainer{practice: Prompt{
+		Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "hola", Practice: true,
+		Options: []Option{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
 	}}
 
 	s := &fakeSession{userID: 1}
@@ -165,7 +165,7 @@ func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
 		t.Fatalf("handlePractice: %v", err)
 	}
 	if len(s.keyboards) != 1 || s.keyboards[0].text != "hola" {
-		t.Fatalf("expected the v2 practice prompt sent, got %+v", s.keyboards)
+		t.Fatalf("expected the practice prompt sent, got %+v", s.keyboards)
 	}
 	var sawStop bool
 	for _, row := range s.keyboards[0].rows {
@@ -173,32 +173,32 @@ func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
 			if btn.Data == dataStopPractice {
 				sawStop = true
 			}
-			if strings.HasPrefix(btn.Data, dataV2AnswerPrefix) {
-				t.Fatalf("a v2 practice option must use the v2p: prefix, not v2a:, got %q", btn.Data)
+			if strings.HasPrefix(btn.Data, dataAnswerPrefix) {
+				t.Fatalf("a practice option must use the prac: prefix, not ans:, got %q", btn.Data)
 			}
 		}
 	}
 	if !sawStop {
-		t.Fatalf("expected a Stop-practice button on a v2 practice prompt; rows=%+v", s.keyboards[0].rows)
+		t.Fatalf("expected a Stop-practice button on a practice prompt; rows=%+v", s.keyboards[0].rows)
 	}
 }
 
-func TestSendPromptV2_NoTopics(t *testing.T) {
+func TestSendPrompt_NoTopics(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	if err := b.sendPromptV2(s, storage.User{}, PromptV2{Kind: PromptV2KindNoTopics}); err != nil {
-		t.Fatalf("sendPromptV2: %v", err)
+	if err := b.sendPrompt(s, storage.User{}, Prompt{Kind: PromptKindNoTopics}); err != nil {
+		t.Fatalf("sendPrompt: %v", err)
 	}
 	if len(s.sent) != 1 || s.sent[0] != noTopicsText {
 		t.Fatalf("expected noTopicsText sent, got %v", s.sent)
 	}
 }
 
-// ── sendPromptV2 / sendExerciseV2 ────────────────────────────────────────
+// ── sendPrompt / sendExercise ────────────────────────────────────────
 
-// ── /stats V2 ────────────────────────────────────────────────────────────
+// ── /stats ─────────────────────────────────────────────────────────────
 
-func TestHandleStats_DormantWhenV2Nil(t *testing.T) {
+func TestHandleStats_DormantWhenTrainerNil(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1}
 	if err := b.handleStats(context.Background(), s); err != nil {
@@ -209,39 +209,39 @@ func TestHandleStats_DormantWhenV2Nil(t *testing.T) {
 	}
 }
 
-func TestHandleStats_RendersV2ViewModel(t *testing.T) {
+func TestHandleStats_RendersViewModel(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{stats: StatsV2{ReviewsToday: 3, Streak: 2}}
+	b.trainer = &stubTrainer{stats: Stats{ReviewsToday: 3, Streak: 2}}
 
 	s := &fakeSession{userID: 1}
 	if err := b.handleStats(context.Background(), s); err != nil {
 		t.Fatalf("handleStats: %v", err)
 	}
 	if len(s.sent) != 1 || !strings.Contains(s.sent[0], "Reviews today: 3") {
-		t.Fatalf("expected the v2 stats rendered, got %v", s.sent)
+		t.Fatalf("expected the stats rendered, got %v", s.sent)
 	}
 }
 
-func TestSendPromptV2_NothingDueUsesUserTimezone(t *testing.T) {
+func TestSendPrompt_NothingDueUsesUserTimezone(t *testing.T) {
 	user := storage.User{Timezone: "America/New_York"}
 	due := time.Date(2026, 7, 18, 20, 0, 0, 0, time.UTC) // 16:00 in America/New_York
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	if err := b.sendPromptV2(s, user, PromptV2{Kind: PromptV2KindNothingDue, DueAt: due}); err != nil {
-		t.Fatalf("sendPromptV2: %v", err)
+	if err := b.sendPrompt(s, user, Prompt{Kind: PromptKindNothingDue, DueAt: due}); err != nil {
+		t.Fatalf("sendPrompt: %v", err)
 	}
 	if len(s.sent) != 1 || !strings.Contains(s.sent[0], "16:00") {
 		t.Fatalf("expected the due time localized to 16:00, got %v", s.sent)
 	}
 }
 
-func TestSendExerciseV2_ModeTextHasNoButtons(t *testing.T) {
+func TestSendExercise_ModeTextHasNoButtons(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	p := PromptV2{Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "ulica", Mode: quiz.ModeText}
-	if err := b.sendExerciseV2(s, p); err != nil {
-		t.Fatalf("sendExerciseV2: %v", err)
+	p := Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "ulica", Mode: quiz.ModeText}
+	if err := b.sendExercise(s, p); err != nil {
+		t.Fatalf("sendExercise: %v", err)
 	}
 	if len(s.keyboards) != 1 {
 		t.Fatalf("expected one message sent, got %d", len(s.keyboards))
@@ -254,78 +254,78 @@ func TestSendExerciseV2_ModeTextHasNoButtons(t *testing.T) {
 	}
 }
 
-func TestSendExerciseV2_ModeSingleHasButtons(t *testing.T) {
+func TestSendExercise_ModeSingleHasButtons(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
 	exID := uuid.New()
-	p := PromptV2{
-		Kind: PromptV2KindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle,
-		Options: []OptionV2{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
+	p := Prompt{
+		Kind: PromptKindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle,
+		Options: []Option{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
 	}
-	if err := b.sendExerciseV2(s, p); err != nil {
-		t.Fatalf("sendExerciseV2: %v", err)
+	if err := b.sendExercise(s, p); err != nil {
+		t.Fatalf("sendExercise: %v", err)
 	}
 	if len(s.keyboards[0].rows) != 1 || len(s.keyboards[0].rows[0]) != 2 {
 		t.Fatalf("expected 2 options on one row, got %+v", s.keyboards[0].rows)
 	}
-	if s.keyboards[0].rows[0][0].Data != v2AnswerCallbackData(exID, 0) {
+	if s.keyboards[0].rows[0][0].Data != answerCallbackData(exID, 0) {
 		t.Fatalf("expected the option's index-based callback data, got %q", s.keyboards[0].rows[0][0].Data)
 	}
 }
 
-func TestSendExerciseV2_PracticeUsesV2pPrefixAndStopButton(t *testing.T) {
+func TestSendExercise_PracticeUsesPracPrefixAndStopButton(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
 	exID := uuid.New()
-	p := PromptV2{
-		Kind: PromptV2KindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle, Practice: true,
-		Options: []OptionV2{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
+	p := Prompt{
+		Kind: PromptKindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle, Practice: true,
+		Options: []Option{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
 	}
-	if err := b.sendExerciseV2(s, p); err != nil {
-		t.Fatalf("sendExerciseV2: %v", err)
+	if err := b.sendExercise(s, p); err != nil {
+		t.Fatalf("sendExercise: %v", err)
 	}
 	rows := s.keyboards[0].rows
-	if rows[0][0].Data != v2PracticeCallbackData(exID, 0) {
-		t.Fatalf("expected the v2p: callback data for a practice option, got %q", rows[0][0].Data)
+	if rows[0][0].Data != practiceCallbackData(exID, 0) {
+		t.Fatalf("expected the prac: callback data for a practice option, got %q", rows[0][0].Data)
 	}
 	if len(rows) != 2 || len(rows[1]) != 1 || rows[1][0].Data != dataStopPractice {
 		t.Fatalf("expected a trailing Stop-practice row, got %+v", rows)
 	}
 }
 
-func TestSendExerciseV2_PhotoEscapesCaption(t *testing.T) {
+func TestSendExercise_PhotoEscapesCaption(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	p := PromptV2{Kind: PromptV2KindExercise, MediaPath: "/x.jpg", Text: "a < b", Mode: quiz.ModeSingle}
-	if err := b.sendExerciseV2(s, p); err != nil {
-		t.Fatalf("sendExerciseV2: %v", err)
+	p := Prompt{Kind: PromptKindExercise, MediaPath: "/x.jpg", Text: "a < b", Mode: quiz.ModeSingle}
+	if err := b.sendExercise(s, p); err != nil {
+		t.Fatalf("sendExercise: %v", err)
 	}
 	if len(s.photos) != 1 || s.photos[0].caption != "a &lt; b" {
 		t.Fatalf("expected an escaped photo caption, got %+v", s.photos)
 	}
 }
 
-// ── v2a: callback handling ───────────────────────────────────────────────
+// ── ans: callback handling ───────────────────────────────────────────────
 
-func TestHandleV2AnswerCallback_GradesEditsAndAdvances(t *testing.T) {
+func TestHandleAnswerCallback_GradesEditsAndAdvances(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
 	exID := uuid.New()
-	stub := &stubTrainerV2{
-		answer: AnswerResultV2{
+	stub := &stubTrainer{
+		answer: AnswerResult{
 			Correct: true, Text: "hola", HasMessage: true, MessageID: 99,
-			Options: []GradedOptionV2{{Label: "🇪🇸 Spanish", Mark: MarkCorrect}},
+			Options: []GradedOption{{Label: "🇪🇸 Spanish", Mark: MarkCorrect}},
 		},
-		next: PromptV2{Kind: PromptV2KindNothingDue},
+		next: Prompt{Kind: PromptKindNothingDue},
 	}
-	b.trainerV2 = stub
+	b.trainer = stub
 
-	s := &fakeSession{userID: 1, messageID: 42, data: v2AnswerCallbackData(exID, 1)}
+	s := &fakeSession{userID: 1, messageID: 42, data: answerCallbackData(exID, 1)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
 	if stub.answerCall.exerciseID != exID || stub.answerCall.index != 1 {
-		t.Fatalf("unexpected AnswerV2 call: %+v", stub.answerCall)
+		t.Fatalf("unexpected Answer call: %+v", stub.answerCall)
 	}
 	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 99 {
 		t.Fatalf("expected the edit on message 99 (HasMessage), got %+v", s.editedMsgs)
@@ -338,12 +338,12 @@ func TestHandleV2AnswerCallback_GradesEditsAndAdvances(t *testing.T) {
 	}
 }
 
-func TestHandleV2AnswerCallback_Stale(t *testing.T) {
+func TestHandleAnswerCallback_Stale(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{answer: AnswerResultV2{Stale: true}}
+	b.trainer = &stubTrainer{answer: AnswerResult{Stale: true}}
 
-	s := &fakeSession{userID: 1, data: v2AnswerCallbackData(uuid.New(), 0)}
+	s := &fakeSession{userID: 1, data: answerCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -355,15 +355,15 @@ func TestHandleV2AnswerCallback_Stale(t *testing.T) {
 	}
 }
 
-func TestHandleV2AnswerCallback_PhotoUsesEditCaption(t *testing.T) {
+func TestHandleAnswerCallback_PhotoUsesEditCaption(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{
-		answer: AnswerResultV2{Correct: true, Text: "ok", MediaPath: "/x.jpg"},
-		next:   PromptV2{Kind: PromptV2KindNothingDue},
+	b.trainer = &stubTrainer{
+		answer: AnswerResult{Correct: true, Text: "ok", MediaPath: "/x.jpg"},
+		next:   Prompt{Kind: PromptKindNothingDue},
 	}
 
-	s := &fakeSession{userID: 1, messageID: 7, data: v2AnswerCallbackData(uuid.New(), 0)}
+	s := &fakeSession{userID: 1, messageID: 7, data: answerCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -375,9 +375,9 @@ func TestHandleV2AnswerCallback_PhotoUsesEditCaption(t *testing.T) {
 	}
 }
 
-func TestHandleV2AnswerCallback_NilTrainerV2IsInert(t *testing.T) {
+func TestHandleAnswerCallback_NilTrainerIsInert(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
-	s := &fakeSession{userID: 1, data: v2AnswerCallbackData(uuid.New(), 0)}
+	s := &fakeSession{userID: 1, data: answerCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -386,25 +386,25 @@ func TestHandleV2AnswerCallback_NilTrainerV2IsInert(t *testing.T) {
 	}
 }
 
-// ── v2p: callback handling ───────────────────────────────────────────────
+// ── prac: callback handling ───────────────────────────────────────────────
 
-func TestHandleV2PracticeAnswerCallback_GradesAndAdvancesViaPractice(t *testing.T) {
+func TestHandlePracticeAnswerCallback_GradesAndAdvancesViaPractice(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
 	exID := uuid.New()
-	stub := &stubTrainerV2{
-		answer:   AnswerResultV2{Correct: true, Text: "hola", HasMessage: true, MessageID: 99},
-		practice: PromptV2{Kind: PromptV2KindNothingDue},
-		next:     PromptV2{Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "SHOULD NOT BE SENT"},
+	stub := &stubTrainer{
+		answer:   AnswerResult{Correct: true, Text: "hola", HasMessage: true, MessageID: 99},
+		practice: Prompt{Kind: PromptKindNothingDue},
+		next:     Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "SHOULD NOT BE SENT"},
 	}
-	b.trainerV2 = stub
+	b.trainer = stub
 
-	s := &fakeSession{userID: 1, messageID: 42, data: v2PracticeCallbackData(exID, 1)}
+	s := &fakeSession{userID: 1, messageID: 42, data: practiceCallbackData(exID, 1)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
 	if stub.answerCall.exerciseID != exID || stub.answerCall.index != 1 {
-		t.Fatalf("unexpected AnswerV2 call: %+v", stub.answerCall)
+		t.Fatalf("unexpected Answer call: %+v", stub.answerCall)
 	}
 	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 99 {
 		t.Fatalf("expected the edit on message 99 (HasMessage), got %+v", s.editedMsgs)
@@ -412,19 +412,19 @@ func TestHandleV2PracticeAnswerCallback_GradesAndAdvancesViaPractice(t *testing.
 	if len(s.responses) != 1 || s.responses[0] != correctToast {
 		t.Fatalf("expected the correct toast, got %v", s.responses)
 	}
-	// Must advance via NextPracticeV2 (KindNothingDue -> allCaughtUpText),
-	// never via NextExerciseV2's canned "next" result.
+	// Must advance via NextPractice (KindNothingDue -> allCaughtUpText),
+	// never via NextExercise's canned "next" result.
 	if len(s.sent) != 1 || s.sent[0] != allCaughtUpText {
 		t.Fatalf("expected the practice-loop advance, got sent=%v", s.sent)
 	}
 }
 
-func TestHandleV2PracticeAnswerCallback_Stale(t *testing.T) {
+func TestHandlePracticeAnswerCallback_Stale(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{answer: AnswerResultV2{Stale: true}}
+	b.trainer = &stubTrainer{answer: AnswerResult{Stale: true}}
 
-	s := &fakeSession{userID: 1, data: v2PracticeCallbackData(uuid.New(), 0)}
+	s := &fakeSession{userID: 1, data: practiceCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -436,9 +436,9 @@ func TestHandleV2PracticeAnswerCallback_Stale(t *testing.T) {
 	}
 }
 
-func TestHandleV2PracticeAnswerCallback_NilTrainerV2IsInert(t *testing.T) {
+func TestHandlePracticeAnswerCallback_NilTrainerIsInert(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
-	s := &fakeSession{userID: 1, data: v2PracticeCallbackData(uuid.New(), 0)}
+	s := &fakeSession{userID: 1, data: practiceCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -449,22 +449,22 @@ func TestHandleV2PracticeAnswerCallback_NilTrainerV2IsInert(t *testing.T) {
 
 // ── OnText / handleText ──────────────────────────────────────────────────
 
-func TestHandleText_NilTrainerV2IsNoop(t *testing.T) {
+func TestHandleText_NilTrainerIsNoop(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, msgText: "ulica"}
 	if err := b.handleText(context.Background(), s); err != nil {
 		t.Fatalf("handleText: %v", err)
 	}
 	if len(s.sent) != 0 || len(s.editedMsgs) != 0 {
-		t.Fatalf("expected no side effects when TrainerV2 is nil")
+		t.Fatalf("expected no side effects when Trainer is nil")
 	}
 }
 
 func TestHandleText_IgnoresCommands(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	stub := &stubTrainerV2{textOK: true}
-	b.trainerV2 = stub
+	stub := &stubTrainer{textOK: true}
+	b.trainer = stub
 
 	s := &fakeSession{userID: 1, msgText: "/unknowncmd"}
 	if err := b.handleText(context.Background(), s); err != nil {
@@ -478,7 +478,7 @@ func TestHandleText_IgnoresCommands(t *testing.T) {
 func TestHandleText_NoOpenExercise(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	b.trainerV2 = &stubTrainerV2{textOK: false}
+	b.trainer = &stubTrainer{textOK: false}
 
 	s := &fakeSession{userID: 1, msgText: "ulica"}
 	if err := b.handleText(context.Background(), s); err != nil {
@@ -492,12 +492,12 @@ func TestHandleText_NoOpenExercise(t *testing.T) {
 func TestHandleText_GradesAndAdvances(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	stub := &stubTrainerV2{
+	stub := &stubTrainer{
 		textOK: true,
-		answer: AnswerResultV2{Correct: false, Text: "ulica", HasMessage: true, MessageID: 5},
-		next:   PromptV2{Kind: PromptV2KindNothingDue},
+		answer: AnswerResult{Correct: false, Text: "ulica", HasMessage: true, MessageID: 5},
+		next:   Prompt{Kind: PromptKindNothingDue},
 	}
-	b.trainerV2 = stub
+	b.trainer = stub
 
 	s := &fakeSession{userID: 1, msgText: "street"}
 	if err := b.handleText(context.Background(), s); err != nil {
@@ -518,23 +518,23 @@ func TestHandleText_GradesAndAdvances(t *testing.T) {
 	}
 }
 
-func TestHandleText_PracticeAdvancesViaNextPracticeV2(t *testing.T) {
+func TestHandleText_PracticeAdvancesViaNextPractice(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
-	stub := &stubTrainerV2{
+	stub := &stubTrainer{
 		textOK:   true,
-		answer:   AnswerResultV2{Correct: true, Text: "ulica", Practice: true},
-		next:     PromptV2{Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "SHOULD NOT BE SENT"},
-		practice: PromptV2{Kind: PromptV2KindNothingDue},
+		answer:   AnswerResult{Correct: true, Text: "ulica", Practice: true},
+		next:     Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "SHOULD NOT BE SENT"},
+		practice: Prompt{Kind: PromptKindNothingDue},
 	}
-	b.trainerV2 = stub
+	b.trainer = stub
 
 	s := &fakeSession{userID: 1, msgText: "street"}
 	if err := b.handleText(context.Background(), s); err != nil {
 		t.Fatalf("handleText: %v", err)
 	}
-	// A practice-flagged AnswerResultV2 must advance via NextPracticeV2
-	// (KindNothingDue -> allCaughtUpText), never NextExerciseV2's "next".
+	// A practice-flagged AnswerResult must advance via NextPractice
+	// (KindNothingDue -> allCaughtUpText), never NextExercise's "next".
 	if len(s.sent) != 2 || s.sent[1] != allCaughtUpText {
 		t.Fatalf("expected the toast plus the practice-loop advance, got %v", s.sent)
 	}

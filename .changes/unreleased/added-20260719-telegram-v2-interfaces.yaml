@@ -1,2 +1,0 @@
-kind: Added
-body: Add the v2 service-layer seam internal/telegram consumes (StudyService, TopicService, TrainerV2, IntroCapStore + their view models IntroCard/IntroAck/TopicRow/TopicView/TierRow/PromptV2/AnswerResultV2) — optional Config fields wave 4 wires a real implementation onto; nil keeps /study, /topics, and the v2 exercise path dormant

@@ -54,8 +54,8 @@ type reminderState struct {
 
 // Config configures a Bot. StudyService, TopicService, and IntroCapStore
 // are OPTIONAL and nil-safe: every feature they gate degrades to a
-// "🚧 coming with v2 wiring" reply until wired. TrainerV2 is REQUIRED
-// (deliverable 5's v2 cutover): /train, /practice, /stats, and the
+// "🚧 coming soon" reply until wired. Trainer is REQUIRED
+// (deliverable 5's cutover): /train, /practice, /stats, and the
 // reminder loop's due-review count all call it unconditionally now — the
 // legacy trainer fallback they used to have is gone, and the free-text
 // OnText handler is only registered when it's non-nil.
@@ -70,11 +70,11 @@ type Config struct {
 	StudyService StudyService
 	// TopicService powers the /topics tree browser (architecture §5.2).
 	TopicService TopicService
-	// TrainerV2 powers the mode-aware v2 exercise path (architecture §1.6):
+	// Trainer powers the mode-aware exercise path (architecture §1.6):
 	// /train, /practice, /stats, and the reminder loop's due count all
 	// require it now (see this type's doc comment); its presence also
 	// decides whether the free-text OnText handler is registered at all.
-	TrainerV2 TrainerV2
+	Trainer Trainer
 	// IntroCapStore powers the /settings daily intro-cap row.
 	IntroCapStore IntroCapStore
 }
@@ -92,12 +92,12 @@ type Bot struct {
 	// topics is nil until a later wave wires Config.TopicService — every
 	// call site checks it before use (see topics_ui.go).
 	topics TopicService
-	// trainerV2 is required (Config.TrainerV2, see this package's Config
+	// trainer is required (Config.Trainer, see this package's Config
 	// doc comment) — /train, /practice, /stats, and the reminder loop's
-	// due count call it unconditionally (trainv2.go); only OnText's
+	// due count call it unconditionally (train.go); only OnText's
 	// registration still checks it for nil (bot.go's New).
-	trainerV2 TrainerV2
-	introCap  IntroCapStore
+	trainer  Trainer
+	introCap IntroCapStore
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -155,7 +155,7 @@ func New(cfg Config) (*Bot, error) {
 		now:           now,
 		study:         cfg.StudyService,
 		topics:        cfg.TopicService,
-		trainerV2:     cfg.TrainerV2,
+		trainer:       cfg.Trainer,
 		introCap:      cfg.IntroCapStore,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
@@ -172,12 +172,12 @@ func New(cfg Config) (*Bot, error) {
 	tb.Handle("/introduce", b.wrap(b.handleStudy)) // alias that fetches more intro cards on demand (decision 2)
 	tb.Handle("/topics", b.wrap(b.handleTopics))
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
-	// OnText (free-typed answers) is only registered when TrainerV2 is
-	// wired: the pre-v2 bot never listened for plain text at all, and
-	// nil-safety means that stays true until a real TrainerV2 arrives —
+	// OnText (free-typed answers) is only registered when Trainer is
+	// wired: the legacy bot never listened for plain text at all, and
+	// nil-safety means that stays true until a real Trainer arrives —
 	// registering it unconditionally would start intercepting every plain
-	// message the moment this field exists, even with Config.TrainerV2 nil.
-	if cfg.TrainerV2 != nil {
+	// message the moment this field exists, even with Config.Trainer nil.
+	if cfg.Trainer != nil {
 		tb.Handle(telebot.OnText, b.wrap(b.handleText))
 	}
 
@@ -194,8 +194,8 @@ func New(cfg Config) (*Bot, error) {
 var botCommands = []telebot.Command{
 	{Text: "train", Description: "Next due exercise"},
 	{Text: "practice", Description: "Endless practice (no scheduling)"},
-	{Text: "study", Description: "Introduce new items (v2)"},
-	{Text: "topics", Description: "Browse topics, tiers & progress (v2)"},
+	{Text: "study", Description: "Introduce new items"},
+	{Text: "topics", Description: "Browse topics, tiers & progress"},
 	{Text: "decks", Description: "Now points to /topics"},
 	{Text: "settings", Description: "Daily cap, reminders, button style"},
 	{Text: "stats", Description: "Your progress and mix-ups"},
@@ -274,7 +274,7 @@ func (b *Bot) sendReminders(ctx context.Context) {
 		day := local.Format("2006-01-02")
 		st := b.getReminderState(u.ID)
 
-		due, err := b.trainerV2.DueCount(ctx, u.ID)
+		due, err := b.trainer.DueCount(ctx, u.ID)
 		if err != nil {
 			b.logger.Error("telegram: reminders: due count", "user", u.ID, "error", err)
 			continue

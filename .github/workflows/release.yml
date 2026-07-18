@@ -4,7 +4,7 @@ name: Release
 # ghcr.io/supercakecrumb/geodrill, then creates a GitHub Release.
 #
 # engram build-context problem (temporary — see the Dockerfile's own comment
-# and vibe/geodrill-v2-architecture.md §7.3): geodrill isn't a standalone
+# and vibe/geodrill-architecture.md §7.3): geodrill isn't a standalone
 # buildable module yet (github.com/supercakecrumb/engram has no published
 # version; it's resolved only via the committed go.work, which a Docker
 # build context can't see). We check out supercakecrumb/engram into an

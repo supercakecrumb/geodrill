@@ -1,2 +1,0 @@
-kind: Added
-body: "Add internal/topics/words corpus audit (TestAuditWordsAgainstCorpus, WORDS_AUDIT_DATABASE_URL) plus a standing TestNoCrossLanguageDuplicateSpellings guard; prune seeds/common_words.yaml from 136 to 79 entries against real Tatoeba frequency/collision data and resolve the 9 known exact-spelling duplicates"

@@ -1,2 +1,0 @@
-kind: Added
-body: "Add cmd/ingest -backfill-v2 mode (architecture §3.4/§3.5): idempotently maps legacy skills/user_skills/exercises/reviews onto the v2 topics/items/user_items/introductions framework in the same database — lifecycle derived from FSRS state, FSRS columns copied 1:1, a synthesized first-exposure introduction per migrated item, and item_id/mode/correct_answer(+chosen) backfilled onto exercises/reviews — plus the additive sqlc queries and Store methods it needs"

@@ -39,26 +39,25 @@ WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2) AND ui.due <= $2
 ORDER BY ui.due;
 
 -- name: CountDueUserItems :one
--- v2 (internal/study.Service.DueCount / the reminder loop's due count):
--- Introduced/Reviewing cards due at or before now — replaces
--- CountDueSkills for the v2 review path.
+-- internal/study.Service.DueCount / the reminder loop's due count:
+-- Introduced/Reviewing cards due at or before now.
 SELECT count(*) FROM user_items
 WHERE user_id = $1 AND lifecycle IN (1, 2) AND due <= $2;
 
 -- name: ListUserItemCardsInFSRS :many
--- v2 (internal/study.Service.Stats' DueForecast input): every Introduced/
--- Reviewing card for a user — replaces ListCardsForUser for the v2 review
+-- internal/study.Service.Stats' DueForecast input: every Introduced/
+-- Reviewing card for a user — replaces ListCardsForUser for the item-based review
 -- path. Known/new rows are excluded: they carry a zeroed/absent due date
 -- that would otherwise skew engram.DueForecast's "due today" bucket.
 SELECT * FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2);
 
 -- name: CountIntroducedItems :one
--- v2 (internal/study.Service.Stats, "introduced" count): items that have
+-- internal/study.Service.Stats, "introduced" count: items that have
 -- left lifecycle=new (Introduced, Reviewing, or Known).
 SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2, 3);
 
 -- name: CountKnownItems :one
--- v2 (internal/study.Service.Stats, "known" count): items marked known via
+-- internal/study.Service.Stats, "known" count: items marked known via
 -- the "I know this" intro outcome.
 SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle = 3;
 

@@ -55,7 +55,7 @@ func run() error {
 
 	sched := engram.NewScheduler(engram.WithRetention(cfg.FSRSRetention))
 
-	// Register every v2 topic Generator once at startup, keyed by quiz_kind
+	// Register every topic Generator once at startup, keyed by quiz_kind
 	// (architecture §8): this is the only place that imports all four topic
 	// packages by name, so no topic worker or internal/study ever switches
 	// on a slug. guesslang.New(store) works because *storage.Store already
@@ -73,13 +73,13 @@ func run() error {
 		Store:  store,
 		Logger: logger,
 
-		// studySvc serves every v2 service interface (architecture §5, §8
+		// studySvc serves every service interface (architecture §5, §8
 		// W4.3a: study.Service is now the ONLY exercise/answer/stats engine
 		// — the legacy trainer it replaced is gone), and *storage.Store
 		// implements IntroCapStore directly (internal/storage/introcap.go).
 		StudyService:  studySvc,
 		TopicService:  studySvc,
-		TrainerV2:     studySvc,
+		Trainer:       studySvc,
 		IntroCapStore: store,
 	})
 	if err != nil {

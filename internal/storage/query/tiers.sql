@@ -43,7 +43,7 @@ WHERE t.tier = $2
 GROUP BY t.tier;
 
 -- name: RecomputeTopicProgress :one
--- v2 (internal/study.TopicService, architecture §5.2 TopicRow): aggregate
+-- internal/study.TopicService, architecture §5.2 TopicRow: aggregate
 -- progress across an ENTIRE topic subtree (the topic itself plus every
 -- descendant, via the topic_paths recursive view) for one user — a
 -- container topic like "languages" rolls up every quizzable topic beneath
@@ -63,7 +63,7 @@ LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
 WHERE tp.path = target.path OR tp.path LIKE target.path || '/%';
 
 -- name: ListDistinctTiersUnderTopic :many
--- v2 (internal/study.TopicService): every effective tier used by an item
+-- internal/study.TopicService: every effective tier used by an item
 -- anywhere in a topic's subtree (itself + descendants) — the input to the
 -- 🔒 AnyLocked/LockedTier badge (architecture §5.2), by comparing against
 -- the user's currently-unlocked tier set.
@@ -77,7 +77,7 @@ WHERE tp.path = target.path OR tp.path LIKE target.path || '/%'
 ORDER BY it.tier;
 
 -- name: RecomputeTopicTierBreakdown :many
--- v2 (internal/study.TopicService, architecture §5.2 TierRow): per-tier
+-- internal/study.TopicService, architecture §5.2 TierRow: per-tier
 -- progress within ONE quizzable topic's OWN items (non-recursive — a
 -- quizzable topic holds items directly, never a mix of items and child
 -- topics), for one user.
