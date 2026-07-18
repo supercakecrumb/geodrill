@@ -342,17 +342,6 @@ func (s *Store) CountContentByKey(ctx context.Context, kind, key string) (int, e
 	return int(n), err
 }
 
-func contentFrom(c db.ContentItem) Content {
-	return Content{
-		ID:         c.ID,
-		Kind:       c.Kind,
-		Key:        c.Key,
-		Payload:    c.Payload,
-		Source:     c.Source,
-		CharLength: int(c.CharLength),
-	}
-}
-
 // SampleContent returns a random sentence for a skill key, excluding the user's
 // last-50 seen. found=false means the (excluded) pool is empty.
 func (s *Store) SampleContent(ctx context.Context, userID uuid.UUID, key string) (Content, bool, error) {
@@ -363,7 +352,7 @@ func (s *Store) SampleContent(ctx context.Context, userID uuid.UUID, key string)
 	if err != nil {
 		return Content{}, false, err
 	}
-	return contentFrom(c), true, nil
+	return Content{ID: c.ID, Kind: c.Kind, Key: c.Key, Payload: c.Payload, Source: c.Source, CharLength: int(c.CharLength)}, true, nil
 }
 
 // GetContentByID fetches one content item by primary key. found=false means
@@ -376,7 +365,7 @@ func (s *Store) GetContentByID(ctx context.Context, id uuid.UUID) (Content, bool
 	if err != nil {
 		return Content{}, false, err
 	}
-	return contentFrom(c), true, nil
+	return Content{ID: c.ID, Kind: c.Kind, Key: c.Key, Payload: c.Payload, Source: c.Source, CharLength: int(c.CharLength)}, true, nil
 }
 
 // SampleContentAny returns a random sentence for a key with no exclusion.
@@ -388,7 +377,7 @@ func (s *Store) SampleContentAny(ctx context.Context, key string) (Content, bool
 	if err != nil {
 		return Content{}, false, err
 	}
-	return contentFrom(c), true, nil
+	return Content{ID: c.ID, Kind: c.Kind, Key: c.Key, Payload: c.Payload, Source: c.Source, CharLength: int(c.CharLength)}, true, nil
 }
 
 // ── exercises ───────────────────────────────────────────────────────────────

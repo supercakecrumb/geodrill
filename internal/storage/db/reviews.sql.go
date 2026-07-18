@@ -29,6 +29,54 @@ func (q *Queries) CountReviewsSince(ctx context.Context, arg CountReviewsSincePa
 	return count, err
 }
 
+const getReviewsByItem = `-- name: GetReviewsByItem :many
+SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice, item_id, mode, chosen, correct_answer FROM reviews WHERE item_id = $1 ORDER BY reviewed_at
+`
+
+func (q *Queries) GetReviewsByItem(ctx context.Context, itemID *uuid.UUID) ([]Review, error) {
+	rows, err := q.db.Query(ctx, getReviewsByItem, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Review{}
+	for rows.Next() {
+		var i Review
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.SkillID,
+			&i.ExerciseID,
+			&i.ContentID,
+			&i.ChosenKey,
+			&i.CorrectKey,
+			&i.Correct,
+			&i.Rating,
+			&i.ResponseMs,
+			&i.StabilityBefore,
+			&i.DifficultyBefore,
+			&i.StabilityAfter,
+			&i.DifficultyAfter,
+			&i.StateBefore,
+			&i.ScheduledDays,
+			&i.ElapsedDays,
+			&i.ReviewedAt,
+			&i.Practice,
+			&i.ItemID,
+			&i.Mode,
+			&i.Chosen,
+			&i.CorrectAnswer,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertReview = `-- name: InsertReview :exec
 INSERT INTO reviews (
   user_id, skill_id, exercise_id, content_id,
@@ -88,6 +136,78 @@ func (q *Queries) InsertReview(ctx context.Context, arg InsertReviewParams) erro
 	return err
 }
 
+const insertReviewV2 = `-- name: InsertReviewV2 :exec
+INSERT INTO reviews (
+  user_id, skill_id, exercise_id, content_id,
+  chosen_key, correct_key, correct, rating, response_ms,
+  stability_before, difficulty_before, stability_after, difficulty_after,
+  state_before, scheduled_days, elapsed_days, reviewed_at, practice,
+  item_id, mode, chosen, correct_answer
+) VALUES (
+  $1, $2, $3, $4,
+  $5, $6, $7, $8, $9,
+  $10, $11, $12, $13,
+  $14, $15, $16, $17, $18,
+  $19, $20, $21, $22
+)
+`
+
+type InsertReviewV2Params struct {
+	UserID           uuid.UUID
+	SkillID          uuid.UUID
+	ExerciseID       *uuid.UUID
+	ContentID        *uuid.UUID
+	ChosenKey        string
+	CorrectKey       string
+	Correct          bool
+	Rating           int16
+	ResponseMs       pgtype.Int4
+	StabilityBefore  float64
+	DifficultyBefore float64
+	StabilityAfter   float64
+	DifficultyAfter  float64
+	StateBefore      int16
+	ScheduledDays    int32
+	ElapsedDays      int32
+	ReviewedAt       pgtype.Timestamptz
+	Practice         bool
+	ItemID           *uuid.UUID
+	Mode             int16
+	Chosen           pgtype.Text
+	CorrectAnswer    pgtype.Text
+}
+
+// v2: append a review carrying both the legacy skill_id/chosen_key/correct_key
+// (still NOT NULL until 000007 drops them) and the generalized item_id/mode/
+// chosen/correct_answer columns (architecture §2.5, transitional).
+func (q *Queries) InsertReviewV2(ctx context.Context, arg InsertReviewV2Params) error {
+	_, err := q.db.Exec(ctx, insertReviewV2,
+		arg.UserID,
+		arg.SkillID,
+		arg.ExerciseID,
+		arg.ContentID,
+		arg.ChosenKey,
+		arg.CorrectKey,
+		arg.Correct,
+		arg.Rating,
+		arg.ResponseMs,
+		arg.StabilityBefore,
+		arg.DifficultyBefore,
+		arg.StabilityAfter,
+		arg.DifficultyAfter,
+		arg.StateBefore,
+		arg.ScheduledDays,
+		arg.ElapsedDays,
+		arg.ReviewedAt,
+		arg.Practice,
+		arg.ItemID,
+		arg.Mode,
+		arg.Chosen,
+		arg.CorrectAnswer,
+	)
+	return err
+}
+
 const listAttemptsSince = `-- name: ListAttemptsSince :many
 SELECT skill_id, correct_key, chosen_key, correct, response_ms, reviewed_at
 FROM reviews
@@ -137,7 +257,7 @@ func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSincePa
 }
 
 const listReviewsSince = `-- name: ListReviewsSince :many
-SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice FROM reviews
+SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice, item_id, mode, chosen, correct_answer FROM reviews
 WHERE user_id = $1 AND reviewed_at >= $2
 ORDER BY reviewed_at
 `
@@ -176,6 +296,10 @@ func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSincePara
 			&i.ElapsedDays,
 			&i.ReviewedAt,
 			&i.Practice,
+			&i.ItemID,
+			&i.Mode,
+			&i.Chosen,
+			&i.CorrectAnswer,
 		); err != nil {
 			return nil, err
 		}

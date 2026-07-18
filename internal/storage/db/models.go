@@ -16,6 +16,7 @@ type ContentItem struct {
 	Payload    string
 	Source     string
 	CharLength int32
+	TopicID    *uuid.UUID
 }
 
 type Country struct {
@@ -54,14 +55,20 @@ type Deck struct {
 }
 
 type Exercise struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	SkillID    uuid.UUID
-	ContentID  uuid.UUID
-	Options    []byte
-	CreatedAt  pgtype.Timestamptz
-	AnsweredAt pgtype.Timestamptz
-	MessageID  pgtype.Int8
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	SkillID       uuid.UUID
+	ContentID     uuid.UUID
+	Options       []byte
+	CreatedAt     pgtype.Timestamptz
+	AnsweredAt    pgtype.Timestamptz
+	MessageID     pgtype.Int8
+	ItemID        *uuid.UUID
+	Mode          int16
+	Prompt        pgtype.Text
+	CorrectAnswer pgtype.Text
+	IsMedia       bool
+	Practice      bool
 }
 
 type FactDef struct {
@@ -137,6 +144,10 @@ type Review struct {
 	ElapsedDays      int32
 	ReviewedAt       pgtype.Timestamptz
 	Practice         bool
+	ItemID           *uuid.UUID
+	Mode             int16
+	Chosen           pgtype.Text
+	CorrectAnswer    pgtype.Text
 }
 
 type Skill struct {

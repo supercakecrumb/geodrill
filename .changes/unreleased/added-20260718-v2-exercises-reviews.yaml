@@ -1,0 +1,2 @@
+kind: Added
+body: Add mode-aware item_id/mode/prompt/correct_answer columns to exercises and chosen/correct_answer/mode/item_id to reviews (transitional, alongside the legacy skill_id/chosen_key/correct_key), plus content_items.topic_id and matching Store methods

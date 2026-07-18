@@ -11,6 +11,27 @@ INSERT INTO reviews (
   $14, $15, $16, $17, $18
 );
 
+-- name: InsertReviewV2 :exec
+-- v2: append a review carrying both the legacy skill_id/chosen_key/correct_key
+-- (still NOT NULL until 000007 drops them) and the generalized item_id/mode/
+-- chosen/correct_answer columns (architecture §2.5, transitional).
+INSERT INTO reviews (
+  user_id, skill_id, exercise_id, content_id,
+  chosen_key, correct_key, correct, rating, response_ms,
+  stability_before, difficulty_before, stability_after, difficulty_after,
+  state_before, scheduled_days, elapsed_days, reviewed_at, practice,
+  item_id, mode, chosen, correct_answer
+) VALUES (
+  $1, $2, $3, $4,
+  $5, $6, $7, $8, $9,
+  $10, $11, $12, $13,
+  $14, $15, $16, $17, $18,
+  $19, $20, $21, $22
+);
+
+-- name: GetReviewsByItem :many
+SELECT * FROM reviews WHERE item_id = $1 ORDER BY reviewed_at;
+
 -- name: ListReviewsSince :many
 SELECT * FROM reviews
 WHERE user_id = $1 AND reviewed_at >= $2

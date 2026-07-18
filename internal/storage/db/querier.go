@@ -25,12 +25,13 @@ type Querier interface {
 	// facts wholesale on reseed).
 	DeleteCountryFactsByDef(ctx context.Context, arg DeleteCountryFactsByDefParams) error
 	GetCard(ctx context.Context, arg GetCardParams) (GetCardRow, error)
-	GetContentByID(ctx context.Context, id uuid.UUID) (ContentItem, error)
+	GetContentByID(ctx context.Context, id uuid.UUID) (GetContentByIDRow, error)
 	GetCountryByID(ctx context.Context, id uuid.UUID) (Country, error)
 	GetCountryByISO(ctx context.Context, isoA2 pgtype.Text) (Country, error)
 	GetCountryByISOA3(ctx context.Context, isoA3 pgtype.Text) (Country, error)
 	GetDeckBySlug(ctx context.Context, slug string) (Deck, error)
-	GetExercise(ctx context.Context, id uuid.UUID) (Exercise, error)
+	GetExercise(ctx context.Context, id uuid.UUID) (GetExerciseRow, error)
+	GetExercisesByItem(ctx context.Context, itemID *uuid.UUID) ([]GetExercisesByItemRow, error)
 	GetFactDefByKey(ctx context.Context, key string) (FactDef, error)
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemEffectiveTier(ctx context.Context, itemID uuid.UUID) (int16, error)
@@ -40,6 +41,11 @@ type Querier interface {
 	GetLatestOpenIntroductionForItem(ctx context.Context, arg GetLatestOpenIntroductionForItemParams) (Introduction, error)
 	GetMediaByContentID(ctx context.Context, contentID *uuid.UUID) (MediaFile, error)
 	GetMediaByLocalPath(ctx context.Context, localPath string) (MediaFile, error)
+	// Latest open exercise of a given mode for a user (architecture §5.4: free-text
+	// answers arrive as a plain message, resolved via the caller's single open
+	// mode=text exercise).
+	GetOpenExerciseByMode(ctx context.Context, arg GetOpenExerciseByModeParams) (GetOpenExerciseByModeRow, error)
+	GetReviewsByItem(ctx context.Context, itemID *uuid.UUID) ([]Review, error)
 	GetSkillByID(ctx context.Context, id uuid.UUID) (Skill, error)
 	GetTopicByID(ctx context.Context, id uuid.UUID) (Topic, error)
 	// Path-walk helper: resolve a topic by its full slash-joined slug path (e.g.
@@ -58,6 +64,10 @@ type Querier interface {
 	InsertExercise(ctx context.Context, arg InsertExerciseParams) (InsertExerciseRow, error)
 	InsertIntroduction(ctx context.Context, arg InsertIntroductionParams) (Introduction, error)
 	InsertReview(ctx context.Context, arg InsertReviewParams) error
+	// v2: append a review carrying both the legacy skill_id/chosen_key/correct_key
+	// (still NOT NULL until 000007 drops them) and the generalized item_id/mode/
+	// chosen/correct_answer columns (architecture §2.5, transitional).
+	InsertReviewV2(ctx context.Context, arg InsertReviewV2Params) error
 	ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error)
 	ListAllSkills(ctx context.Context) ([]Skill, error)
 	ListAllTopics(ctx context.Context) ([]Topic, error)
@@ -127,11 +137,14 @@ type Querier interface {
 	ReviewStatsByDeck(ctx context.Context, arg ReviewStatsByDeckParams) ([]ReviewStatsByDeckRow, error)
 	// Random sentence for a skill key, excluding the user's last-50 seen content
 	// for that key (recently-seen exclusion, contract §4).
-	SampleContent(ctx context.Context, arg SampleContentParams) (ContentItem, error)
+	SampleContent(ctx context.Context, arg SampleContentParams) (SampleContentRow, error)
 	// Fallback sampler with no exclusion (used when the pool is smaller than the
 	// exclusion window).
-	SampleContentAny(ctx context.Context, key string) (ContentItem, error)
+	SampleContentAny(ctx context.Context, key string) (SampleContentAnyRow, error)
 	SetDailyCap(ctx context.Context, arg SetDailyCapParams) error
+	// v2: attach item/mode-aware metadata (architecture §2.5) to an exercise row.
+	// item_id stays nullable until the old-quiz migration backfills it (§3.1).
+	SetExerciseItemFields(ctx context.Context, arg SetExerciseItemFieldsParams) error
 	SetExerciseMessageID(ctx context.Context, arg SetExerciseMessageIDParams) error
 	SetFollowUpDelay(ctx context.Context, arg SetFollowUpDelayParams) error
 	SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabledParams) error

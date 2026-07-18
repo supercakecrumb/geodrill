@@ -33,9 +33,18 @@ FROM content_items ci
 WHERE ci.id = $1
 `
 
-func (q *Queries) GetContentByID(ctx context.Context, id uuid.UUID) (ContentItem, error) {
+type GetContentByIDRow struct {
+	ID         uuid.UUID
+	Kind       string
+	Key        string
+	Payload    string
+	Source     string
+	CharLength int32
+}
+
+func (q *Queries) GetContentByID(ctx context.Context, id uuid.UUID) (GetContentByIDRow, error) {
 	row := q.db.QueryRow(ctx, getContentByID, id)
-	var i ContentItem
+	var i GetContentByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Kind,
@@ -92,11 +101,20 @@ type SampleContentParams struct {
 	UserID uuid.UUID
 }
 
+type SampleContentRow struct {
+	ID         uuid.UUID
+	Kind       string
+	Key        string
+	Payload    string
+	Source     string
+	CharLength int32
+}
+
 // Random sentence for a skill key, excluding the user's last-50 seen content
 // for that key (recently-seen exclusion, contract §4).
-func (q *Queries) SampleContent(ctx context.Context, arg SampleContentParams) (ContentItem, error) {
+func (q *Queries) SampleContent(ctx context.Context, arg SampleContentParams) (SampleContentRow, error) {
 	row := q.db.QueryRow(ctx, sampleContent, arg.Key, arg.UserID)
-	var i ContentItem
+	var i SampleContentRow
 	err := row.Scan(
 		&i.ID,
 		&i.Kind,
@@ -116,11 +134,20 @@ ORDER BY random()
 LIMIT 1
 `
 
+type SampleContentAnyRow struct {
+	ID         uuid.UUID
+	Kind       string
+	Key        string
+	Payload    string
+	Source     string
+	CharLength int32
+}
+
 // Fallback sampler with no exclusion (used when the pool is smaller than the
 // exclusion window).
-func (q *Queries) SampleContentAny(ctx context.Context, key string) (ContentItem, error) {
+func (q *Queries) SampleContentAny(ctx context.Context, key string) (SampleContentAnyRow, error) {
 	row := q.db.QueryRow(ctx, sampleContentAny, key)
-	var i ContentItem
+	var i SampleContentAnyRow
 	err := row.Scan(
 		&i.ID,
 		&i.Kind,
