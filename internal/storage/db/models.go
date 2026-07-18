@@ -56,6 +56,7 @@ type Review struct {
 	ScheduledDays    int32
 	ElapsedDays      int32
 	ReviewedAt       pgtype.Timestamptz
+	Practice         bool
 }
 
 type Skill struct {
@@ -73,6 +74,10 @@ type User struct {
 	RemindersEnabled bool
 	Timezone         string
 	CreatedAt        pgtype.Timestamptz
+	LabelStyle       string
+	ReminderHour     int32
+	FollowUpEnabled  bool
+	FollowUpDelayMin int32
 }
 
 type UserDeck struct {

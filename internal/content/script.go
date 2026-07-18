@@ -24,6 +24,19 @@ var expectedScripts = map[string][]*unicode.RangeTable{
 	"fin": {unicode.Latin},
 	"vie": {unicode.Latin},
 	"ind": {unicode.Latin},
+	"msa": {unicode.Latin},
+
+	// South Asian scripts (India, Bangladesh, Sri Lanka)
+	"hin": {unicode.Devanagari}, // Hindi
+	"mar": {unicode.Devanagari}, // Marathi (looks like Hindi — the hard pair)
+	"ben": {unicode.Bengali},
+	"tam": {unicode.Tamil},
+	"tel": {unicode.Telugu},
+	"guj": {unicode.Gujarati},
+	"kan": {unicode.Kannada},
+	"mal": {unicode.Malayalam},
+	"pan": {unicode.Gurmukhi}, // Punjabi
+	"sin": {unicode.Sinhala},  // Sinhala (Sri Lanka)
 
 	// Cyrillic — this is what drops Latin-script srp rows.
 	"rus": {unicode.Cyrillic},

@@ -1,7 +1,11 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "migrations/000001_init.up.sql"
+    schema:
+      - "migrations/000001_init.up.sql"
+      - "migrations/000002_add_label_style.up.sql"
+      - "migrations/000003_add_review_practice.up.sql"
+      - "migrations/000004_add_reminder_config.up.sql"
     queries: "internal/storage/query"
     gen:
       go:

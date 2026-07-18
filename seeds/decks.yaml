@@ -21,3 +21,9 @@ decks:
   - slug: se-asia
     name: Southeast Asia
     languages: {tha: Thai, khm: Khmer, lao: Lao, mya: Burmese, vie: Vietnamese, ind: Indonesian}
+  - slug: malay-indonesian
+    name: Malay & Indonesian
+    languages: {ind: Indonesian, msa: Malay}
+  - slug: indian-scripts
+    name: Indian scripts
+    languages: {hin: Hindi, mar: Marathi, ben: Bengali, tam: Tamil, tel: Telugu, guj: Gujarati, kan: Kannada, mal: Malayalam, pan: Punjabi}

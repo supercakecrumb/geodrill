@@ -22,6 +22,11 @@ WHERE ci.kind = 'sentence' AND ci.key = $1
 ORDER BY random()
 LIMIT 1;
 
+-- name: GetContentByID :one
+SELECT ci.id, ci.kind, ci.key, ci.payload, ci.source, ci.char_length
+FROM content_items ci
+WHERE ci.id = $1;
+
 -- name: SampleContentAny :one
 -- Fallback sampler with no exclusion (used when the pool is smaller than the
 -- exclusion window).

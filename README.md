@@ -139,11 +139,19 @@ go test ./...           # unit tests (integration tests skip without a test DB)
 
 Integration tests (storage round-trips, migrate up/down/up, the full train loop)
 run only when a throwaway database is provided, and should run serially so they
-don't reset the shared schema concurrently:
+don't reset the shared schema concurrently.
+
+> ⚠️ **These tests DROP EVERY TABLE (migrate down).** `GEODRILL_TEST_DATABASE_URL`
+> must point at a disposable database — **never** the `geodrill` database your
+> running bot uses, or you will wipe all decks, content, and user progress. Use a
+> dedicated `geodrill_test` database:
 
 ```bash
 docker compose up -d db
-GEODRILL_TEST_DATABASE_URL='postgres://geodrill:geodrill@localhost:5432/geodrill?sslmode=disable' \
+# one-time: create the throwaway test database
+docker compose exec db createdb -U geodrill geodrill_test   # (idempotent; ignore "already exists")
+
+GEODRILL_TEST_DATABASE_URL='postgres://geodrill:geodrill@localhost:5432/geodrill_test?sslmode=disable' \
   go test -p 1 ./...
 ```
 

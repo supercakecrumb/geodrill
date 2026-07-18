@@ -13,7 +13,7 @@ import (
 )
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at FROM users WHERE id = $1
+SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -27,12 +27,16 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.RemindersEnabled,
 		&i.Timezone,
 		&i.CreatedAt,
+		&i.LabelStyle,
+		&i.ReminderHour,
+		&i.FollowUpEnabled,
+		&i.FollowUpDelayMin,
 	)
 	return i, err
 }
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at FROM users WHERE telegram_id = $1
+SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min FROM users WHERE telegram_id = $1
 `
 
 func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error) {
@@ -46,6 +50,10 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID int64) (Us
 		&i.RemindersEnabled,
 		&i.Timezone,
 		&i.CreatedAt,
+		&i.LabelStyle,
+		&i.ReminderHour,
+		&i.FollowUpEnabled,
+		&i.FollowUpDelayMin,
 	)
 	return i, err
 }
@@ -61,6 +69,62 @@ type SetDailyCapParams struct {
 
 func (q *Queries) SetDailyCap(ctx context.Context, arg SetDailyCapParams) error {
 	_, err := q.db.Exec(ctx, setDailyCap, arg.ID, arg.DailyNewCap)
+	return err
+}
+
+const setFollowUpDelay = `-- name: SetFollowUpDelay :exec
+UPDATE users SET follow_up_delay_min = $2 WHERE id = $1
+`
+
+type SetFollowUpDelayParams struct {
+	ID               uuid.UUID
+	FollowUpDelayMin int32
+}
+
+func (q *Queries) SetFollowUpDelay(ctx context.Context, arg SetFollowUpDelayParams) error {
+	_, err := q.db.Exec(ctx, setFollowUpDelay, arg.ID, arg.FollowUpDelayMin)
+	return err
+}
+
+const setFollowUpEnabled = `-- name: SetFollowUpEnabled :exec
+UPDATE users SET follow_up_enabled = $2 WHERE id = $1
+`
+
+type SetFollowUpEnabledParams struct {
+	ID              uuid.UUID
+	FollowUpEnabled bool
+}
+
+func (q *Queries) SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabledParams) error {
+	_, err := q.db.Exec(ctx, setFollowUpEnabled, arg.ID, arg.FollowUpEnabled)
+	return err
+}
+
+const setLabelStyle = `-- name: SetLabelStyle :exec
+UPDATE users SET label_style = $2 WHERE id = $1
+`
+
+type SetLabelStyleParams struct {
+	ID         uuid.UUID
+	LabelStyle string
+}
+
+func (q *Queries) SetLabelStyle(ctx context.Context, arg SetLabelStyleParams) error {
+	_, err := q.db.Exec(ctx, setLabelStyle, arg.ID, arg.LabelStyle)
+	return err
+}
+
+const setReminderHour = `-- name: SetReminderHour :exec
+UPDATE users SET reminder_hour = $2 WHERE id = $1
+`
+
+type SetReminderHourParams struct {
+	ID           uuid.UUID
+	ReminderHour int32
+}
+
+func (q *Queries) SetReminderHour(ctx context.Context, arg SetReminderHourParams) error {
+	_, err := q.db.Exec(ctx, setReminderHour, arg.ID, arg.ReminderHour)
 	return err
 }
 
@@ -97,7 +161,7 @@ INSERT INTO users (telegram_id, username)
 VALUES ($1, $2)
 ON CONFLICT (telegram_id)
 DO UPDATE SET username = EXCLUDED.username
-RETURNING id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at
+RETURNING id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min
 `
 
 type UpsertUserParams struct {
@@ -116,12 +180,16 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.RemindersEnabled,
 		&i.Timezone,
 		&i.CreatedAt,
+		&i.LabelStyle,
+		&i.ReminderHour,
+		&i.FollowUpEnabled,
+		&i.FollowUpDelayMin,
 	)
 	return i, err
 }
 
 const usersWithReminders = `-- name: UsersWithReminders :many
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at FROM users WHERE reminders_enabled = true ORDER BY created_at
+SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min FROM users WHERE reminders_enabled = true ORDER BY created_at
 `
 
 func (q *Queries) UsersWithReminders(ctx context.Context) ([]User, error) {
@@ -141,6 +209,10 @@ func (q *Queries) UsersWithReminders(ctx context.Context) ([]User, error) {
 			&i.RemindersEnabled,
 			&i.Timezone,
 			&i.CreatedAt,
+			&i.LabelStyle,
+			&i.ReminderHour,
+			&i.FollowUpEnabled,
+			&i.FollowUpDelayMin,
 		); err != nil {
 			return nil, err
 		}

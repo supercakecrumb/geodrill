@@ -18,6 +18,10 @@ func userFrom(u db.User) User {
 		Username:         u.Username.String,
 		DailyNewCap:      int(u.DailyNewCap),
 		RemindersEnabled: u.RemindersEnabled,
+		ReminderHour:     int(u.ReminderHour),
+		FollowUpEnabled:  u.FollowUpEnabled,
+		FollowUpDelayMin: int(u.FollowUpDelayMin),
+		LabelStyle:       u.LabelStyle,
 		Timezone:         u.Timezone,
 		CreatedAt:        tsTime(u.CreatedAt),
 	}
@@ -64,6 +68,26 @@ func (s *Store) SetDailyCap(ctx context.Context, userID uuid.UUID, cap int) erro
 // SetReminders toggles the daily reminder for a user.
 func (s *Store) SetReminders(ctx context.Context, userID uuid.UUID, enabled bool) error {
 	return s.q.SetReminders(ctx, db.SetRemindersParams{ID: userID, RemindersEnabled: enabled})
+}
+
+// SetLabelStyle sets the user's answer-button label style ("name", "code", or "plain").
+func (s *Store) SetLabelStyle(ctx context.Context, userID uuid.UUID, style string) error {
+	return s.q.SetLabelStyle(ctx, db.SetLabelStyleParams{ID: userID, LabelStyle: style})
+}
+
+// SetReminderHour sets the local hour (0–23) the daily reminder fires.
+func (s *Store) SetReminderHour(ctx context.Context, userID uuid.UUID, hour int) error {
+	return s.q.SetReminderHour(ctx, db.SetReminderHourParams{ID: userID, ReminderHour: int32(hour)})
+}
+
+// SetFollowUpEnabled toggles the follow-up nudge for a user.
+func (s *Store) SetFollowUpEnabled(ctx context.Context, userID uuid.UUID, enabled bool) error {
+	return s.q.SetFollowUpEnabled(ctx, db.SetFollowUpEnabledParams{ID: userID, FollowUpEnabled: enabled})
+}
+
+// SetFollowUpDelay sets the minutes after the first reminder before a follow-up.
+func (s *Store) SetFollowUpDelay(ctx context.Context, userID uuid.UUID, minutes int) error {
+	return s.q.SetFollowUpDelay(ctx, db.SetFollowUpDelayParams{ID: userID, FollowUpDelayMin: int32(minutes)})
 }
 
 // SetTimezone sets the user's IANA timezone.
@@ -342,6 +366,19 @@ func (s *Store) SampleContent(ctx context.Context, userID uuid.UUID, key string)
 	return contentFrom(c), true, nil
 }
 
+// GetContentByID fetches one content item by primary key. found=false means
+// the row no longer exists (e.g. content was deleted or re-ingested).
+func (s *Store) GetContentByID(ctx context.Context, id uuid.UUID) (Content, bool, error) {
+	c, err := s.q.GetContentByID(ctx, id)
+	if IsNotFound(err) {
+		return Content{}, false, nil
+	}
+	if err != nil {
+		return Content{}, false, err
+	}
+	return contentFrom(c), true, nil
+}
+
 // SampleContentAny returns a random sentence for a key with no exclusion.
 func (s *Store) SampleContentAny(ctx context.Context, key string) (Content, bool, error) {
 	c, err := s.q.SampleContentAny(ctx, key)
@@ -441,6 +478,7 @@ func (s *Store) InsertReview(ctx context.Context, r ReviewInsert) error {
 		ScheduledDays:    int32(r.ScheduledDays),
 		ElapsedDays:      int32(r.ElapsedDays),
 		ReviewedAt:       timeTs(r.ReviewedAt),
+		Practice:         r.Practice,
 	})
 }
 
@@ -466,6 +504,7 @@ func (s *Store) ListReviewsSince(ctx context.Context, userID uuid.UUID, since ti
 			Correct:          r.Correct,
 			ChosenKey:        r.ChosenKey,
 			CorrectKey:       r.CorrectKey,
+			Practice:         r.Practice,
 		}
 	}
 	return out, nil
@@ -475,6 +514,16 @@ func (s *Store) ListReviewsSince(ctx context.Context, userID uuid.UUID, since ti
 func (s *Store) CountReviewsSince(ctx context.Context, userID uuid.UUID, since time.Time) (int, error) {
 	n, err := s.q.CountReviewsSince(ctx, db.CountReviewsSinceParams{UserID: userID, ReviewedAt: timeTs(since)})
 	return int(n), err
+}
+
+// PracticeStatsSince returns the number of practice-flagged answers (total and
+// correct) for a user since a start time — the tally for one /practice session.
+func (s *Store) PracticeStatsSince(ctx context.Context, userID uuid.UUID, since time.Time) (total, correct int, err error) {
+	row, err := s.q.PracticeStatsSince(ctx, db.PracticeStatsSinceParams{UserID: userID, ReviewedAt: timeTs(since)})
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(row.Total), int(row.Correct), nil
 }
 
 // ListAttemptsSince returns answer records for quiz.Confusion.

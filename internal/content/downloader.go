@@ -35,7 +35,10 @@ func DownloadDump(ctx context.Context, dataDir, lang string, skipDownload bool) 
 		return "", fmt.Errorf("create data dir: %w", err)
 	}
 
-	path := filepath.Join(dataDir, lang+"_sentences.tsv.bz2")
+	// Some deck keys aren't served under their own code (e.g. nor -> nob); the
+	// cache file and URL use the actual Tatoeba export code.
+	dl := DownloadCode(lang)
+	path := filepath.Join(dataDir, dl+"_sentences.tsv.bz2")
 
 	if fi, err := os.Stat(path); err == nil && fi.Size() > 0 {
 		return path, nil
@@ -47,7 +50,7 @@ func DownloadDump(ctx context.Context, dataDir, lang string, skipDownload bool) 
 		return "", fmt.Errorf("no cached dump for %q at %s and -skip-download is set", lang, path)
 	}
 
-	if err := downloadTo(ctx, tatoebaURL(lang), path); err != nil {
+	if err := downloadTo(ctx, tatoebaURL(dl), path); err != nil {
 		return "", fmt.Errorf("download %s: %w", lang, err)
 	}
 	return path, nil

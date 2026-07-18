@@ -27,6 +27,10 @@ type Session interface {
 	// EditKeyboard replaces the inline keyboard attached to messageID in
 	// place, leaving the message text untouched.
 	EditKeyboard(messageID int64, rows [][]Btn) error
+	// EditMessage replaces both the text and the inline keyboard of
+	// messageID in place (editMessageText). text is HTML (Telegram HTML
+	// parse mode); the caller must escape any user-supplied content.
+	EditMessage(messageID int64, text string, rows [][]Btn) error
 	// Respond answers a callback query with a transient toast (no alert).
 	Respond(toast string) error
 	// Data is the callback payload; empty outside a callback.

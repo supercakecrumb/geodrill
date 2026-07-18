@@ -39,13 +39,15 @@ func FilterCandidates(r io.Reader, opts FilterOptions) ([]Candidate, error) {
 		if !ok {
 			continue
 		}
-		if lang != opts.Lang {
+		// Match the TSV lang field against the actual export code (nor's rows
+		// arrive tagged "nob"), but check the script under the answer key.
+		if lang != DownloadCode(opts.Lang) {
 			continue
 		}
 		if !LengthOK(text, opts.Min, opts.Max) {
 			continue
 		}
-		if !ScriptOK(lang, text) {
+		if !ScriptOK(opts.Lang, text) {
 			continue
 		}
 		kept = append(kept, Candidate{

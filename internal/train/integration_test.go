@@ -14,6 +14,7 @@ import (
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/tips"
 	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
@@ -52,7 +53,7 @@ func TestTrainLoopEndToEnd(t *testing.T) {
 	defer st.Close()
 
 	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
-	svc := train.NewService(st, engram.NewScheduler(), 42, func() time.Time { return now })
+	svc := train.NewService(st, engram.NewScheduler(), tips.Provider(), 42, func() time.Time { return now })
 
 	u, err := st.UpsertUser(ctx, 5150, "e2e")
 	if err != nil {
@@ -73,8 +74,11 @@ func TestTrainLoopEndToEnd(t *testing.T) {
 	if err := st.SetUserDeckEnabled(ctx, u.ID, deck.ID, true); err != nil {
 		t.Fatalf("enable deck: %v", err)
 	}
+	// The synthetic sentences deliberately embed one cue word per language
+	// ("muy" for spa, "não" for por — see internal/tips) so the tip assertion
+	// below finds an in-sentence cue whichever skill is the correct answer.
 	for _, key := range []string{"spa", "por"} {
-		for _, p := range []string{key + " frase uno larga", key + " frase dos larga", key + " frase tres larga"} {
+		for _, p := range []string{key + " frase muy não larga", key + " frase muy não curta", key + " frase muy não media"} {
 			if err := st.InsertContent(ctx, "sentence", key, p, "tatoeba#x", len([]rune(p))); err != nil {
 				t.Fatalf("insert content: %v", err)
 			}
@@ -128,6 +132,12 @@ func TestTrainLoopEndToEnd(t *testing.T) {
 	if corrects != 1 {
 		t.Fatalf("exactly one button must be ✅, got %d", corrects)
 	}
+	if ar.SentenceText != res.Prompt.Text {
+		t.Fatalf("SentenceText = %q, want the prompt text %q", ar.SentenceText, res.Prompt.Text)
+	}
+	if ar.Tip == "" {
+		t.Fatalf("answer should carry a recognition tip (spa/por are both in the tips dataset)")
+	}
 
 	// 3. single-use guard: a second tap is stale
 	ar2, err := svc.Answer(ctx, cb, now)
@@ -161,7 +171,9 @@ func TestTrainLoopEndToEnd(t *testing.T) {
 		t.Fatalf("stats reviews today = %d, want 1", stats.ReviewsToday)
 	}
 
-	// 6. /practice generates an exercise but answering it records NO review
+	// 6. /practice generates an exercise; answering it must COUNT in stats
+	// (a `reviews` row with practice=true) but must NOT touch FSRS scheduling
+	// state (user_skills) for the practiced skill.
 	pres, err := svc.NextPractice(ctx, u, now)
 	if err != nil || pres.Kind != train.KindExercise {
 		t.Fatalf("NextPractice kind=%v err=%v", pres.Kind, err)
@@ -173,15 +185,77 @@ func TestTrainLoopEndToEnd(t *testing.T) {
 	if err := st.SetExerciseMessageID(ctx, pres.Prompt.ExerciseID, 222); err != nil {
 		t.Fatalf("set practice message id: %v", err)
 	}
+
+	// snapshot user_skills for both skills before the practice answer, since
+	// /practice may target either one.
+	cardBeforeSpa, foundBeforeSpa, err := st.GetCard(ctx, u.ID, spa.ID)
+	if err != nil {
+		t.Fatalf("card before practice (spa): %v", err)
+	}
+	cardBeforePor, foundBeforePor, err := st.GetCard(ctx, u.ID, por.ID)
+	if err != nil {
+		t.Fatalf("card before practice (por): %v", err)
+	}
+
 	par, err := svc.Answer(ctx, pcb, now)
 	if err != nil || par.Stale {
 		t.Fatalf("practice answer: stale=%v err=%v", par.Stale, err)
 	}
+
+	// (a) a reviews row now exists for the practice answer, with practice=true.
 	recs2, err := st.ListReviewsSince(ctx, u.ID, now.Add(-time.Hour))
 	if err != nil {
 		t.Fatalf("reviews after practice: %v", err)
 	}
-	if len(recs2) != 1 {
-		t.Fatalf("practice must not append a review; reviews = %d, want 1", len(recs2))
+	if len(recs2) != 2 {
+		t.Fatalf("practice must append a review; reviews = %d, want 2", len(recs2))
+	}
+	practiceTarget := skillByKey[par.CorrectKey]
+	sawPractice, sawScheduled := false, false
+	for _, r := range recs2 {
+		if r.SkillID == practiceTarget.ID && r.ChosenKey == pcb.Key && r.Practice {
+			sawPractice = true
+		}
+		if !r.Practice {
+			sawScheduled = true
+		}
+	}
+	if !sawPractice {
+		t.Fatalf("expected a practice=true review row for the practice answer, got %+v", recs2)
+	}
+	if !sawScheduled {
+		t.Fatalf("the original scheduled review must still have practice=false, got %+v", recs2)
+	}
+
+	// (b) user_skills was NOT created/updated for the practiced skill.
+	cardAfter, foundAfter, err := st.GetCard(ctx, u.ID, practiceTarget.ID)
+	if err != nil {
+		t.Fatalf("card after practice: %v", err)
+	}
+	var cardBefore storage.CardFields
+	var foundBefore bool
+	if practiceTarget.ID == spa.ID {
+		cardBefore, foundBefore = cardBeforeSpa, foundBeforeSpa
+	} else {
+		cardBefore, foundBefore = cardBeforePor, foundBeforePor
+	}
+	if foundAfter != foundBefore {
+		t.Fatalf("practice must not create a card row: before found=%v after found=%v", foundBefore, foundAfter)
+	}
+	if foundAfter && cardAfter != cardBefore {
+		t.Fatalf("practice must not modify existing card state: before=%+v after=%+v", cardBefore, cardAfter)
+	}
+
+	// (c) /stats-facing counts include the practice answer too.
+	cnt, err := st.CountReviewsSince(ctx, u.ID, now.Add(-time.Hour))
+	if err != nil || cnt != 2 {
+		t.Fatalf("CountReviewsSince after practice = %d, want 2 (err=%v)", cnt, err)
+	}
+	stats2, err := svc.Stats(ctx, u, now)
+	if err != nil {
+		t.Fatalf("Stats after practice: %v", err)
+	}
+	if stats2.ReviewsToday != 2 {
+		t.Fatalf("stats reviews today after practice = %d, want 2", stats2.ReviewsToday)
 	}
 }

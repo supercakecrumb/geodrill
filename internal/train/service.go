@@ -29,6 +29,7 @@ const maxConfusion = 5
 type Service struct {
 	store *storage.Store
 	sched *engram.Scheduler
+	tips  quiz.TipProvider // optional post-answer explanations; may be nil
 
 	mu  sync.Mutex // guards rng (math/rand.Rand is not concurrency-safe)
 	rng *rand.Rand
@@ -37,14 +38,16 @@ type Service struct {
 }
 
 // NewService builds a Service. seed seeds the shuffle RNG; pass a fixed value
-// for reproducible tests. If now is nil, time.Now is used.
-func NewService(store *storage.Store, sched *engram.Scheduler, seed int64, now func() time.Time) *Service {
+// for reproducible tests. If now is nil, time.Now is used. tips may be nil
+// (answers are then graded without recognition tips).
+func NewService(store *storage.Store, sched *engram.Scheduler, tips quiz.TipProvider, seed int64, now func() time.Time) *Service {
 	if now == nil {
 		now = time.Now
 	}
 	return &Service{
 		store: store,
 		sched: sched,
+		tips:  tips,
 		rng:   rand.New(rand.NewSource(seed)),
 		now:   now,
 	}
@@ -180,20 +183,52 @@ func (s *Service) Answer(ctx context.Context, cb Callback, now time.Time) (Answe
 		if err := s.schedule(ctx, ex, correctKey, cb.Key, correct, rating, now); err != nil {
 			return AnswerResult{}, err
 		}
+	} else {
+		if err := s.recordPractice(ctx, ex, correctKey, cb.Key, correct, rating, now); err != nil {
+			return AnswerResult{}, err
+		}
 	}
 
 	buttons, err := gradedButtons(ex.Options, cb.Key, correctKey)
 	if err != nil {
 		return AnswerResult{}, err
 	}
-	return AnswerResult{
+	res := AnswerResult{
 		Correct:    correct,
 		ChosenKey:  cb.Key,
 		CorrectKey: correctKey,
 		Buttons:    buttons,
 		MessageID:  ex.MessageID,
 		HasMessage: ex.HasMessage,
-	}, nil
+	}
+
+	// The tip is decoration and the review is already committed above, so any
+	// failure here degrades to "no tip" rather than failing the answer.
+	if s.tips != nil {
+		if content, found, cerr := s.store.GetContentByID(ctx, ex.ContentID); cerr == nil && found {
+			res.SentenceText = content.Payload
+			res.Tip = s.tips.Tip(quiz.TipRequest{
+				ContentPayload: content.Payload,
+				CorrectKey:     correctKey,
+				CorrectLabel:   sk.Label,
+				ChosenKey:      cb.Key,
+				ChosenLabel:    chosenName(buttons, cb.Key),
+				Correct:        correct,
+			})
+		}
+	}
+	return res, nil
+}
+
+// chosenName resolves the display label the user actually tapped from the
+// persisted options, falling back to the raw key.
+func chosenName(buttons []GradedButton, chosenKey string) string {
+	for _, b := range buttons {
+		if b.Key == chosenKey && b.Name != "" {
+			return b.Name
+		}
+	}
+	return chosenKey
 }
 
 // schedule applies FSRS and appends the full review row.
@@ -235,6 +270,41 @@ func (s *Service) schedule(ctx context.Context, ex storage.Exercise, correctKey,
 		ScheduledDays:    rev.ScheduledDays,
 		ElapsedDays:      rev.ElapsedDays,
 		ReviewedAt:       now,
+		Practice:         false,
+	})
+}
+
+// recordPractice appends a review row for an unscheduled /practice answer.
+// Unlike schedule, it never reads or writes user_skills (FSRS card state) —
+// practice answers must not affect scheduling. The FSRS-specific columns are
+// meaningless here and are zeroed; Practice is set so stats queries can
+// distinguish these rows if they ever need to.
+func (s *Service) recordPractice(ctx context.Context, ex storage.Exercise, correctKey, chosenKey string, correct bool, rating engram.Rating, now time.Time) error {
+	ms := int(now.Sub(ex.CreatedAt).Milliseconds())
+	if ms < 0 {
+		ms = 0
+	}
+	exID := ex.ID
+	contentID := ex.ContentID
+	return s.store.InsertReview(ctx, storage.ReviewInsert{
+		UserID:           ex.UserID,
+		SkillID:          ex.SkillID,
+		ExerciseID:       &exID,
+		ContentID:        &contentID,
+		ChosenKey:        chosenKey,
+		CorrectKey:       correctKey,
+		Correct:          correct,
+		Rating:           int16(rating),
+		ResponseMS:       &ms,
+		StabilityBefore:  0,
+		DifficultyBefore: 0,
+		StabilityAfter:   0,
+		DifficultyAfter:  0,
+		StateBefore:      0,
+		ScheduledDays:    0,
+		ElapsedDays:      0,
+		ReviewedAt:       now,
+		Practice:         true,
 	})
 }
 
@@ -259,6 +329,10 @@ func (s *Service) Stats(ctx context.Context, user storage.User, now time.Time) (
 		return Stats{}, err
 	}
 
+	// The review log includes practice rows (practice=true) — that's intended,
+	// they should count toward reviews/accuracy/streak here. A future
+	// FSRS-weight optimizer trained on this log must filter to practice=false,
+	// since practice rows carry zeroed FSRS fields and were never scheduled.
 	log, err := engramstore.New(s.store, user.ID).Log(ctx, epoch)
 	if err != nil {
 		return Stats{}, err
@@ -383,13 +457,14 @@ func (s *Service) buildExercise(ctx context.Context, user storage.User, target s
 		if practice {
 			data = PracticeData(exerciseID, o.Key)
 		}
-		buttons[i] = Button{Label: o.Label, CallbackData: data}
+		buttons[i] = Button{Key: o.Key, Label: o.Label, CallbackData: data}
 	}
 	return &Prompt{
 		ExerciseID: exerciseID,
 		Text:       content.Payload,
 		Source:     content.Source,
 		Buttons:    buttons,
+		Practice:   practice,
 	}, true, nil
 }
 
@@ -422,7 +497,7 @@ func gradedButtons(optionsJSON []byte, chosenKey, correctKey string) ([]GradedBu
 	out := make([]GradedButton, len(opts))
 	for i, o := range opts {
 		m := markFor(o.Key, chosenKey, correctKey)
-		out[i] = GradedButton{Label: DecorateLabel(o.Label, m), Mark: m}
+		out[i] = GradedButton{Key: o.Key, Name: o.Label, Label: DecorateLabel(o.Label, m), Mark: m}
 	}
 	return out, nil
 }

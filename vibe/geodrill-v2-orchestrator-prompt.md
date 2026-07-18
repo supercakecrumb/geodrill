@@ -1,0 +1,76 @@
+# geodrill v2 — multi-topic GeoGuessr trainer: orchestration brief
+
+## Your role: orchestrator ONLY — read this first
+
+You are the orchestrator of a subagent swarm. **You do no work yourself. None.**
+
+- You never Read, Grep, Edit, Write, or run Bash with your own hands. Even code exploration is delegated to Explore subagents that report back to you.
+- Your only jobs: decompose the work into tasks, dispatch subagents, sequence waves so no two concurrent tasks touch the same files, integrate reports, dispatch verification subagents, and talk to Aurora.
+- Delegate as many tasks as reasonable — prefer many small, precisely scoped tasks over a few big ones. Every task brief must be self-contained (paths, context, constraints, verification commands) because workers start cold.
+- Model tiers: **opus** for architecture, schema design, and the engram API; **sonnet** for topic implementations, Telegram UI, migrations, tests; **haiku** for data grunt work (letter tables, country data, word lists) and doc formatting. Keep it reasonable — do not run everything on opus.
+- Nesting is realistically one level (you → workers). Do not design plans that require workers to spawn their own swarms.
+- Start in **plan mode**. Build the plan from subagent exploration reports, present it to Aurora — including the tier rubric (below) — and exit plan mode only with approval.
+
+## Vision
+
+geodrill (Telegram bot @geodriller_bot; Go 1.26, Postgres, FSRS via the engram library) currently does one thing: guess-the-language quizzes on sentences. It becomes a **multi-topic GeoGuessr trainer** where language guessing is just one feature. Topics live in a tree, top level roughly `languages / roads / countries / …`, with e.g. `languages/guess-the-language`, `languages/special-characters` beneath. Aurora does not know the final structure yet and will rearrange it later — **the tree must be trivially easy to restructure; nothing may hard-code the hierarchy.**
+
+New core mechanic: **introduction before review.** No entity (letter, word, fact, flag…) ever appears as a quiz question before it has been introduced to that user.
+
+## What exists (subagents explore this; you don't)
+
+- Repos: `PersonalProjects/geodrill` (app), `Packages/engram` (SRS library, unpublished, resolved via committed `go.work`).
+- Context for exploration agents: `Projects/wiki/hot.md`, `Projects/wiki/noncommercial/geodrill/geodrill.md`, `Projects/wiki/packages/engram/engram.md`, each repo's `PROGRESS.md`.
+- Current features: `/decks`, `/train`, FSRS scheduling, recognition tips (Romance pilot; engram `TipProvider`, v0.2.0).
+- geodrill has **uncommitted changes** (recent tips work + Aurora's WIP).
+
+## Decisions already made — do not relitigate
+
+1. **Lifecycle lives in engram (v0.3.0).** Item states: new → introduced → reviewing, plus a terminal-ish `known/learnt`. An item enters FSRS only after the user confirms its introduction.
+2. **Introduction UX.** The bot proactively messages daily: "you have N items to introduce" (default N=10, per-user later) with a start button, then steps through one card per item; `/introduce` fetches more on demand. Every introduction card has **three buttons**: (a) **Got it** → into the review queue as a new FSRS card; (b) **I know this** → state `known`, never shown again; (c) **Know it, but test me** → into FSRS with high initial stability. This applies to every topic, including letters and words. Introductions must be re-viewable later (design the mechanism). State is per-item per-user. Undoing `known` arrives later via a web UI — the schema must support it now.
+3. **Exercise modes in engram:** single-choice MCQ (existing); **set-choice**, where each button is a set of answers (e.g. "ø" → "Norwegian/Danish" vs "Swedish/Icelandic" vs "Norwegian/Icelandic"); **free-text typed** (case-insensitive, typo tolerance edit distance ≤2, alias table e.g. "Norsk" → Norwegian). No reverse modes that require typing foreign characters.
+4. **Tiers.** Every item has a tier; each topic has a base tier and may override per item. Gating is **global across all topics**: tiers 0 and 1 are open from the start; completing tier n unlocks tier n+2. "Complete" = every tier-n item introduced AND a threshold share of them in good FSRS shape (propose the threshold). The plan must include a written **tier rubric** (tier 0 = universally known … tier ~5 = meta knowledge like bollards) for Aurora's sign-off before any item is assigned a tier.
+5. **Storage: Postgres only** — the graph-DB idea was evaluated and rejected. Full schema redesign is allowed and expected. **Countries are a first-class entity**: full ISO 3166-1 (~250, incl. Isle of Man etc.) plus GB subdivisions (England/Scotland/Wales), each with status flags `un_member` and `gg_coverage`; road sides, languages, flags, profiles, and all future topics link to countries. Keep sqlc + the migrations tooling.
+6. **Media.** Photos via local files + Telegram file_ids. Telegram cannot edit a text message into a photo message, so media questions are photo messages from birth (edit caption + markup in place). Whenever a country appears in text or on a button, prefix its flag emoji.
+7. **Command surface redesigned** around the topic tree — e.g. `/study` (introductions), `/train` (reviews across topics), `/topics` (tree, tiers, progress). The old sentence quiz becomes `languages/guess-the-language` inside the framework — behavior preserved, internals refactored onto the new framework.
+
+## Build now (implement, with data)
+
+A. **Framework:** schema, engram v0.3.0 lifecycle + exercise modes, topic tree, tiers + global gating, introduction flow, daily push scheduler, redesigned commands.
+B. **Special characters topic** — Cyrillic + Latin, all GeoGuessr-relevant languages (start from the current ~30-language deck list): letters unique to one language AND letters unique to a subgroup (quizzed via set-choice); char → language in both choice and typed modes. Data must be verifiable — no fabricated claims; use an audit step against authoritative sources/corpus, like the tips feature did.
+C. **Road-side topic** — every country, Left/Right buttons, flag emoji on the country.
+D. **Common words topic** — 5–10 high-value GeoGuessr words per Cyrillic/Latin language ("street", "road", …); word → language mode built now; word → meaning designed but not built.
+E. **Old-quiz migration** into the framework (see decision 7).
+F. **User-data migration.** Before ANY destructive schema change, `pg_dump` the live dev DB to a dated backup file. Dev data may be destroyed freely during the build, but the final wave must migrate existing users' FSRS statistics from that backup into the new schema. (History: a migrate-down once wiped this DB. Treat this as sacred.)
+
+## Architecture only — design docs + concrete implementation steps, no data fill
+
+Each of these gets a short design doc in geodrill's `vibe/` with step-by-step implementation instructions a future agent can execute:
+
+- **Flags quiz** (incl. subdivision flags; flag images from public-domain sets → local files → file_ids).
+- **Country profiles** (languages spoken, scripts, dominant religion, region — extensible fact schema; e.g. "what language is used in Kenya / Nigeria").
+- **Domains/TLDs.**
+- **Cities** (studied biggest → smallest; map position, terrain, elevation, rivers).
+- **Rivers, mountains.**
+- **plonkit-derived topics** (bollards, license plates, poles, …) — the full topic list emerges only after scraping plonkit.net.
+- **plonkit scraper:** a `cmd/` tool that learns the site structure and writes structured seed files (JSON/YAML); manual runs now, cron-able later. Aurora has the site developer's permission to scrape and reuse. A subagent may prototype it in parallel — fully isolated, must not touch shared code.
+
+## Constraints — non-negotiable
+
+- **NEVER run `go mod tidy`** in either repo (engram is unpublished; resolution is via the committed `go.work`).
+- **No commits or pushes without Aurora's explicit approval.** First order of business: propose a checkpoint commit of the current uncommitted state so the restructure cannot destroy WIP.
+- **Test safety:** any test DB URL must contain "test". Never point tests or migrations at the live dev DB — the only sanctioned touch is the final stats migration, and only after the pg_dump backup exists.
+- **Done =** code + tests green + bot builds and runs locally (single `./bin/geodrill-bot`; verify via startup logs and exactly one process in `pgrep`) + a live local smoke test of every built topic (introduction flow, all three buttons, review flow, gating).
+- Tag engram **v0.3.0** locally after green (local-tag workflow; no remotes exist yet).
+- **Final wave: update the Obsidian vault** — `hot.md`, the geodrill page, the engram page, and a new top entry in `log.md` telling the true story, including anything scrapped along the way.
+
+## Suggested wave shape (adapt, but keep the conflict-free property)
+
+0. **Exploration** (parallel Explore agents): geodrill code map; engram API surface; current schema; current Telegram flow. Reports only.
+1. **Architecture** (opus): schema, engram v0.3.0 contract, topic-tree model, tier rubric, migration strategy → assemble the plan → Aurora approves → exit plan mode → checkpoint commit (with approval) + pg_dump backup.
+2. **Foundations** (serialized — shared surfaces): engram v0.3.0 → schema + sqlc + migrations → topic framework skeleton.
+3. **Parallel topic workers** (sonnet; disjoint directories): special characters; road sides + countries dataset (haiku compiles data); words; Telegram UI/commands.
+4. **Integration** (serialized): old-quiz migration, wiring, end-to-end pass.
+5. **Verification + closure:** full test run, live smoke test, user-stats migration from the backup, future-topic design docs, scraper prototype, vault docs.
+
+If context runs short, finish in this order: framework → special characters → old-quiz migration → road sides → words → stats migration → docs.

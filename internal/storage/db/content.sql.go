@@ -27,6 +27,26 @@ func (q *Queries) CountContentByKey(ctx context.Context, arg CountContentByKeyPa
 	return count, err
 }
 
+const getContentByID = `-- name: GetContentByID :one
+SELECT ci.id, ci.kind, ci.key, ci.payload, ci.source, ci.char_length
+FROM content_items ci
+WHERE ci.id = $1
+`
+
+func (q *Queries) GetContentByID(ctx context.Context, id uuid.UUID) (ContentItem, error) {
+	row := q.db.QueryRow(ctx, getContentByID, id)
+	var i ContentItem
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Key,
+		&i.Payload,
+		&i.Source,
+		&i.CharLength,
+	)
+	return i, err
+}
+
 const insertContent = `-- name: InsertContent :exec
 INSERT INTO content_items (kind, key, payload, source, char_length)
 VALUES ($1, $2, $3, $4, $5)

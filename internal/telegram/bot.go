@@ -27,12 +27,31 @@ import (
 )
 
 // reminderCheckInterval is how often the reminder goroutine wakes up to
-// check whether any user's local morning has arrived.
+// check whether any user's chosen hour (or a follow-up window) has arrived.
 const reminderCheckInterval = 30 * time.Minute
 
-// reminderLocalHour is the local hour (in the user's timezone) at which a
-// due-reviews reminder is sent, at most once per local day.
-const reminderLocalHour = 9
+// maxFollowUps caps how many follow-up nudges are sent after the first daily
+// reminder ("repeat, capped"). 2 → at most 3 messages in a local day.
+const maxFollowUps = 2
+
+// reminderKind is the action the loop decides to take for one user on a tick.
+type reminderKind int
+
+const (
+	reminderNone reminderKind = iota
+	reminderFirst
+	reminderFollowUp
+)
+
+// reminderState tracks one user's reminder progress for a single local day. It
+// lives in memory (like the old remindedOn map): a mid-day restart resets it,
+// at worst causing one extra or one skipped follow-up that day.
+type reminderState struct {
+	day         string    // user-local yyyy-mm-dd this state describes
+	firstSentAt time.Time // when the first reminder went out today
+	lastSentAt  time.Time // when the most recent reminder (first or follow-up) went out
+	followUps   int       // follow-ups sent so far today
+}
 
 // Config configures a Bot.
 type Config struct {
@@ -52,7 +71,31 @@ type Bot struct {
 	now    func() time.Time
 
 	remindedMu sync.Mutex
-	remindedOn map[uuid.UUID]string // userID -> yyyy-mm-dd (user-local) last reminded
+	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
+
+	practiceMu    sync.Mutex
+	practiceStart map[int64]time.Time // telegram user id -> current /practice session start
+}
+
+// markPracticeStart records (or resets) the start of a user's /practice
+// session, so the Stop control can summarize just that run.
+func (b *Bot) markPracticeStart(telegramID int64, t time.Time) {
+	b.practiceMu.Lock()
+	defer b.practiceMu.Unlock()
+	if b.practiceStart == nil {
+		b.practiceStart = make(map[int64]time.Time)
+	}
+	b.practiceStart[telegramID] = t
+}
+
+// takePracticeStart returns and clears a user's /practice session start. ok is
+// false if none is recorded (e.g. after a bot restart mid-session).
+func (b *Bot) takePracticeStart(telegramID int64) (time.Time, bool) {
+	b.practiceMu.Lock()
+	defer b.practiceMu.Unlock()
+	t, ok := b.practiceStart[telegramID]
+	delete(b.practiceStart, telegramID)
+	return t, ok
 }
 
 // New builds a Bot: constructs the underlying telebot.Bot with a 10s
@@ -77,22 +120,42 @@ func New(cfg Config) (*Bot, error) {
 	}
 
 	b := &Bot{
-		tb:         tb,
-		store:      cfg.Store,
-		svc:        cfg.Service,
-		logger:     logger,
-		now:        now,
-		remindedOn: make(map[uuid.UUID]string),
+		tb:            tb,
+		store:         cfg.Store,
+		svc:           cfg.Service,
+		logger:        logger,
+		now:           now,
+		remindState:   make(map[uuid.UUID]reminderState),
+		practiceStart: make(map[int64]time.Time),
 	}
 
 	tb.Handle("/start", b.wrap(b.handleStart))
 	tb.Handle("/train", b.wrap(b.handleTrain))
 	tb.Handle("/practice", b.wrap(b.handlePractice))
 	tb.Handle("/decks", b.wrap(b.handleDecks))
+	tb.Handle("/settings", b.wrap(b.handleSettings))
 	tb.Handle("/stats", b.wrap(b.handleStats))
+	tb.Handle("/help", b.wrap(b.handleHelp))
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
 
+	// Populate the in-app "/" command menu (best-effort; a failure here must
+	// not prevent the bot from starting).
+	if err := tb.SetCommands(botCommands); err != nil {
+		logger.Warn("telegram: set commands menu", "error", err)
+	}
+
 	return b, nil
+}
+
+// botCommands is the "/" autocomplete menu shown in Telegram clients.
+var botCommands = []telebot.Command{
+	{Text: "train", Description: "Next due exercise"},
+	{Text: "practice", Description: "Endless practice (no scheduling)"},
+	{Text: "decks", Description: "Turn confusion groups on/off"},
+	{Text: "settings", Description: "Daily cap, reminders, button style"},
+	{Text: "stats", Description: "Your progress and mix-ups"},
+	{Text: "help", Description: "How geodrill works"},
+	{Text: "start", Description: "Register and pick decks"},
 }
 
 // wrap adapts a Session-based handler into a telebot.HandlerFunc: it never
@@ -135,9 +198,10 @@ func (b *Bot) Start(ctx context.Context) error {
 
 // ── reminders ────────────────────────────────────────────────────────────
 
-// remindLoop periodically checks every user opted into reminders and, once
-// per user-local day at reminderLocalHour, nudges them if they have
-// anything due.
+// remindLoop periodically checks every user opted into reminders and nudges
+// them if they have anything due: once per user-local day at their chosen
+// hour, plus capped follow-ups when they haven't engaged within the window
+// (see decideReminder).
 func (b *Bot) remindLoop(ctx context.Context) {
 	ticker := time.NewTicker(reminderCheckInterval)
 	defer ticker.Stop()
@@ -162,48 +226,107 @@ func (b *Bot) sendReminders(ctx context.Context) {
 	now := b.now()
 	for _, u := range users {
 		local := now.In(locationFor(u))
-		if local.Hour() != reminderLocalHour {
-			continue
-		}
-
-		today := local.Format("2006-01-02")
-		if b.alreadyReminded(u.ID, today) {
-			continue
-		}
+		day := local.Format("2006-01-02")
+		st := b.getReminderState(u.ID)
 
 		due, err := b.svc.DueCount(ctx, u, now)
 		if err != nil {
 			b.logger.Error("telegram: reminders: due count", "user", u.ID, "error", err)
 			continue
 		}
-		if due <= 0 {
-			continue
+
+		// The engagement check (has the user answered anything since the first
+		// reminder?) only matters for the follow-up decision, so only query it
+		// once a first reminder has already gone out today.
+		reviewedSince := 0
+		if st.day == day && !st.firstSentAt.IsZero() {
+			reviewedSince, err = b.store.CountReviewsSince(ctx, u.ID, st.firstSentAt)
+			if err != nil {
+				b.logger.Error("telegram: reminders: reviews since", "user", u.ID, "error", err)
+				continue
+			}
 		}
 
-		text := fmt.Sprintf("🔔 You have %d review", due)
-		if due != 1 {
-			text += "s"
+		switch decideReminder(u, st, day, local.Hour(), now, due, reviewedSince) {
+		case reminderFirst:
+			if !b.sendReminderMessage(u, reminderText(due, false)) {
+				continue
+			}
+			b.setReminderState(u.ID, reminderState{day: day, firstSentAt: now, lastSentAt: now})
+		case reminderFollowUp:
+			if !b.sendReminderMessage(u, reminderText(due, true)) {
+				continue
+			}
+			st.lastSentAt = now
+			st.followUps++
+			b.setReminderState(u.ID, st)
 		}
-		text += " due today."
-
-		if _, err := b.tb.Send(telebot.ChatID(u.TelegramID), text); err != nil {
-			b.logger.Error("telegram: reminders: send", "user", u.ID, "error", err)
-			continue
-		}
-		b.markReminded(u.ID, today)
 	}
 }
 
-func (b *Bot) alreadyReminded(userID uuid.UUID, day string) bool {
-	b.remindedMu.Lock()
-	defer b.remindedMu.Unlock()
-	return b.remindedOn[userID] == day
+// decideReminder decides whether to send a first reminder, a follow-up, or
+// nothing to a user on a tick. It is pure (no I/O) so the timing rules are
+// unit-testable: st is the user's current in-memory state, day is the user's
+// local date, localHour their local hour, due their due-review count, and
+// reviewedSince how many reviews they've answered since st.firstSentAt.
+func decideReminder(u storage.User, st reminderState, day string, localHour int, now time.Time, due, reviewedSince int) reminderKind {
+	if due <= 0 {
+		return reminderNone
+	}
+	// No first reminder yet today: send one when we reach the user's chosen hour.
+	if st.day != day || st.firstSentAt.IsZero() {
+		if u.RemindersEnabled && localHour == u.ReminderHour {
+			return reminderFirst
+		}
+		return reminderNone
+	}
+	// First already sent today — consider a follow-up.
+	if !u.FollowUpEnabled || st.followUps >= maxFollowUps {
+		return reminderNone
+	}
+	if reviewedSince > 0 { // engaged since the first reminder → stop nagging
+		return reminderNone
+	}
+	if now.Before(st.lastSentAt.Add(time.Duration(u.FollowUpDelayMin) * time.Minute)) {
+		return reminderNone
+	}
+	return reminderFollowUp
 }
 
-func (b *Bot) markReminded(userID uuid.UUID, day string) {
+// reminderText renders the reminder body for the given due count. followUp
+// switches to the terser nudge wording.
+func reminderText(due int, followUp bool) string {
+	plural := ""
+	if due != 1 {
+		plural = "s"
+	}
+	if followUp {
+		return fmt.Sprintf("⏰ Still %d review%s waiting — tap to start.", due, plural)
+	}
+	return fmt.Sprintf("🔔 You have %d review%s due today.", due, plural)
+}
+
+// sendReminderMessage sends a reminder with the ▶️ Start reviewing button.
+// It returns false (and logs) on failure so the caller skips recording state.
+func (b *Bot) sendReminderMessage(u storage.User, text string) bool {
+	markup := buildMarkup([][]Btn{{{Label: "▶️ Start reviewing", Data: dataStartTrain}}})
+	if _, err := b.tb.Send(telebot.ChatID(u.TelegramID), text, markup); err != nil {
+		b.logger.Error("telegram: reminders: send", "user", u.ID, "error", err)
+		return false
+	}
+	return true
+}
+
+func (b *Bot) getReminderState(userID uuid.UUID) reminderState {
 	b.remindedMu.Lock()
 	defer b.remindedMu.Unlock()
-	b.remindedOn[userID] = day
+	return b.remindState[userID]
+}
+
+func (b *Bot) setReminderState(userID uuid.UUID, st reminderState) {
+	b.remindedMu.Lock()
+	defer b.remindedMu.Unlock()
+	b.remindState[userID] = st
 }
 
 // ── telebot.Context adapter ──────────────────────────────────────────────
@@ -262,6 +385,22 @@ func (s *tbSession) EditKeyboard(messageID int64, rows [][]Btn) error {
 		ChatID:    chatID,
 	}
 	_, err := s.bot.EditReplyMarkup(sm, buildMarkup(rows))
+	return err
+}
+
+func (s *tbSession) EditMessage(messageID int64, text string, rows [][]Btn) error {
+	var chatID int64
+	if chat := s.ctx.Chat(); chat != nil {
+		chatID = chat.ID
+	}
+	sm := telebot.StoredMessage{
+		MessageID: strconv.FormatInt(messageID, 10),
+		ChatID:    chatID,
+	}
+	// telebot dispatches to editMessageText, replacing text and reply markup
+	// in one API call. ModeHTML is passed explicitly since text is HTML
+	// (see Session.EditMessage) — the caller is responsible for escaping.
+	_, err := s.bot.Edit(sm, text, buildMarkup(rows), telebot.ModeHTML)
 	return err
 }
 

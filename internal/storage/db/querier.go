@@ -16,6 +16,7 @@ type Querier interface {
 	CountEnabledDecks(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountReviewsSince(ctx context.Context, arg CountReviewsSinceParams) (int64, error)
 	GetCard(ctx context.Context, arg GetCardParams) (GetCardRow, error)
+	GetContentByID(ctx context.Context, id uuid.UUID) (ContentItem, error)
 	GetDeckBySlug(ctx context.Context, slug string) (Deck, error)
 	GetExercise(ctx context.Context, id uuid.UUID) (Exercise, error)
 	GetSkillByID(ctx context.Context, id uuid.UUID) (Skill, error)
@@ -36,6 +37,8 @@ type Querier interface {
 	// Single-use answer guard: flips answered_at only if still open. A returned row
 	// means this caller owns the answer; no row means it was already answered.
 	MarkExerciseAnswered(ctx context.Context, arg MarkExerciseAnsweredParams) (uuid.UUID, error)
+	// Totals for a /practice session: practice-flagged answers since a start time.
+	PracticeStatsSince(ctx context.Context, arg PracticeStatsSinceParams) (PracticeStatsSinceRow, error)
 	PutCard(ctx context.Context, arg PutCardParams) error
 	ReviewStatsByDeck(ctx context.Context, arg ReviewStatsByDeckParams) ([]ReviewStatsByDeckRow, error)
 	// Random sentence for a skill key, excluding the user's last-50 seen content
@@ -46,6 +49,10 @@ type Querier interface {
 	SampleContentAny(ctx context.Context, key string) (ContentItem, error)
 	SetDailyCap(ctx context.Context, arg SetDailyCapParams) error
 	SetExerciseMessageID(ctx context.Context, arg SetExerciseMessageIDParams) error
+	SetFollowUpDelay(ctx context.Context, arg SetFollowUpDelayParams) error
+	SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabledParams) error
+	SetLabelStyle(ctx context.Context, arg SetLabelStyleParams) error
+	SetReminderHour(ctx context.Context, arg SetReminderHourParams) error
 	SetReminders(ctx context.Context, arg SetRemindersParams) error
 	SetTimezone(ctx context.Context, arg SetTimezoneParams) error
 	SetUserDeckEnabled(ctx context.Context, arg SetUserDeckEnabledParams) error

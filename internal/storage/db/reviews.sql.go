@@ -34,12 +34,12 @@ INSERT INTO reviews (
   user_id, skill_id, exercise_id, content_id,
   chosen_key, correct_key, correct, rating, response_ms,
   stability_before, difficulty_before, stability_after, difficulty_after,
-  state_before, scheduled_days, elapsed_days, reviewed_at
+  state_before, scheduled_days, elapsed_days, reviewed_at, practice
 ) VALUES (
   $1, $2, $3, $4,
   $5, $6, $7, $8, $9,
   $10, $11, $12, $13,
-  $14, $15, $16, $17
+  $14, $15, $16, $17, $18
 )
 `
 
@@ -61,6 +61,7 @@ type InsertReviewParams struct {
 	ScheduledDays    int32
 	ElapsedDays      int32
 	ReviewedAt       pgtype.Timestamptz
+	Practice         bool
 }
 
 func (q *Queries) InsertReview(ctx context.Context, arg InsertReviewParams) error {
@@ -82,6 +83,7 @@ func (q *Queries) InsertReview(ctx context.Context, arg InsertReviewParams) erro
 		arg.ScheduledDays,
 		arg.ElapsedDays,
 		arg.ReviewedAt,
+		arg.Practice,
 	)
 	return err
 }
@@ -135,7 +137,7 @@ func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSincePa
 }
 
 const listReviewsSince = `-- name: ListReviewsSince :many
-SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at FROM reviews
+SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice FROM reviews
 WHERE user_id = $1 AND reviewed_at >= $2
 ORDER BY reviewed_at
 `
@@ -173,6 +175,7 @@ func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSincePara
 			&i.ScheduledDays,
 			&i.ElapsedDays,
 			&i.ReviewedAt,
+			&i.Practice,
 		); err != nil {
 			return nil, err
 		}
@@ -182,6 +185,31 @@ func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSincePara
 		return nil, err
 	}
 	return items, nil
+}
+
+const practiceStatsSince = `-- name: PracticeStatsSince :one
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE correct) AS correct
+FROM reviews
+WHERE user_id = $1 AND practice = true AND reviewed_at >= $2
+`
+
+type PracticeStatsSinceParams struct {
+	UserID     uuid.UUID
+	ReviewedAt pgtype.Timestamptz
+}
+
+type PracticeStatsSinceRow struct {
+	Total   int64
+	Correct int64
+}
+
+// Totals for a /practice session: practice-flagged answers since a start time.
+func (q *Queries) PracticeStatsSince(ctx context.Context, arg PracticeStatsSinceParams) (PracticeStatsSinceRow, error) {
+	row := q.db.QueryRow(ctx, practiceStatsSince, arg.UserID, arg.ReviewedAt)
+	var i PracticeStatsSinceRow
+	err := row.Scan(&i.Total, &i.Correct)
+	return i, err
 }
 
 const reviewStatsByDeck = `-- name: ReviewStatsByDeck :many

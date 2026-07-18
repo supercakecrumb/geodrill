@@ -17,8 +17,20 @@ UPDATE users SET daily_new_cap = $2 WHERE id = $1;
 -- name: SetReminders :exec
 UPDATE users SET reminders_enabled = $2 WHERE id = $1;
 
+-- name: SetLabelStyle :exec
+UPDATE users SET label_style = $2 WHERE id = $1;
+
 -- name: SetTimezone :exec
 UPDATE users SET timezone = $2 WHERE id = $1;
+
+-- name: SetReminderHour :exec
+UPDATE users SET reminder_hour = $2 WHERE id = $1;
+
+-- name: SetFollowUpEnabled :exec
+UPDATE users SET follow_up_enabled = $2 WHERE id = $1;
+
+-- name: SetFollowUpDelay :exec
+UPDATE users SET follow_up_delay_min = $2 WHERE id = $1;
 
 -- name: UsersWithReminders :many
 SELECT * FROM users WHERE reminders_enabled = true ORDER BY created_at;

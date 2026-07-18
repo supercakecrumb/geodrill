@@ -2,14 +2,20 @@ package storage_test
 
 // Integration tests against a real PostgreSQL 18. They are skipped unless
 // GEODRILL_TEST_DATABASE_URL is set (so `go test ./...` stays green without
-// docker). Example:
+// docker).
 //
-//	GEODRILL_TEST_DATABASE_URL='postgres://geodrill:geodrill@localhost:5432/geodrill?sslmode=disable' \
+// WARNING: these tests DROP EVERY TABLE (they exercise the down migrations), so
+// the target MUST be a disposable database — never the one your bot runs on.
+// The DSN's database name must contain "test" (see testDSN) as a safety fuse.
+// Example:
+//
+//	GEODRILL_TEST_DATABASE_URL='postgres://geodrill:geodrill@localhost:5432/geodrill_test?sslmode=disable' \
 //	  go test ./internal/storage/...
 
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +31,32 @@ func testDSN(t *testing.T) string {
 	if dsn == "" {
 		t.Skip("set GEODRILL_TEST_DATABASE_URL to run storage integration tests")
 	}
+	// Safety fuse: these tests drop every table. Refuse to run against anything
+	// that isn't obviously a throwaway test database, so a stray DSN can never
+	// wipe the live bot's data. The database name must contain "test".
+	if name := databaseName(dsn); !strings.Contains(strings.ToLower(name), "test") {
+		t.Fatalf("refusing to run destructive integration tests against database %q: "+
+			"GEODRILL_TEST_DATABASE_URL must point at a disposable database whose name contains \"test\" "+
+			"(e.g. geodrill_test), never the live database", name)
+	}
 	return dsn
+}
+
+// databaseName extracts the database (path) segment from a postgres DSN,
+// tolerating query strings and trailing slashes. Returns "" if none is found.
+func databaseName(dsn string) string {
+	s := dsn
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	if i := strings.IndexByte(s, '?'); i >= 0 {
+		s = s[:i]
+	}
+	i := strings.IndexByte(s, '/')
+	if i < 0 {
+		return ""
+	}
+	return strings.Trim(s[i+1:], "/")
 }
 
 // freshSchema drops and re-applies the schema so each test starts clean, and

@@ -16,6 +16,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/config"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
+	"github.com/supercakecrumb/geodrill/internal/tips"
 	"github.com/supercakecrumb/geodrill/internal/train"
 )
 
@@ -49,7 +50,7 @@ func run() error {
 	defer store.Close()
 
 	sched := engram.NewScheduler(engram.WithRetention(cfg.FSRSRetention))
-	svc := train.NewService(store, sched, time.Now().UnixNano(), nil)
+	svc := train.NewService(store, sched, tips.Provider(), time.Now().UnixNano(), nil)
 
 	bot, err := telegram.New(telegram.Config{
 		Token:   cfg.TelegramToken,

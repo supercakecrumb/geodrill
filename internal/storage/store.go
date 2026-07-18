@@ -61,6 +61,10 @@ type User struct {
 	Username         string
 	DailyNewCap      int
 	RemindersEnabled bool
+	ReminderHour     int
+	FollowUpEnabled  bool
+	FollowUpDelayMin int
+	LabelStyle       string
 	Timezone         string
 	CreatedAt        time.Time
 }
@@ -151,6 +155,7 @@ type ReviewInsert struct {
 	ScheduledDays    int
 	ElapsedDays      int
 	ReviewedAt       time.Time
+	Practice         bool
 }
 
 // ReviewRecord is a persisted review, carrying both the FSRS fields (for
@@ -169,6 +174,7 @@ type ReviewRecord struct {
 	Correct          bool
 	ChosenKey        string
 	CorrectKey       string
+	Practice         bool
 }
 
 // Attempt is the minimal per-answer record for quiz.Confusion.

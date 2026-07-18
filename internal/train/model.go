@@ -29,6 +29,7 @@ const (
 
 // Button is one inline answer button.
 type Button struct {
+	Key          string // answer key (ISO-639-3), for presentation (e.g. flag)
 	Label        string
 	CallbackData string
 }
@@ -39,6 +40,7 @@ type Prompt struct {
 	Text       string   // the sentence payload
 	Source     string   // CC-BY attribution (e.g. "tatoeba#12345")
 	Buttons    []Button // one per candidate language, shuffled
+	Practice   bool     // true for /practice exercises (adds a Stop control)
 }
 
 // NextResult is the outcome of asking for the next thing to study.
@@ -50,7 +52,9 @@ type NextResult struct {
 
 // GradedButton is one answer button after grading, for editing in place.
 type GradedButton struct {
-	Label string // already decorated with ✅ / ❌ when relevant
+	Key   string // answer key (ISO-639-3), for presentation (e.g. flag)
+	Name  string // raw, undecorated language name (for re-rendering per label style)
+	Label string // already decorated with ✅ / ❌ when relevant (fallback)
 	Mark  Mark
 }
 
@@ -63,6 +67,9 @@ type AnswerResult struct {
 	Buttons    []GradedButton // full keyboard, decorated, to replace in place
 	MessageID  int64          // the message to edit
 	HasMessage bool
+
+	SentenceText string // the sentence shown, re-fetched at grade time; "" if the content row is gone
+	Tip          string // recognition tip (no 💡 prefix); "" = no tip available
 }
 
 // ConfusionRow is one "you mistake X for Y" line for /stats.
