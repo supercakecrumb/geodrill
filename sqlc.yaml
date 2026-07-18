@@ -6,6 +6,7 @@ sql:
       - "migrations/000002_add_label_style.up.sql"
       - "migrations/000003_add_review_practice.up.sql"
       - "migrations/000004_add_reminder_config.up.sql"
+      - "migrations/000005_v2_core.up.sql"
     queries: "internal/storage/query"
     gen:
       go:

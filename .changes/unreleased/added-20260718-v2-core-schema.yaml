@@ -1,0 +1,2 @@
+kind: Added
+body: Add v2 core schema (topics, items, user_items, introductions, countries, fact_defs/country_facts, media_files, user_topics, user_tier_progress) with item_tiers and topic_paths views, plus matching Store methods

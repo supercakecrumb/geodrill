@@ -1,0 +1,54 @@
+-- name: GetUserItem :one
+SELECT * FROM user_items WHERE user_id = $1 AND item_id = $2;
+
+-- name: PutUserItem :exec
+-- Upsert the lifecycle + FSRS card state for one user+item (engram.Lifecycle
+-- and engram.CardState, architecture §2.3).
+INSERT INTO user_items (
+  user_id, item_id, lifecycle, due, stability, difficulty, reps, lapses,
+  state, last_review, introduced_at, known_at
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+)
+ON CONFLICT (user_id, item_id)
+DO UPDATE SET
+  lifecycle = EXCLUDED.lifecycle,
+  due = EXCLUDED.due,
+  stability = EXCLUDED.stability,
+  difficulty = EXCLUDED.difficulty,
+  reps = EXCLUDED.reps,
+  lapses = EXCLUDED.lapses,
+  state = EXCLUDED.state,
+  last_review = EXCLUDED.last_review,
+  introduced_at = EXCLUDED.introduced_at,
+  known_at = EXCLUDED.known_at,
+  updated_at = now();
+
+-- name: ListUserItemsByLifecycle :many
+SELECT * FROM user_items WHERE user_id = $1 AND lifecycle = $2 ORDER BY updated_at;
+
+-- name: ListDueUserItems :many
+-- Due Introduced/Reviewing cards (engram.NextReview candidate set) joined
+-- with their item for topic/key/label context.
+SELECT ui.user_id, ui.item_id, ui.lifecycle, ui.due, ui.stability, ui.difficulty,
+       ui.reps, ui.lapses, ui.state, ui.last_review, ui.introduced_at, ui.known_at,
+       ui.updated_at, i.topic_id, i.key, i.label
+FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2) AND ui.due <= $2
+ORDER BY ui.due;
+
+-- name: ListCandidateIntroItems :many
+-- Candidate items for the introduction queue: active, tier-unlocked
+-- (parameterized allowed-tiers array), and either no user_items row yet or
+-- still lifecycle=new. Ordered tier, then topic position, then item position
+-- — the app-supplied priority order engram.NextIntroductions preserves.
+SELECT i.id AS item_id, i.topic_id, i.key, i.label, it.tier
+FROM items i
+JOIN item_tiers it ON it.item_id = i.id
+JOIN topics t ON t.id = i.topic_id
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE i.active = true
+  AND (ui.item_id IS NULL OR ui.lifecycle = 0)
+  AND it.tier = ANY($2::smallint[])
+ORDER BY it.tier, t.position, i.position;

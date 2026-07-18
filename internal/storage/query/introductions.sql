@@ -1,0 +1,37 @@
+-- name: InsertIntroduction :one
+INSERT INTO introductions (user_id, item_id, seq, outcome, shown_at, answered_at, message_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING *;
+
+-- name: NextIntroSeq :one
+-- seq for the next introduction row of this user+item (1 = first exposure,
+-- >1 = re-view, architecture §2.4).
+SELECT COALESCE(MAX(seq), 0) + 1 FROM introductions WHERE user_id = $1 AND item_id = $2;
+
+-- name: AnswerIntroduction :one
+UPDATE introductions SET outcome = $2, answered_at = $3 WHERE id = $1 RETURNING *;
+
+-- name: SetIntroductionMessageID :exec
+UPDATE introductions SET message_id = $2 WHERE id = $1;
+
+-- name: GetLatestOpenIntroductionForItem :one
+SELECT * FROM introductions
+WHERE user_id = $1 AND item_id = $2 AND answered_at IS NULL
+ORDER BY shown_at DESC
+LIMIT 1;
+
+-- name: GetLatestOpenIntroduction :one
+-- Latest open (shown, not yet answered) introduction for a user, regardless
+-- of item — used to resolve a bare callback/reply to the card still on screen.
+SELECT * FROM introductions
+WHERE user_id = $1 AND answered_at IS NULL
+ORDER BY shown_at DESC
+LIMIT 1;
+
+-- name: CountIntroductionsToday :one
+-- "Introduced today" for the daily budget (architecture §2.4): distinct items
+-- with a first-exposure (seq=1), answered outcome, inside the caller-supplied
+-- local-day [from, to) bounds.
+SELECT count(DISTINCT item_id) FROM introductions
+WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL
+  AND answered_at >= $2 AND answered_at < $3;

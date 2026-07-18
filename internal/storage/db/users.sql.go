@@ -13,7 +13,7 @@ import (
 )
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min FROM users WHERE id = $1
+SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -31,12 +31,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.ReminderHour,
 		&i.FollowUpEnabled,
 		&i.FollowUpDelayMin,
+		&i.DailyIntroCap,
 	)
 	return i, err
 }
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min FROM users WHERE telegram_id = $1
+SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap FROM users WHERE telegram_id = $1
 `
 
 func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error) {
@@ -54,6 +55,7 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID int64) (Us
 		&i.ReminderHour,
 		&i.FollowUpEnabled,
 		&i.FollowUpDelayMin,
+		&i.DailyIntroCap,
 	)
 	return i, err
 }
@@ -161,7 +163,7 @@ INSERT INTO users (telegram_id, username)
 VALUES ($1, $2)
 ON CONFLICT (telegram_id)
 DO UPDATE SET username = EXCLUDED.username
-RETURNING id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min
+RETURNING id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap
 `
 
 type UpsertUserParams struct {
@@ -184,12 +186,13 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.ReminderHour,
 		&i.FollowUpEnabled,
 		&i.FollowUpDelayMin,
+		&i.DailyIntroCap,
 	)
 	return i, err
 }
 
 const usersWithReminders = `-- name: UsersWithReminders :many
-SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min FROM users WHERE reminders_enabled = true ORDER BY created_at
+SELECT id, telegram_id, username, daily_new_cap, reminders_enabled, timezone, created_at, label_style, reminder_hour, follow_up_enabled, follow_up_delay_min, daily_intro_cap FROM users WHERE reminders_enabled = true ORDER BY created_at
 `
 
 func (q *Queries) UsersWithReminders(ctx context.Context) ([]User, error) {
@@ -213,6 +216,7 @@ func (q *Queries) UsersWithReminders(ctx context.Context) ([]User, error) {
 			&i.ReminderHour,
 			&i.FollowUpEnabled,
 			&i.FollowUpDelayMin,
+			&i.DailyIntroCap,
 		); err != nil {
 			return nil, err
 		}

@@ -8,38 +8,122 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	AnswerIntroduction(ctx context.Context, arg AnswerIntroductionParams) (Introduction, error)
 	CountContentByKey(ctx context.Context, arg CountContentByKeyParams) (int64, error)
 	CountDueSkills(ctx context.Context, arg CountDueSkillsParams) (int64, error)
 	CountEnabledDecks(ctx context.Context, userID uuid.UUID) (int64, error)
+	// "Introduced today" for the daily budget (architecture §2.4): distinct items
+	// with a first-exposure (seq=1), answered outcome, inside the caller-supplied
+	// local-day [from, to) bounds.
+	CountIntroductionsToday(ctx context.Context, arg CountIntroductionsTodayParams) (int64, error)
 	CountReviewsSince(ctx context.Context, arg CountReviewsSinceParams) (int64, error)
+	// Clears every fact value for one country+def (used to replace multi-valued
+	// facts wholesale on reseed).
+	DeleteCountryFactsByDef(ctx context.Context, arg DeleteCountryFactsByDefParams) error
 	GetCard(ctx context.Context, arg GetCardParams) (GetCardRow, error)
 	GetContentByID(ctx context.Context, id uuid.UUID) (ContentItem, error)
+	GetCountryByID(ctx context.Context, id uuid.UUID) (Country, error)
+	GetCountryByISO(ctx context.Context, isoA2 pgtype.Text) (Country, error)
+	GetCountryByISOA3(ctx context.Context, isoA3 pgtype.Text) (Country, error)
 	GetDeckBySlug(ctx context.Context, slug string) (Deck, error)
 	GetExercise(ctx context.Context, id uuid.UUID) (Exercise, error)
+	GetFactDefByKey(ctx context.Context, key string) (FactDef, error)
+	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
+	GetItemEffectiveTier(ctx context.Context, itemID uuid.UUID) (int16, error)
+	// Latest open (shown, not yet answered) introduction for a user, regardless
+	// of item — used to resolve a bare callback/reply to the card still on screen.
+	GetLatestOpenIntroduction(ctx context.Context, userID uuid.UUID) (Introduction, error)
+	GetLatestOpenIntroductionForItem(ctx context.Context, arg GetLatestOpenIntroductionForItemParams) (Introduction, error)
+	GetMediaByContentID(ctx context.Context, contentID *uuid.UUID) (MediaFile, error)
+	GetMediaByLocalPath(ctx context.Context, localPath string) (MediaFile, error)
 	GetSkillByID(ctx context.Context, id uuid.UUID) (Skill, error)
+	GetTopicByID(ctx context.Context, id uuid.UUID) (Topic, error)
+	// Path-walk helper: resolve a topic by its full slash-joined slug path (e.g.
+	// "languages/special-characters"), via topic_paths.
+	GetTopicByPath(ctx context.Context, path string) (Topic, error)
+	// Path-walk helper: slash-joined slug path + depth from the recursive
+	// topic_paths view, for one topic id.
+	GetTopicPath(ctx context.Context, id uuid.UUID) (TopicPath, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error)
+	GetUserItem(ctx context.Context, arg GetUserItemParams) (UserItem, error)
 	InsertContent(ctx context.Context, arg InsertContentParams) error
+	// Typed insert: the caller sets exactly one of val_text/val_num/val_bool (the
+	// CHECK constraint enforces it); the other two are passed as NULL.
+	InsertCountryFact(ctx context.Context, arg InsertCountryFactParams) (CountryFact, error)
 	InsertExercise(ctx context.Context, arg InsertExerciseParams) (InsertExerciseRow, error)
+	InsertIntroduction(ctx context.Context, arg InsertIntroductionParams) (Introduction, error)
 	InsertReview(ctx context.Context, arg InsertReviewParams) error
+	ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error)
 	ListAllSkills(ctx context.Context) ([]Skill, error)
+	ListAllTopics(ctx context.Context) ([]Topic, error)
 	ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error)
+	// Candidate items for the introduction queue: active, tier-unlocked
+	// (parameterized allowed-tiers array), and either no user_items row yet or
+	// still lifecycle=new. Ordered tier, then topic position, then item position
+	// — the app-supplied priority order engram.NextIntroductions preserves.
+	ListCandidateIntroItems(ctx context.Context, arg ListCandidateIntroItemsParams) ([]ListCandidateIntroItemsRow, error)
 	ListCardsForUser(ctx context.Context, userID uuid.UUID) ([]ListCardsForUserRow, error)
+	ListChildTopics(ctx context.Context, parentID *uuid.UUID) ([]Topic, error)
+	ListCountries(ctx context.Context) ([]Country, error)
+	// Filter by the first-class un_member/gg_coverage booleans (e.g. the
+	// road-side audit's "every gg_coverage country" check).
+	ListCountriesByFlags(ctx context.Context, arg ListCountriesByFlagsParams) ([]Country, error)
+	// Facts for one fact_def, looked up by its key (e.g. 'drives_on') — the
+	// building block for arbitrary-filter joins (architecture §2.7).
+	ListCountryFactsByDefKey(ctx context.Context, key string) ([]CountryFact, error)
 	ListDecks(ctx context.Context) ([]Deck, error)
+	// Due Introduced/Reviewing cards (engram.NextReview candidate set) joined
+	// with their item for topic/key/label context.
+	ListDueUserItems(ctx context.Context, arg ListDueUserItemsParams) ([]ListDueUserItemsRow, error)
 	ListEnabledSkillCards(ctx context.Context, userID uuid.UUID) ([]ListEnabledSkillCardsRow, error)
 	ListEnabledSkills(ctx context.Context, userID uuid.UUID) ([]ListEnabledSkillsRow, error)
+	ListFactDefs(ctx context.Context) ([]FactDef, error)
+	ListFactsForCountry(ctx context.Context, countryID uuid.UUID) ([]ListFactsForCountryRow, error)
+	ListItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error)
+	// Items for a topic with their effective tier (COALESCE(items.tier,
+	// topics.base_tier)) resolved via the item_tiers view.
+	ListItemsWithTierByTopic(ctx context.Context, topicID uuid.UUID) ([]ListItemsWithTierByTopicRow, error)
 	ListReviewsSince(ctx context.Context, arg ListReviewsSinceParams) ([]Review, error)
+	ListRootTopics(ctx context.Context) ([]Topic, error)
 	ListSkillsByDeck(ctx context.Context, deckID uuid.UUID) ([]Skill, error)
+	ListTierProgressForUser(ctx context.Context, userID uuid.UUID) ([]UserTierProgress, error)
+	ListTopicPaths(ctx context.Context) ([]TopicPath, error)
 	ListUserDecks(ctx context.Context, userID uuid.UUID) ([]ListUserDecksRow, error)
+	ListUserItemsByLifecycle(ctx context.Context, arg ListUserItemsByLifecycleParams) ([]UserItem, error)
+	// Every topic with the user's enabled flag (default-on when no row exists,
+	// per architecture §2.10 / §9 open question 5).
+	ListUserTopics(ctx context.Context, userID uuid.UUID) ([]ListUserTopicsRow, error)
 	// Single-use answer guard: flips answered_at only if still open. A returned row
 	// means this caller owns the answer; no row means it was already answered.
 	MarkExerciseAnswered(ctx context.Context, arg MarkExerciseAnsweredParams) (uuid.UUID, error)
+	// seq for the next introduction row of this user+item (1 = first exposure,
+	// >1 = re-view, architecture §2.4).
+	NextIntroSeq(ctx context.Context, arg NextIntroSeqParams) (int32, error)
 	// Totals for a /practice session: practice-flagged answers since a start time.
 	PracticeStatsSince(ctx context.Context, arg PracticeStatsSinceParams) (PracticeStatsSinceRow, error)
 	PutCard(ctx context.Context, arg PutCardParams) error
+	// Upsert keyed on local_path (the stable identity of a media asset on disk).
+	PutMediaFile(ctx context.Context, arg PutMediaFileParams) (MediaFile, error)
+	// Upsert the lifecycle + FSRS card state for one user+item (engram.Lifecycle
+	// and engram.CardState, architecture §2.3).
+	PutUserItem(ctx context.Context, arg PutUserItemParams) error
+	// On-the-fly source of truth for every tier of one user (architecture §4.2):
+	// totals, introduced, and "good shape" counts via a single GROUP BY over
+	// item_tiers <-> items <-> user_items. Good-shape = known (lifecycle=3) OR
+	// graduated-and-durable (state=Review(2) AND stability>=21d, §4.1).
+	RecomputeTierProgress(ctx context.Context, userID uuid.UUID) ([]RecomputeTierProgressRow, error)
+	// Single-tier variant of RecomputeTierProgress, for the per-answer /
+	// per-introduction transactional recompute (architecture §4.2/§5.5: "only the
+	// item's tier needs recompute").
+	RecomputeTierProgressForTier(ctx context.Context, arg RecomputeTierProgressForTierParams) (RecomputeTierProgressForTierRow, error)
+	// Re-parenting is a single-row UPDATE (architecture §2.1) — the tree is tiny,
+	// so the topic_paths recursive view stays cheap even after this.
+	ReparentTopic(ctx context.Context, arg ReparentTopicParams) error
 	ReviewStatsByDeck(ctx context.Context, arg ReviewStatsByDeckParams) ([]ReviewStatsByDeckRow, error)
 	// Random sentence for a skill key, excluding the user's last-50 seen content
 	// for that key (recently-seen exclusion, contract §4).
@@ -51,13 +135,33 @@ type Querier interface {
 	SetExerciseMessageID(ctx context.Context, arg SetExerciseMessageIDParams) error
 	SetFollowUpDelay(ctx context.Context, arg SetFollowUpDelayParams) error
 	SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabledParams) error
+	SetIntroductionMessageID(ctx context.Context, arg SetIntroductionMessageIDParams) error
 	SetLabelStyle(ctx context.Context, arg SetLabelStyleParams) error
+	// Caches the Telegram file_id after first upload so later sends can reuse it
+	// and skip re-uploading the asset (architecture §2.8, decision 6).
+	SetMediaTelegramFileID(ctx context.Context, arg SetMediaTelegramFileIDParams) error
 	SetReminderHour(ctx context.Context, arg SetReminderHourParams) error
 	SetReminders(ctx context.Context, arg SetRemindersParams) error
 	SetTimezone(ctx context.Context, arg SetTimezoneParams) error
 	SetUserDeckEnabled(ctx context.Context, arg SetUserDeckEnabledParams) error
+	// ── user_topics (per-user topic opt-in/out, §2.10) ─────────────────────────
+	SetUserTopicEnabled(ctx context.Context, arg SetUserTopicEnabledParams) error
+	// Upsert a child topic (parent_id NOT NULL), keyed by the topics_sibling_slug
+	// partial unique index.
+	UpsertChildTopic(ctx context.Context, arg UpsertChildTopicParams) (Topic, error)
+	// Keyed on iso_a2. NOTE: rows with iso_a2 IS NULL (subdivisions without an
+	// alpha-2 code) never conflict and always insert a new row — acceptable for
+	// now; subdivision seeding dedups by a caller-side lookup (GetCountryByISO on
+	// iso_a3, or a future dedicated key) before calling this.
+	UpsertCountry(ctx context.Context, arg UpsertCountryParams) (Country, error)
 	UpsertDeck(ctx context.Context, arg UpsertDeckParams) (Deck, error)
+	UpsertFactDef(ctx context.Context, arg UpsertFactDefParams) (FactDef, error)
+	UpsertItem(ctx context.Context, arg UpsertItemParams) (Item, error)
+	// Upsert a root topic (parent_id IS NULL), keyed by the topics_root_slug
+	// partial unique index.
+	UpsertRootTopic(ctx context.Context, arg UpsertRootTopicParams) (Topic, error)
 	UpsertSkill(ctx context.Context, arg UpsertSkillParams) (Skill, error)
+	UpsertTierProgress(ctx context.Context, arg UpsertTierProgressParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 	UsersWithReminders(ctx context.Context) ([]User, error)
 }

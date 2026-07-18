@@ -18,6 +18,33 @@ type ContentItem struct {
 	CharLength int32
 }
 
+type Country struct {
+	ID              uuid.UUID
+	IsoA2           pgtype.Text
+	IsoA3           pgtype.Text
+	NumericCode     pgtype.Text
+	Name            string
+	OfficialName    pgtype.Text
+	FlagEmoji       pgtype.Text
+	ParentCountryID *uuid.UUID
+	IsSubdivision   bool
+	UnMember        bool
+	GgCoverage      bool
+	CreatedAt       pgtype.Timestamptz
+}
+
+type CountryFact struct {
+	ID         uuid.UUID
+	CountryID  uuid.UUID
+	FactDefID  uuid.UUID
+	ValText    pgtype.Text
+	ValNum     pgtype.Float8
+	ValBool    pgtype.Bool
+	Source     pgtype.Text
+	ObservedAt pgtype.Date
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Deck struct {
 	ID           uuid.UUID
 	Slug         string
@@ -35,6 +62,59 @@ type Exercise struct {
 	CreatedAt  pgtype.Timestamptz
 	AnsweredAt pgtype.Timestamptz
 	MessageID  pgtype.Int8
+}
+
+type FactDef struct {
+	ID          uuid.UUID
+	Key         string
+	Label       string
+	ValueType   string
+	Unit        pgtype.Text
+	Cardinality string
+	Dataset     pgtype.Text
+	CreatedAt   pgtype.Timestamptz
+}
+
+type Introduction struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	ItemID     uuid.UUID
+	Seq        int32
+	Outcome    pgtype.Int2
+	ShownAt    pgtype.Timestamptz
+	AnsweredAt pgtype.Timestamptz
+	MessageID  pgtype.Int8
+}
+
+type Item struct {
+	ID        uuid.UUID
+	TopicID   uuid.UUID
+	Key       string
+	Label     string
+	Tier      pgtype.Int2
+	Payload   []byte
+	CountryID *uuid.UUID
+	Position  int32
+	Active    bool
+	CreatedAt pgtype.Timestamptz
+}
+
+type ItemTier struct {
+	ItemID  uuid.UUID
+	TopicID uuid.UUID
+	Tier    int16
+}
+
+type MediaFile struct {
+	ID             uuid.UUID
+	ContentID      *uuid.UUID
+	LocalPath      string
+	Sha256         pgtype.Text
+	TelegramFileID pgtype.Text
+	Width          pgtype.Int4
+	Height         pgtype.Int4
+	Bytes          pgtype.Int4
+	CreatedAt      pgtype.Timestamptz
 }
 
 type Review struct {
@@ -66,6 +146,26 @@ type Skill struct {
 	Label  string
 }
 
+type Topic struct {
+	ID            uuid.UUID
+	ParentID      *uuid.UUID
+	Slug          string
+	Name          string
+	Position      int32
+	BaseTier      int16
+	QuizKind      string
+	ExerciseModes []string
+	IsQuizzable   bool
+	Config        []byte
+	CreatedAt     pgtype.Timestamptz
+}
+
+type TopicPath struct {
+	ID    uuid.UUID
+	Path  string
+	Depth int32
+}
+
 type User struct {
 	ID               uuid.UUID
 	TelegramID       int64
@@ -78,12 +178,29 @@ type User struct {
 	ReminderHour     int32
 	FollowUpEnabled  bool
 	FollowUpDelayMin int32
+	DailyIntroCap    int32
 }
 
 type UserDeck struct {
 	UserID  uuid.UUID
 	DeckID  uuid.UUID
 	Enabled bool
+}
+
+type UserItem struct {
+	UserID       uuid.UUID
+	ItemID       uuid.UUID
+	Lifecycle    int16
+	Due          pgtype.Timestamptz
+	Stability    float64
+	Difficulty   float64
+	Reps         int32
+	Lapses       int32
+	State        int16
+	LastReview   pgtype.Timestamptz
+	IntroducedAt pgtype.Timestamptz
+	KnownAt      pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }
 
 type UserSkill struct {
@@ -96,4 +213,20 @@ type UserSkill struct {
 	Lapses     int32
 	State      int16
 	LastReview pgtype.Timestamptz
+}
+
+type UserTierProgress struct {
+	UserID          uuid.UUID
+	Tier            int16
+	TotalItems      int32
+	IntroducedItems int32
+	GoodShapeItems  int32
+	Complete        bool
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type UserTopic struct {
+	UserID  uuid.UUID
+	TopicID uuid.UUID
+	Enabled bool
 }

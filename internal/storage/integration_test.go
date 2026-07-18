@@ -325,3 +325,627 @@ func itoa(i int) string {
 	}
 	return string(b[pos:])
 }
+
+// ── v2 schema (architecture §2): topics, items, user_items, introductions,
+// countries/facts, tier progress ────────────────────────────────────────
+
+func TestV2TopicTree(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	root, err := st.UpsertTopic(ctx, nil, "languages", "Languages", 0, 0, "container", []string{"single"}, false, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert root topic: %v", err)
+	}
+	if root.ParentID != nil {
+		t.Fatalf("root topic should have nil parent")
+	}
+
+	// idempotent upsert (ON CONFLICT ... DO UPDATE)
+	root2, err := st.UpsertTopic(ctx, nil, "languages", "Languages v2", 0, 0, "container", []string{"single"}, false, []byte(`{}`))
+	if err != nil || root2.ID != root.ID || root2.Name != "Languages v2" {
+		t.Fatalf("upsert root topic not idempotent: err=%v id1=%s id2=%s name=%s", err, root.ID, root2.ID, root2.Name)
+	}
+
+	parentID := root.ID
+	child, err := st.UpsertTopic(ctx, &parentID, "special-characters", "Special characters", 0, 1, "char_language", []string{"single", "text"}, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert child topic: %v", err)
+	}
+	if child.ParentID == nil || *child.ParentID != root.ID {
+		t.Fatalf("child topic parent mismatch: %+v", child)
+	}
+
+	other, err := st.UpsertTopic(ctx, nil, "roads", "Roads", 1, 0, "container", nil, false, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert other root topic: %v", err)
+	}
+
+	children, err := st.ListChildTopics(ctx, root.ID)
+	if err != nil || len(children) != 1 || children[0].ID != child.ID {
+		t.Fatalf("list child topics = %+v, %v", children, err)
+	}
+
+	roots, err := st.ListRootTopics(ctx)
+	if err != nil || len(roots) != 2 {
+		t.Fatalf("list root topics = %d, %v", len(roots), err)
+	}
+
+	all, err := st.ListAllTopics(ctx)
+	if err != nil || len(all) != 3 {
+		t.Fatalf("list all topics = %d, %v", len(all), err)
+	}
+
+	// topic_paths recursive view
+	path, depth, found, err := st.GetTopicPath(ctx, child.ID)
+	if err != nil || !found {
+		t.Fatalf("get topic path: found=%v err=%v", found, err)
+	}
+	if path != "languages/special-characters" || depth != 1 {
+		t.Fatalf("topic path mismatch: path=%q depth=%d", path, depth)
+	}
+
+	byPath, found, err := st.GetTopicByPath(ctx, "languages/special-characters")
+	if err != nil || !found || byPath.ID != child.ID {
+		t.Fatalf("get topic by path: found=%v err=%v id=%s", found, err, byPath.ID)
+	}
+
+	// reparent: a single-row UPDATE (architecture §2.1), topic_paths follows.
+	otherID := other.ID
+	if err := st.ReparentTopic(ctx, child.ID, &otherID); err != nil {
+		t.Fatalf("reparent topic: %v", err)
+	}
+	path2, _, found, err := st.GetTopicPath(ctx, child.ID)
+	if err != nil || !found || path2 != "roads/special-characters" {
+		t.Fatalf("path after reparent = %q found=%v err=%v", path2, found, err)
+	}
+
+	// reparent back to root (nil parent)
+	if err := st.ReparentTopic(ctx, child.ID, nil); err != nil {
+		t.Fatalf("reparent to root: %v", err)
+	}
+	reRooted, found, err := st.GetTopicByID(ctx, child.ID)
+	if err != nil || !found || reRooted.ParentID != nil {
+		t.Fatalf("reparent to root failed: %+v found=%v err=%v", reRooted, found, err)
+	}
+
+	// user_topics opt-in/out (default-on when no row exists)
+	u, err := st.UpsertUser(ctx, 501, "topictester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	if err := st.SetUserTopicEnabled(ctx, u.ID, root.ID, false); err != nil {
+		t.Fatalf("set user topic enabled: %v", err)
+	}
+	uts, err := st.ListUserTopics(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("list user topics: %v", err)
+	}
+	foundDisabled := false
+	for _, ut := range uts {
+		if ut.ID == root.ID {
+			if ut.Enabled {
+				t.Fatalf("root topic should be disabled for user")
+			}
+			foundDisabled = true
+		} else if !ut.Enabled {
+			t.Fatalf("topic %s should default-enabled with no user_topics row", ut.Slug)
+		}
+	}
+	if !foundDisabled {
+		t.Fatalf("did not find root topic in ListUserTopics")
+	}
+}
+
+func TestV2ItemEffectiveTier(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	topic, err := st.UpsertTopic(ctx, nil, "chars", "Special characters", 0, 2, "char_language", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+
+	// inherits topics.base_tier (2)
+	inherited, err := st.UpsertItem(ctx, topic.ID, "cyr", "Cyrillic script", nil, []byte(`{}`), nil, 0, true)
+	if err != nil {
+		t.Fatalf("upsert inherited item: %v", err)
+	}
+	// per-item override to tier 4
+	overrideTier := int16(4)
+	overridden, err := st.UpsertItem(ctx, topic.ID, "obscure-diacritic", "obscure diacritic", &overrideTier, []byte(`{}`), nil, 1, true)
+	if err != nil {
+		t.Fatalf("upsert overridden item: %v", err)
+	}
+
+	tier, err := st.GetItemEffectiveTier(ctx, inherited.ID)
+	if err != nil || tier != 2 {
+		t.Fatalf("inherited effective tier = %d, %v (want 2)", tier, err)
+	}
+	tier2, err := st.GetItemEffectiveTier(ctx, overridden.ID)
+	if err != nil || tier2 != 4 {
+		t.Fatalf("overridden effective tier = %d, %v (want 4)", tier2, err)
+	}
+
+	withTiers, err := st.ListItemsWithTierByTopic(ctx, topic.ID)
+	if err != nil || len(withTiers) != 2 {
+		t.Fatalf("list items with tier = %d, %v", len(withTiers), err)
+	}
+	for _, it := range withTiers {
+		switch it.Key {
+		case "cyr":
+			if it.EffectiveTier != 2 || it.Tier != nil {
+				t.Fatalf("cyr mismatch: %+v", it)
+			}
+		case "obscure-diacritic":
+			if it.EffectiveTier != 4 || it.Tier == nil || *it.Tier != 4 {
+				t.Fatalf("override mismatch: %+v", it)
+			}
+		}
+	}
+
+	active, err := st.ListActiveItemsByTopic(ctx, topic.ID)
+	if err != nil || len(active) != 2 {
+		t.Fatalf("active items = %d, %v", len(active), err)
+	}
+}
+
+func TestV2UserItemLifecycle(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 601, "lifecycle-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	topic, err := st.UpsertTopic(ctx, nil, "words", "Common words", 0, 0, "word_language", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+	item, err := st.UpsertItem(ctx, topic.ID, "ulica", "street (pol)", nil, []byte(`{}`), nil, 0, true)
+	if err != nil {
+		t.Fatalf("upsert item: %v", err)
+	}
+
+	// absence of a row == implicitly new (architecture §2.3)
+	_, found, err := st.GetUserItem(ctx, u.ID, item.ID)
+	if err != nil || found {
+		t.Fatalf("expected no user_item row: found=%v err=%v", found, err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Introduce(IntroGotIt): new -> introduced, fresh card
+	card := storage.CardFields{Due: now, State: 0}
+	if err := st.PutUserItem(ctx, u.ID, item.ID, 1, card, now, time.Time{}); err != nil {
+		t.Fatalf("put user item (introduced): %v", err)
+	}
+	ui, found, err := st.GetUserItem(ctx, u.ID, item.ID)
+	if err != nil || !found || ui.Lifecycle != 1 {
+		t.Fatalf("get user item after introduce: %+v found=%v err=%v", ui, found, err)
+	}
+	if ui.IntroducedAt.IsZero() {
+		t.Fatalf("introduced_at should be set")
+	}
+
+	// graduate -> reviewing with a due card
+	card2 := storage.CardFields{Due: now.Add(48 * time.Hour), Stability: 25, Difficulty: 5, Reps: 3, State: 2, LastReview: now}
+	if err := st.PutUserItem(ctx, u.ID, item.ID, 2, card2, ui.IntroducedAt, time.Time{}); err != nil {
+		t.Fatalf("put user item (reviewing): %v", err)
+	}
+
+	reviewing, err := st.ListUserItemsByLifecycle(ctx, u.ID, 2)
+	if err != nil || len(reviewing) != 1 || reviewing[0].ItemID != item.ID {
+		t.Fatalf("list by lifecycle=reviewing: %+v, %v", reviewing, err)
+	}
+
+	due, err := st.ListDueUserItems(ctx, u.ID, now.Add(72*time.Hour))
+	if err != nil || len(due) != 1 || due[0].Key != "ulica" {
+		t.Fatalf("list due user items: %+v, %v", due, err)
+	}
+	notYetDue, err := st.ListDueUserItems(ctx, u.ID, now)
+	if err != nil || len(notYetDue) != 0 {
+		t.Fatalf("list due user items too early: %+v, %v", notYetDue, err)
+	}
+
+	// candidate intro items: a fresh item in an unlocked tier should show up;
+	// the already-introduced item must not (lifecycle no longer new).
+	item2, err := st.UpsertItem(ctx, topic.ID, "droga", "road (pol)", nil, []byte(`{}`), nil, 1, true)
+	if err != nil {
+		t.Fatalf("upsert item2: %v", err)
+	}
+	candidates, err := st.ListCandidateIntroItems(ctx, u.ID, []int16{0, 1})
+	if err != nil {
+		t.Fatalf("list candidate intro items: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].ItemID != item2.ID {
+		t.Fatalf("candidates = %+v, want only item2", candidates)
+	}
+	// locked tier (2) excludes everything even though item2 is tier 0
+	locked, err := st.ListCandidateIntroItems(ctx, u.ID, []int16{2})
+	if err != nil || len(locked) != 0 {
+		t.Fatalf("candidates for locked tier = %+v, %v", locked, err)
+	}
+
+	// Introduce(IntroKnown): mark item known -> terminal, no active card
+	if err := st.PutUserItem(ctx, u.ID, item.ID, 3, storage.CardFields{}, ui.IntroducedAt, now); err != nil {
+		t.Fatalf("put user item (known): %v", err)
+	}
+	known, err := st.ListUserItemsByLifecycle(ctx, u.ID, 3)
+	if err != nil || len(known) != 1 {
+		t.Fatalf("list known: %+v, %v", known, err)
+	}
+	if known[0].KnownAt.IsZero() {
+		t.Fatalf("known_at should be set")
+	}
+}
+
+func TestV2Introductions(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 701, "intro-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	topic, err := st.UpsertTopic(ctx, nil, "flags", "Flags", 0, 0, "container", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+	item, err := st.UpsertItem(ctx, topic.ID, "FR", "France", nil, []byte(`{}`), nil, 0, true)
+	if err != nil {
+		t.Fatalf("upsert item: %v", err)
+	}
+
+	seq, err := st.NextIntroSeq(ctx, u.ID, item.ID)
+	if err != nil || seq != 1 {
+		t.Fatalf("next intro seq = %d, %v (want 1)", seq, err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	intro, err := st.InsertIntroduction(ctx, u.ID, item.ID, seq, now)
+	if err != nil {
+		t.Fatalf("insert introduction: %v", err)
+	}
+	if intro.Outcome != nil {
+		t.Fatalf("fresh introduction should have nil outcome, got %+v", intro)
+	}
+
+	open, found, err := st.GetLatestOpenIntroductionForItem(ctx, u.ID, item.ID)
+	if err != nil || !found || open.ID != intro.ID {
+		t.Fatalf("get latest open introduction for item: found=%v err=%v", found, err)
+	}
+	openAny, found, err := st.GetLatestOpenIntroduction(ctx, u.ID)
+	if err != nil || !found || openAny.ID != intro.ID {
+		t.Fatalf("get latest open introduction: found=%v err=%v", found, err)
+	}
+
+	answered, err := st.AnswerIntroduction(ctx, intro.ID, 0, now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("answer introduction: %v", err)
+	}
+	if answered.Outcome == nil || *answered.Outcome != 0 {
+		t.Fatalf("answered outcome mismatch: %+v", answered)
+	}
+
+	// no longer open once answered
+	_, found, err = st.GetLatestOpenIntroductionForItem(ctx, u.ID, item.ID)
+	if err != nil || found {
+		t.Fatalf("introduction should no longer be open: found=%v err=%v", found, err)
+	}
+
+	// "introduced today" count over the local-day [from, to) bounds the caller supplies
+	dayStart := now.Truncate(24 * time.Hour)
+	dayEnd := dayStart.Add(24 * time.Hour)
+	cnt, err := st.CountIntroductionsToday(ctx, u.ID, dayStart, dayEnd)
+	if err != nil || cnt != 1 {
+		t.Fatalf("count introductions today = %d, %v", cnt, err)
+	}
+	cntTomorrow, err := st.CountIntroductionsToday(ctx, u.ID, dayEnd, dayEnd.Add(24*time.Hour))
+	if err != nil || cntTomorrow != 0 {
+		t.Fatalf("count introductions tomorrow = %d, %v", cntTomorrow, err)
+	}
+
+	// re-view: seq increments
+	seq2, err := st.NextIntroSeq(ctx, u.ID, item.ID)
+	if err != nil || seq2 != 2 {
+		t.Fatalf("next intro seq after answer = %d, %v (want 2)", seq2, err)
+	}
+
+	if err := st.SetIntroductionMessageID(ctx, intro.ID, 4242); err != nil {
+		t.Fatalf("set introduction message id: %v", err)
+	}
+}
+
+func TestV2CountriesFacts(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	moro, err := st.UpsertCountry(ctx, storage.Country{ISOA2: "MA", ISOA3: "MAR", Name: "Morocco", UNMember: true, GGCoverage: true})
+	if err != nil {
+		t.Fatalf("upsert Morocco: %v", err)
+	}
+	fra, err := st.UpsertCountry(ctx, storage.Country{ISOA2: "FR", ISOA3: "FRA", Name: "France", UNMember: true, GGCoverage: true})
+	if err != nil {
+		t.Fatalf("upsert France: %v", err)
+	}
+	// idempotent upsert on iso_a2
+	moro2, err := st.UpsertCountry(ctx, storage.Country{ISOA2: "MA", ISOA3: "MAR", Name: "Kingdom of Morocco", UNMember: true, GGCoverage: true})
+	if err != nil || moro2.ID != moro.ID || moro2.Name != "Kingdom of Morocco" {
+		t.Fatalf("upsert country not idempotent: %v moro2=%+v", err, moro2)
+	}
+
+	byISO, found, err := st.GetCountryByISO(ctx, "FR")
+	if err != nil || !found || byISO.ID != fra.ID {
+		t.Fatalf("get country by iso: found=%v err=%v", found, err)
+	}
+	byISOA3, found, err := st.GetCountryByISOA3(ctx, "MAR")
+	if err != nil || !found || byISOA3.ID != moro.ID {
+		t.Fatalf("get country by iso a3: found=%v err=%v", found, err)
+	}
+
+	all, err := st.ListCountries(ctx)
+	if err != nil || len(all) != 2 {
+		t.Fatalf("list countries = %d, %v", len(all), err)
+	}
+	byFlags, err := st.ListCountriesByFlags(ctx, true, true)
+	if err != nil || len(byFlags) != 2 {
+		t.Fatalf("list countries by flags = %d, %v", len(byFlags), err)
+	}
+
+	drivesOn, err := st.UpsertFactDef(ctx, "drives_on", "Drives on", "text", "", "single", "baseline")
+	if err != nil {
+		t.Fatalf("upsert drives_on fact def: %v", err)
+	}
+	religion, err := st.UpsertFactDef(ctx, "main_religion", "Main religion", "text", "", "single", "baseline")
+	if err != nil {
+		t.Fatalf("upsert main_religion fact def: %v", err)
+	}
+
+	left, right, islam, catholic := "left", "right", "Islam", "Roman Catholicism"
+	if _, err := st.InsertCountryFact(ctx, moro.ID, drivesOn.ID, &left, nil, nil, "baseline", time.Time{}); err != nil {
+		t.Fatalf("insert morocco drives_on: %v", err)
+	}
+	if _, err := st.InsertCountryFact(ctx, moro.ID, religion.ID, &islam, nil, nil, "baseline", time.Time{}); err != nil {
+		t.Fatalf("insert morocco religion: %v", err)
+	}
+	if _, err := st.InsertCountryFact(ctx, fra.ID, drivesOn.ID, &right, nil, nil, "baseline", time.Time{}); err != nil {
+		t.Fatalf("insert france drives_on: %v", err)
+	}
+	if _, err := st.InsertCountryFact(ctx, fra.ID, religion.ID, &catholic, nil, nil, "baseline", time.Time{}); err != nil {
+		t.Fatalf("insert france religion: %v", err)
+	}
+
+	byDef, err := st.ListCountryFactsByDefKey(ctx, "drives_on")
+	if err != nil || len(byDef) != 2 {
+		t.Fatalf("list facts by def key = %d, %v", len(byDef), err)
+	}
+
+	forMorocco, err := st.ListFactsForCountry(ctx, moro.ID)
+	if err != nil || len(forMorocco) != 2 {
+		t.Fatalf("list facts for morocco = %d, %v", len(forMorocco), err)
+	}
+	for _, f := range forMorocco {
+		if f.FactKey == "drives_on" && (f.ValText == nil || *f.ValText != "left") {
+			t.Fatalf("morocco drives_on mismatch: %+v", f)
+		}
+	}
+
+	// Arbitrary-filter join (architecture §2.7): "drive on the left AND Islam
+	// main religion" is plain SQL over countries/country_facts/fact_defs — no
+	// dedicated Store method needed, the schema just supports it directly.
+	rows, err := st.Pool().Query(ctx, `
+		SELECT c.name FROM countries c
+		JOIN country_facts fd ON fd.country_id=c.id JOIN fact_defs dd ON dd.id=fd.fact_def_id AND dd.key='drives_on'
+		JOIN country_facts fr ON fr.country_id=c.id JOIN fact_defs dr ON dr.id=fr.fact_def_id AND dr.key='main_religion'
+		WHERE fd.val_text=$1 AND fr.val_text=$2`, left, islam)
+	if err != nil {
+		t.Fatalf("arbitrary filter join: %v", err)
+	}
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			t.Fatalf("scan: %v", err)
+		}
+		names = append(names, name)
+	}
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		t.Fatalf("rows err: %v", rowsErr)
+	}
+	if len(names) != 1 || names[0] != "Kingdom of Morocco" {
+		t.Fatalf("arbitrary filter join result = %v, want [Kingdom of Morocco]", names)
+	}
+
+	// CHECK constraint: exactly one of val_text/val_num/val_bool must be set.
+	if _, err := st.InsertCountryFact(ctx, fra.ID, drivesOn.ID, nil, nil, nil, "baseline", time.Time{}); err == nil {
+		t.Fatalf("expected CHECK violation when no typed value is set")
+	}
+
+	// wholesale replace of a multi-valued fact
+	if err := st.DeleteCountryFactsByDef(ctx, fra.ID, religion.ID); err != nil {
+		t.Fatalf("delete country facts by def: %v", err)
+	}
+	afterDelete, err := st.ListFactsForCountry(ctx, fra.ID)
+	if err != nil || len(afterDelete) != 1 {
+		t.Fatalf("facts for france after delete = %d, %v", len(afterDelete), err)
+	}
+}
+
+func TestV2MediaFiles(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	width, height, byteSize := 800, 600, 123456
+	m, err := st.PutMediaFile(ctx, nil, "photos/fr/roundabout1.jpg", "abc123", &width, &height, &byteSize)
+	if err != nil {
+		t.Fatalf("put media file: %v", err)
+	}
+	if m.Width != 800 || m.Height != 600 || m.Bytes != 123456 || m.SHA256 != "abc123" {
+		t.Fatalf("media dimensions mismatch: %+v", m)
+	}
+	if m.ContentID != nil {
+		t.Fatalf("content id should be nil (unlinked)")
+	}
+
+	byPath, found, err := st.GetMediaByLocalPath(ctx, "photos/fr/roundabout1.jpg")
+	if err != nil || !found || byPath.ID != m.ID {
+		t.Fatalf("get media by local path: found=%v err=%v", found, err)
+	}
+
+	if err := st.SetMediaTelegramFileID(ctx, m.ID, "AgACAgQAAx"); err != nil {
+		t.Fatalf("set telegram file id: %v", err)
+	}
+	updated, found, err := st.GetMediaByLocalPath(ctx, "photos/fr/roundabout1.jpg")
+	if err != nil || !found || updated.TelegramFileID != "AgACAgQAAx" {
+		t.Fatalf("telegram file id not persisted: %+v", updated)
+	}
+
+	// idempotent upsert on local_path; telegram_file_id survives (not in SET clause)
+	width2 := 900
+	m2, err := st.PutMediaFile(ctx, nil, "photos/fr/roundabout1.jpg", "abc123", &width2, &height, &byteSize)
+	if err != nil || m2.ID != m.ID || m2.Width != 900 {
+		t.Fatalf("put media file not idempotent: %v m2=%+v", err, m2)
+	}
+	if m2.TelegramFileID != "AgACAgQAAx" {
+		t.Fatalf("telegram file id should survive upsert: got %q", m2.TelegramFileID)
+	}
+}
+
+func TestV2TierProgress(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 801, "tier-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	topic, err := st.UpsertTopic(ctx, nil, "roadside", "Road side", 0, 1, "road_side", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+
+	// 4 items, all at tier 1 (inherited base_tier)
+	items := make([]storage.Item, 0, 4)
+	for i, key := range []string{"a", "b", "c", "d"} {
+		it, err := st.UpsertItem(ctx, topic.ID, key, key, nil, []byte(`{}`), nil, i, true)
+		if err != nil {
+			t.Fatalf("upsert item %s: %v", key, err)
+		}
+		items = append(items, it)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	// a: known -> good shape (§4.1: lifecycle=known counts regardless of card)
+	if err := st.PutUserItem(ctx, u.ID, items[0].ID, 3, storage.CardFields{}, now, now); err != nil {
+		t.Fatalf("put item a: %v", err)
+	}
+	// b: reviewing, graduated + durable (state=Review, stability>=21d) -> good shape
+	if err := st.PutUserItem(ctx, u.ID, items[1].ID, 2, storage.CardFields{Due: now, Stability: 25, State: 2, LastReview: now}, now, time.Time{}); err != nil {
+		t.Fatalf("put item b: %v", err)
+	}
+	// c: reviewing but not durable yet (stability<21) -> introduced, not good shape
+	if err := st.PutUserItem(ctx, u.ID, items[2].ID, 2, storage.CardFields{Due: now, Stability: 5, State: 2, LastReview: now}, now, time.Time{}); err != nil {
+		t.Fatalf("put item c: %v", err)
+	}
+	// d: left as new (no user_items row)
+
+	rows, err := st.RecomputeTierProgress(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("recompute tier progress: %v", err)
+	}
+	var tier1 *storage.TierProgress
+	for i := range rows {
+		if rows[i].Tier == 1 {
+			tier1 = &rows[i]
+		}
+	}
+	if tier1 == nil {
+		t.Fatalf("no tier=1 row in recompute: %+v", rows)
+	}
+	if tier1.TotalItems != 4 || tier1.IntroducedItems != 3 || tier1.GoodShapeItems != 2 {
+		t.Fatalf("tier1 progress mismatch: %+v (want total=4 introduced=3 good=2)", tier1)
+	}
+
+	single, found, err := st.RecomputeTierProgressForTier(ctx, u.ID, 1)
+	if err != nil || !found {
+		t.Fatalf("recompute tier progress for tier: found=%v err=%v", found, err)
+	}
+	if single.TotalItems != 4 || single.IntroducedItems != 3 || single.GoodShapeItems != 2 {
+		t.Fatalf("single-tier recompute mismatch: %+v", single)
+	}
+
+	_, found, err = st.RecomputeTierProgressForTier(ctx, u.ID, 9)
+	if err != nil {
+		t.Fatalf("recompute empty tier: %v", err)
+	}
+	if found {
+		t.Fatalf("tier 9 has no items, should not be found")
+	}
+
+	// cache write + read-back (tier-complete policy lives in the caller, §4.1:
+	// introduced==total AND good_shape/total >= 80%)
+	single.Complete = single.IntroducedItems == single.TotalItems && single.GoodShapeItems*100 >= single.TotalItems*80
+	if err := st.UpsertTierProgress(ctx, single); err != nil {
+		t.Fatalf("upsert tier progress: %v", err)
+	}
+	cached, err := st.ListTierProgressForUser(ctx, u.ID)
+	if err != nil || len(cached) != 1 || cached[0].Tier != 1 {
+		t.Fatalf("list tier progress for user: %+v, %v", cached, err)
+	}
+	if cached[0].Complete {
+		t.Fatalf("tier1 should not be complete (only 3/4 introduced)")
+	}
+}
