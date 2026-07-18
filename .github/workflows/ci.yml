@@ -1,0 +1,129 @@
+name: CI
+
+# Every job below checks out BOTH geodrill and engram: geodrill's go.work
+# resolves github.com/supercakecrumb/engram ONLY via the relative path
+# ../../Packages/engram (no versioned `require` yet — see go.mod's comment
+# and vibe/geodrill-v2-architecture.md §7.3), so we reproduce the same
+# relative layout on the runner: geodrill under PersonalProjects/geodrill,
+# engram under Packages/engram. `../../Packages/engram` from
+# PersonalProjects/geodrill resolves to <workspace>/Packages/engram, which is
+# exactly where the second checkout below places it.
+#
+# NEVER run `go mod tidy` here (would try to resolve engram over the network
+# and fail, or corrupt the co-development workspace setup).
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout geodrill
+        uses: actions/checkout@v7
+        with:
+          path: PersonalProjects/geodrill
+
+      - name: Checkout engram (go.work dependency)
+        uses: actions/checkout@v7
+        with:
+          repository: supercakecrumb/engram
+          ref: master
+          path: Packages/engram
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: PersonalProjects/geodrill/go.mod
+
+      # Pinned explicitly rather than left to the local dev tool version
+      # (2.5.0): that binary is built with go1.25 and cannot lint code
+      # targeting `go 1.26` (go.mod) — it fails fast (older releases) or
+      # panics part-way through type-checking (this repo's actual failure
+      # mode). v2.12.2 is built with go1.26.2. See .golangci.yml for the
+      # (documented, targeted) overrides needed on top of the default rule
+      # set for this repo's existing code.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: PersonalProjects/geodrill
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          # Name MUST contain "test" — internal/storage's testDSN() and
+          # internal/train's testDSN() both refuse to run these destructive
+          # (drop-all-tables) integration tests against any database whose
+          # name doesn't contain "test", as a fuse against ever pointing them
+          # at the live bot's database.
+          POSTGRES_DB: geodrill_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout geodrill
+        uses: actions/checkout@v7
+        with:
+          path: PersonalProjects/geodrill
+
+      - name: Checkout engram (go.work dependency)
+        uses: actions/checkout@v7
+        with:
+          repository: supercakecrumb/engram
+          ref: master
+          path: Packages/engram
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: PersonalProjects/geodrill/go.mod
+
+      - name: Unit tests
+        working-directory: PersonalProjects/geodrill
+        run: go test ./...
+
+      - name: Integration tests (against the postgres service above)
+        working-directory: PersonalProjects/geodrill
+        env:
+          GEODRILL_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/geodrill_test?sslmode=disable
+        run: go test -p 1 ./...
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout geodrill
+        uses: actions/checkout@v7
+        with:
+          path: PersonalProjects/geodrill
+
+      - name: Checkout engram (go.work dependency)
+        uses: actions/checkout@v7
+        with:
+          repository: supercakecrumb/engram
+          ref: master
+          path: Packages/engram
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: PersonalProjects/geodrill/go.mod
+
+      - name: Build
+        working-directory: PersonalProjects/geodrill
+        run: go build ./...
