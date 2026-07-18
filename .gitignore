@@ -3,8 +3,8 @@
 
 # Build output
 /bin/
-geodrill
-ingest
+/geodrill
+/ingest
 *.exe
 
 # Env / secrets
