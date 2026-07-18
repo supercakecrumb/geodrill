@@ -26,8 +26,10 @@ type Querier interface {
 	// left lifecycle=new (Introduced, Reviewing, or Known).
 	CountIntroducedItems(ctx context.Context, userID uuid.UUID) (int64, error)
 	// "Introduced today" for the daily budget (architecture §2.4): distinct items
-	// with a first-exposure (seq=1), answered outcome, inside the caller-supplied
-	// local-day [from, to) bounds.
+	// with a first-exposure (seq=1), a genuinely-introduced outcome, inside the
+	// caller-supplied local-day [from, to) bounds. Excludes outcome=1
+	// (engram.IntroKnown, "I know this"): that outcome never actually introduces
+	// the item, so it must not spend the daily intro budget.
 	CountIntroductionsToday(ctx context.Context, arg CountIntroductionsTodayParams) (int64, error)
 	// internal/study.Service.Stats, "known" count: items marked known via
 	// the "I know this" intro outcome.

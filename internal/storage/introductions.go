@@ -131,8 +131,11 @@ func (s *Store) AnswerIntroductionOnce(ctx context.Context, introID uuid.UUID, o
 }
 
 // CountIntroductionsToday counts distinct items with a first-exposure
-// (seq=1), answered outcome, inside the caller-supplied local-day [from, to)
-// bounds — the daily introduction budget's spent count (architecture §2.4).
+// (seq=1), a genuinely-introduced outcome, inside the caller-supplied
+// local-day [from, to) bounds — the daily introduction budget's spent count
+// (architecture §2.4). Excludes the "I know this" outcome (engram.IntroKnown):
+// that outcome never actually introduces the item, so it must not spend the
+// budget.
 func (s *Store) CountIntroductionsToday(ctx context.Context, userID uuid.UUID, from, to time.Time) (int, error) {
 	n, err := s.q.CountIntroductionsToday(ctx, db.CountIntroductionsTodayParams{
 		UserID:       userID,

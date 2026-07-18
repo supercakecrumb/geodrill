@@ -835,3 +835,79 @@ func TestFullLoop(t *testing.T) {
 		t.Fatalf("expected the roadside seed data to include tier>=2 items (this check would be vacuous otherwise)")
 	}
 }
+
+// TestKnownOutcomeDoesNotConsumeIntroBudget guards against a regression
+// where answering an intro card "I know this" (engram.IntroKnown) consumed
+// the daily introduction budget even though the item was never actually
+// introduced to the user. With daily_intro_cap=1: answering the first card
+// as IntroKnown must leave the budget untouched (the second NextIntro call
+// still succeeds), while a genuine IntroGotIt answer DOES spend it (the
+// third NextIntro call is budget-exhausted).
+func TestKnownOutcomeDoesNotConsumeIntroBudget(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	store, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer store.Close()
+
+	registerGenerators(store)
+	seedAllTopics(t, ctx, store)
+
+	sched := engram.NewScheduler()
+	svc := study.New(store, sched, study.GlobalRegistry, nil, 7)
+
+	user, err := store.UpsertUser(ctx, 900020, "known-budget-tester")
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	if err := store.SetIntroCap(ctx, user.ID, 1); err != nil {
+		t.Fatalf("SetIntroCap: %v", err)
+	}
+
+	known, err := svc.NextIntro(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("NextIntro (first): %v", err)
+	}
+	if known.Reason != telegram.IntroOK {
+		t.Fatalf("expected IntroOK for the first card, got reason=%v", known.Reason)
+	}
+	if _, err := svc.AnswerIntro(ctx, user.ID, known.IntroID, engram.IntroKnown); err != nil {
+		t.Fatalf("AnswerIntro (known): %v", err)
+	}
+
+	_, budgetLeftAfterKnown, err := svc.IntroSummary(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("IntroSummary after known: %v", err)
+	}
+	if budgetLeftAfterKnown != 1 {
+		t.Fatalf("a known-outcome introduction must not consume the daily budget: expected budgetLeft=1, got %d", budgetLeftAfterKnown)
+	}
+
+	second, err := svc.NextIntro(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("NextIntro (second, after known): %v", err)
+	}
+	if second.Reason != telegram.IntroOK {
+		t.Fatalf("expected the second card still available under cap=1 (known must not spend budget), got reason=%v", second.Reason)
+	}
+	if second.ItemID == known.ItemID {
+		t.Fatalf("expected a different item for the second card")
+	}
+
+	// A genuine "got it" DOES spend the budget: the next NextIntro call must
+	// be budget-exhausted under cap=1.
+	if _, err := svc.AnswerIntro(ctx, user.ID, second.IntroID, engram.IntroGotIt); err != nil {
+		t.Fatalf("AnswerIntro (got_it): %v", err)
+	}
+	third, err := svc.NextIntro(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("NextIntro (third, after got_it): %v", err)
+	}
+	if third.Reason != telegram.IntroBudgetExhausted {
+		t.Fatalf("expected IntroBudgetExhausted after a genuine introduction under cap=1, got reason=%v", third.Reason)
+	}
+}

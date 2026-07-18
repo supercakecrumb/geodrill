@@ -577,6 +577,85 @@ func TestIntroductions(t *testing.T) {
 	}
 }
 
+// TestCountIntroductionsToday_ExcludesKnownOutcome guards against a
+// regression where "I know this" (outcome=1, engram.IntroKnown) consumed
+// the daily intro budget: that outcome never actually introduces the item,
+// so CountIntroductionsToday must not count it, while a genuine
+// first-exposure outcome (e.g. "got it") still must.
+func TestCountIntroductionsToday_ExcludesKnownOutcome(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 702, "known-budget-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	topic, err := st.UpsertTopic(ctx, nil, "flags2", "Flags2", 0, 0, "container", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	dayStart := now.Truncate(24 * time.Hour)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	// Item A: answered "I know this" (outcome=1) — must NOT count toward the
+	// daily intro budget.
+	itemA, err := st.UpsertItem(ctx, topic.ID, "DE", "Germany", nil, []byte(`{}`), nil, 0, true)
+	if err != nil {
+		t.Fatalf("upsert item A: %v", err)
+	}
+	seqA, err := st.NextIntroSeq(ctx, u.ID, itemA.ID)
+	if err != nil {
+		t.Fatalf("next intro seq A: %v", err)
+	}
+	introA, err := st.InsertIntroduction(ctx, u.ID, itemA.ID, seqA, now)
+	if err != nil {
+		t.Fatalf("insert introduction A: %v", err)
+	}
+	if _, err := st.AnswerIntroduction(ctx, introA.ID, 1, now.Add(time.Minute)); err != nil {
+		t.Fatalf("answer introduction A (known): %v", err)
+	}
+	cntAfterKnown, err := st.CountIntroductionsToday(ctx, u.ID, dayStart, dayEnd)
+	if err != nil {
+		t.Fatalf("count after known: %v", err)
+	}
+	if cntAfterKnown != 0 {
+		t.Fatalf("a known-outcome introduction must not count toward the daily budget, got %d", cntAfterKnown)
+	}
+
+	// Item B: answered "got it" (outcome=0) — a genuine introduction, must count.
+	itemB, err := st.UpsertItem(ctx, topic.ID, "IT", "Italy", nil, []byte(`{}`), nil, 1, true)
+	if err != nil {
+		t.Fatalf("upsert item B: %v", err)
+	}
+	seqB, err := st.NextIntroSeq(ctx, u.ID, itemB.ID)
+	if err != nil {
+		t.Fatalf("next intro seq B: %v", err)
+	}
+	introB, err := st.InsertIntroduction(ctx, u.ID, itemB.ID, seqB, now)
+	if err != nil {
+		t.Fatalf("insert introduction B: %v", err)
+	}
+	if _, err := st.AnswerIntroduction(ctx, introB.ID, 0, now.Add(time.Minute)); err != nil {
+		t.Fatalf("answer introduction B (got_it): %v", err)
+	}
+	cntAfterGotIt, err := st.CountIntroductionsToday(ctx, u.ID, dayStart, dayEnd)
+	if err != nil {
+		t.Fatalf("count after got_it: %v", err)
+	}
+	if cntAfterGotIt != 1 {
+		t.Fatalf("a genuinely-introduced item must count toward the daily budget, got %d", cntAfterGotIt)
+	}
+}
+
 func TestCountriesFacts(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)

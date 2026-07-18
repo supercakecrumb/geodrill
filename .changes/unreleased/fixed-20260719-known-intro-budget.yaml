@@ -1,0 +1,2 @@
+kind: Fixed
+body: "Answering an intro card with \"I know this\" no longer consumes the daily introduction budget: CountIntroductionsToday now excludes the known outcome (engram.IntroKnown), since that outcome never actually introduces the item"

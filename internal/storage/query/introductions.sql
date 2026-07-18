@@ -30,10 +30,12 @@ LIMIT 1;
 
 -- name: CountIntroductionsToday :one
 -- "Introduced today" for the daily budget (architecture §2.4): distinct items
--- with a first-exposure (seq=1), answered outcome, inside the caller-supplied
--- local-day [from, to) bounds.
+-- with a first-exposure (seq=1), a genuinely-introduced outcome, inside the
+-- caller-supplied local-day [from, to) bounds. Excludes outcome=1
+-- (engram.IntroKnown, "I know this"): that outcome never actually introduces
+-- the item, so it must not spend the daily intro budget.
 SELECT count(DISTINCT item_id) FROM introductions
-WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL
+WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL AND outcome != 1
   AND answered_at >= $2 AND answered_at < $3;
 
 -- name: GetIntroductionByID :one

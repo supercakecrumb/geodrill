@@ -73,7 +73,7 @@ func (q *Queries) AnswerIntroductionOnce(ctx context.Context, arg AnswerIntroduc
 
 const countIntroductionsToday = `-- name: CountIntroductionsToday :one
 SELECT count(DISTINCT item_id) FROM introductions
-WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL
+WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL AND outcome != 1
   AND answered_at >= $2 AND answered_at < $3
 `
 
@@ -84,8 +84,10 @@ type CountIntroductionsTodayParams struct {
 }
 
 // "Introduced today" for the daily budget (architecture §2.4): distinct items
-// with a first-exposure (seq=1), answered outcome, inside the caller-supplied
-// local-day [from, to) bounds.
+// with a first-exposure (seq=1), a genuinely-introduced outcome, inside the
+// caller-supplied local-day [from, to) bounds. Excludes outcome=1
+// (engram.IntroKnown, "I know this"): that outcome never actually introduces
+// the item, so it must not spend the daily intro budget.
 func (q *Queries) CountIntroductionsToday(ctx context.Context, arg CountIntroductionsTodayParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countIntroductionsToday, arg.UserID, arg.AnsweredAt, arg.AnsweredAt_2)
 	var count int64
