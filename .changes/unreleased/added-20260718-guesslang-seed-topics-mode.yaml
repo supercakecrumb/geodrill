@@ -1,0 +1,2 @@
+kind: Added
+body: "Add cmd/ingest -seed-topics mode: seeds every v2 topic package's topics/items (specialchars, guesslang, words, roadside) against the target database in one idempotent pass, satisfying -backfill-v2's precondition that languages/guess-the-language already exists — all existing ingest modes (default, -seed-only, -backfill-v2) keep working unchanged"
