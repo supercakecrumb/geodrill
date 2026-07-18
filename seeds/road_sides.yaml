@@ -1,0 +1,505 @@
+road_sides:
+  - country: "AD"
+    side: right
+  - country: "AE"
+    side: right
+  - country: "AF"
+    side: right
+  - country: "AG"
+    side: left
+  - country: "AI"
+    side: left
+  - country: "AL"
+    side: right
+  - country: "AM"
+    side: right
+  - country: "AO"
+    side: right
+  - country: "AQ"
+    side: right
+  - country: "AR"
+    side: right
+  - country: "AS"
+    side: right
+  - country: "AT"
+    side: right
+  - country: "AU"
+    side: left
+  - country: "AW"
+    side: right
+  - country: "AX"
+    side: right
+  - country: "AZ"
+    side: right
+  - country: "BA"
+    side: right
+  - country: "BB"
+    side: left
+  - country: "BD"
+    side: left
+  - country: "BE"
+    side: right
+  - country: "BF"
+    side: right
+  - country: "BG"
+    side: right
+  - country: "BH"
+    side: right
+  - country: "BI"
+    side: right
+  - country: "BJ"
+    side: right
+  - country: "BL"
+    side: right
+  - country: "BM"
+    side: left
+  - country: "BN"
+    side: left
+  - country: "BO"
+    side: right
+  - country: "BQ"
+    side: right
+  - country: "BR"
+    side: right
+  - country: "BS"
+    side: left
+  - country: "BT"
+    side: left
+  - country: "BV"
+    side: right
+  - country: "BW"
+    side: left
+  - country: "BY"
+    side: right
+  - country: "BZ"
+    side: right
+  - country: "CA"
+    side: right
+  - country: "CC"
+    side: left
+  - country: "CD"
+    side: right
+  - country: "CF"
+    side: right
+  - country: "CG"
+    side: right
+  - country: "CH"
+    side: right
+  - country: "CI"
+    side: right
+  - country: "CK"
+    side: left
+  - country: "CL"
+    side: right
+  - country: "CM"
+    side: right
+  - country: "CN"
+    side: right
+  - country: "CO"
+    side: right
+  - country: "CR"
+    side: right
+  - country: "CU"
+    side: right
+  - country: "CV"
+    side: right
+  - country: "CW"
+    side: right
+  - country: "CX"
+    side: left
+  - country: "CY"
+    side: left
+  - country: "CZ"
+    side: right
+  - country: "DE"
+    side: right
+  - country: "DJ"
+    side: right
+  - country: "DK"
+    side: right
+  - country: "DM"
+    side: left
+  - country: "DO"
+    side: right
+  - country: "DZ"
+    side: right
+  - country: "EC"
+    side: right
+  - country: "EE"
+    side: right
+  - country: "EG"
+    side: right
+  - country: "EH"
+    side: right
+  - country: "ER"
+    side: right
+  - country: "ES"
+    side: right
+  - country: "ET"
+    side: right
+  - country: "FI"
+    side: right
+  - country: "FJ"
+    side: left
+  - country: "FK"
+    side: left
+  - country: "FM"
+    side: right
+  - country: "FO"
+    side: right
+  - country: "FR"
+    side: right
+  - country: "GA"
+    side: right
+  - country: "GB"
+    side: left
+  - country: "GB-ENG"
+    side: left
+  - country: "GB-SCT"
+    side: left
+  - country: "GB-WLS"
+    side: left
+  - country: "GD"
+    side: left
+  - country: "GE"
+    side: right
+  - country: "GF"
+    side: right
+  - country: "GG"
+    side: left
+  - country: "GH"
+    side: right
+  - country: "GI"
+    side: right
+  - country: "GL"
+    side: right
+  - country: "GM"
+    side: right
+  - country: "GN"
+    side: right
+  - country: "GP"
+    side: right
+  - country: "GQ"
+    side: right
+  - country: "GR"
+    side: right
+  - country: "GS"
+    side: left
+  - country: "GT"
+    side: right
+  - country: "GU"
+    side: right
+  - country: "GW"
+    side: right
+  - country: "GY"
+    side: left
+  - country: "HK"
+    side: left
+  - country: "HM"
+    side: left
+  - country: "HN"
+    side: right
+  - country: "HR"
+    side: right
+  - country: "HT"
+    side: right
+  - country: "HU"
+    side: right
+  - country: "ID"
+    side: left
+  - country: "IE"
+    side: left
+  - country: "IL"
+    side: right
+  - country: "IM"
+    side: left
+  - country: "IN"
+    side: left
+  - country: "IO"
+    side: right
+  - country: "IQ"
+    side: right
+  - country: "IR"
+    side: right
+  - country: "IS"
+    side: right
+  - country: "IT"
+    side: right
+  - country: "JE"
+    side: left
+  - country: "JM"
+    side: left
+  - country: "JO"
+    side: right
+  - country: "JP"
+    side: left
+  - country: "KE"
+    side: left
+  - country: "KG"
+    side: right
+  - country: "KH"
+    side: right
+  - country: "KI"
+    side: left
+  - country: "KM"
+    side: right
+  - country: "KN"
+    side: left
+  - country: "KP"
+    side: right
+  - country: "KR"
+    side: right
+  - country: "KW"
+    side: right
+  - country: "KY"
+    side: left
+  - country: "KZ"
+    side: right
+  - country: "LA"
+    side: right
+  - country: "LB"
+    side: right
+  - country: "LC"
+    side: left
+  - country: "LI"
+    side: right
+  - country: "LK"
+    side: left
+  - country: "LR"
+    side: right
+  - country: "LS"
+    side: left
+  - country: "LT"
+    side: right
+  - country: "LU"
+    side: right
+  - country: "LV"
+    side: right
+  - country: "LY"
+    side: right
+  - country: "MA"
+    side: right
+  - country: "MC"
+    side: right
+  - country: "MD"
+    side: right
+  - country: "ME"
+    side: right
+  - country: "MF"
+    side: right
+  - country: "MG"
+    side: right
+  - country: "MH"
+    side: right
+  - country: "MK"
+    side: right
+  - country: "ML"
+    side: right
+  - country: "MM"
+    side: right
+  - country: "MN"
+    side: right
+  - country: "MO"
+    side: left
+  - country: "MP"
+    side: right
+  - country: "MQ"
+    side: right
+  - country: "MR"
+    side: right
+  - country: "MS"
+    side: left
+  - country: "MT"
+    side: left
+  - country: "MU"
+    side: left
+  - country: "MV"
+    side: left
+  - country: "MW"
+    side: left
+  - country: "MX"
+    side: right
+  - country: "MY"
+    side: left
+  - country: "MZ"
+    side: left
+  - country: "NA"
+    side: left
+  - country: "NC"
+    side: right
+  - country: "NE"
+    side: right
+  - country: "NF"
+    side: left
+  - country: "NG"
+    side: right
+  - country: "NI"
+    side: right
+  - country: "NL"
+    side: right
+  - country: "NO"
+    side: right
+  - country: "NP"
+    side: left
+  - country: "NR"
+    side: left
+  - country: "NU"
+    side: left
+  - country: "NZ"
+    side: left
+  - country: "OM"
+    side: right
+  - country: "PA"
+    side: right
+  - country: "PE"
+    side: right
+  - country: "PF"
+    side: right
+  - country: "PG"
+    side: left
+  - country: "PH"
+    side: right
+  - country: "PK"
+    side: left
+  - country: "PL"
+    side: right
+  - country: "PM"
+    side: right
+  - country: "PN"
+    side: left
+  - country: "PR"
+    side: right
+  - country: "PS"
+    side: right
+  - country: "PT"
+    side: right
+  - country: "PW"
+    side: right
+  - country: "PY"
+    side: right
+  - country: "QA"
+    side: right
+  - country: "RE"
+    side: right
+  - country: "RO"
+    side: right
+  - country: "RS"
+    side: right
+  - country: "RU"
+    side: right
+  - country: "RW"
+    side: right
+  - country: "SA"
+    side: right
+  - country: "SB"
+    side: left
+  - country: "SC"
+    side: left
+  - country: "SD"
+    side: right
+  - country: "SE"
+    side: right
+  - country: "SG"
+    side: left
+  - country: "SH"
+    side: left
+  - country: "SI"
+    side: right
+  - country: "SJ"
+    side: right
+  - country: "SK"
+    side: right
+  - country: "SL"
+    side: right
+  - country: "SM"
+    side: right
+  - country: "SN"
+    side: right
+  - country: "SO"
+    side: right
+  - country: "SR"
+    side: left
+  - country: "SS"
+    side: right
+  - country: "ST"
+    side: right
+  - country: "SV"
+    side: right
+  - country: "SX"
+    side: right
+  - country: "SY"
+    side: right
+  - country: "SZ"
+    side: left
+  - country: "TC"
+    side: left
+  - country: "TD"
+    side: right
+  - country: "TF"
+    side: right
+  - country: "TG"
+    side: right
+  - country: "TH"
+    side: left
+  - country: "TJ"
+    side: right
+  - country: "TK"
+    side: right
+  - country: "TL"
+    side: left
+  - country: "TM"
+    side: right
+  - country: "TN"
+    side: right
+  - country: "TO"
+    side: left
+  - country: "TR"
+    side: right
+  - country: "TT"
+    side: left
+  - country: "TV"
+    side: left
+  - country: "TW"
+    side: right
+  - country: "TZ"
+    side: left
+  - country: "UA"
+    side: right
+  - country: "UG"
+    side: left
+  - country: "UM"
+    side: right
+  - country: "US"
+    side: right
+  - country: "UY"
+    side: right
+  - country: "UZ"
+    side: right
+  - country: "VA"
+    side: right
+  - country: "VC"
+    side: left
+  - country: "VE"
+    side: right
+  - country: "VG"
+    side: left
+  - country: "VI"
+    side: right
+  - country: "VN"
+    side: right
+  - country: "VU"
+    side: left
+  - country: "WF"
+    side: right
+  - country: "WS"
+    side: left
+  - country: "YE"
+    side: right
+  - country: "YT"
+    side: right
+  - country: "ZA"
+    side: left
+  - country: "ZM"
+    side: left
+  - country: "ZW"
+    side: left
