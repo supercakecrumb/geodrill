@@ -59,12 +59,18 @@ func (s *Service) Children(ctx context.Context, userID, topicID uuid.UUID) (tele
 		return telegram.TopicView{}, err
 	}
 
+	enabled, err := s.store.GetUserTopicEnabled(ctx, userID, topicID)
+	if err != nil {
+		return telegram.TopicView{}, err
+	}
+
 	view := telegram.TopicView{
 		TopicID:     topic.ID,
 		Name:        topic.Name,
 		IsQuizzable: topic.IsQuizzable,
 		Breadcrumb:  breadcrumb,
 		ParentID:    topic.ParentID,
+		Enabled:     enabled,
 	}
 
 	if topic.IsQuizzable {
@@ -116,6 +122,14 @@ func (s *Service) Children(ctx context.Context, userID, topicID uuid.UUID) (tele
 	}
 	view.Children = rows
 	return view, nil
+}
+
+// SetTopicEnabled implements telegram.TopicService: the /topics counterpart
+// of the retired /decks' per-deck toggle (architecture: only a quizzable
+// topic's flag has any gating effect — see disabledTopicSet/
+// enabledQuizzableTopicIDs — toggling a container is accepted but inert).
+func (s *Service) SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
+	return s.store.SetUserTopicEnabled(ctx, userID, topicID, enabled)
 }
 
 // breadcrumbFor walks topic's parent chain (root-first) via GetTopicByID,
@@ -174,6 +188,10 @@ func (s *Service) topicRow(ctx context.Context, userID uuid.UUID, t storage.Topi
 		return telegram.TopicRow{}, err
 	}
 	anyLocked, lockedTier := lowestLockedTier(tiersUsed, allowed)
+	enabled, err := s.store.GetUserTopicEnabled(ctx, userID, t.ID)
+	if err != nil {
+		return telegram.TopicRow{}, err
+	}
 
 	return telegram.TopicRow{
 		TopicID:     t.ID,
@@ -185,6 +203,7 @@ func (s *Service) topicRow(ctx context.Context, userID uuid.UUID, t storage.Topi
 		AnyLocked:   anyLocked,
 		LockedTier:  int(lockedTier),
 		HasTips:     s.hasTips(t, tree),
+		Enabled:     enabled,
 	}, nil
 }
 

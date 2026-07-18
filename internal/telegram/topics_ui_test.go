@@ -12,6 +12,12 @@ import (
 type stubTopicService struct {
 	root     []TopicRow
 	children map[uuid.UUID]TopicView
+
+	toggleCall struct {
+		userID  uuid.UUID
+		topicID uuid.UUID
+		enabled bool
+	}
 }
 
 func (s *stubTopicService) Root(ctx context.Context, userID uuid.UUID) ([]TopicRow, error) {
@@ -20,6 +26,13 @@ func (s *stubTopicService) Root(ctx context.Context, userID uuid.UUID) ([]TopicR
 
 func (s *stubTopicService) Children(ctx context.Context, userID, topicID uuid.UUID) (TopicView, error) {
 	return s.children[topicID], nil
+}
+
+func (s *stubTopicService) SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
+	s.toggleCall.userID = userID
+	s.toggleCall.topicID = topicID
+	s.toggleCall.enabled = enabled
+	return nil
 }
 
 // ── parseTopicNav ────────────────────────────────────────────────────────
@@ -64,13 +77,19 @@ func TestParseTopicNav_Invalid(t *testing.T) {
 func TestTopicRowLabel(t *testing.T) {
 	row := TopicRow{
 		Name: "Languages", Total: 50, Introduced: 48, GoodShape: 42,
-		AnyLocked: true, LockedTier: 3, HasTips: true,
+		AnyLocked: true, LockedTier: 3, HasTips: true, Enabled: true,
 	}
 	got := topicRowLabel(row)
-	for _, want := range []string{"Languages", "48/50 introduced", "42 good", "🔒 tier 3", "💡"} {
+	for _, want := range []string{"✅", "Languages", "48/50 introduced", "42 good", "🔒 tier 3", "💡"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("topicRowLabel = %q, expected to contain %q", got, want)
 		}
+	}
+
+	// A disabled topic's row must carry ⬜ instead of ✅.
+	disabled := topicRowLabel(TopicRow{Name: "Roads", Enabled: false})
+	if !strings.HasPrefix(disabled, "⬜") {
+		t.Fatalf("expected a disabled topic's row to start with ⬜, got %q", disabled)
 	}
 
 	// A row with no items yet must not print a bogus 0/0 progress line.
@@ -131,11 +150,93 @@ func TestTopicsViewRows_ContainerVsQuizzable(t *testing.T) {
 		Tiers:       []TierRow{{Tier: 0}, {Tier: 1}},
 	}
 	rows = topicsViewRows(quizzable)
-	if len(rows) != 3 { // 2 tier rows + the ⬆️ row
-		t.Fatalf("expected 3 rows (2 tiers + up), got %d", len(rows))
+	if len(rows) != 4 { // 2 tier rows + the toggle row + the ⬆️ row
+		t.Fatalf("expected 4 rows (2 tiers + toggle + up), got %d", len(rows))
 	}
 	if rows[0][0].Data != "noop" || rows[1][0].Data != "noop" {
 		t.Fatalf("expected tier rows to be inert (noop), got %+v", rows[:2])
+	}
+	if rows[2][0].Data != topicToggleCallbackData(quizzable.TopicID, true) {
+		t.Fatalf("expected the toggle row right after the tier rows, got %+v", rows[2])
+	}
+}
+
+// ── topicToggleButton / topen:/topoff: callback ─────────────────────────
+
+func TestTopicToggleButton(t *testing.T) {
+	id := uuid.New()
+	enabled := topicToggleButton(TopicView{TopicID: id, Enabled: true})
+	if enabled.Data != "topoff:"+id.String() {
+		t.Fatalf("an enabled topic's toggle must request topoff:, got %q", enabled.Data)
+	}
+	disabled := topicToggleButton(TopicView{TopicID: id, Enabled: false})
+	if disabled.Data != "topen:"+id.String() {
+		t.Fatalf("a disabled topic's toggle must request topen:, got %q", disabled.Data)
+	}
+}
+
+func TestParseTopicToggleCallback(t *testing.T) {
+	id := uuid.New()
+	gotID, enable, ok := parseTopicToggleCallback("topen:" + id.String())
+	if !ok || !enable || gotID != id {
+		t.Fatalf("parseTopicToggleCallback(topen:) = (%v,%v,%v), want (%v,true,true)", gotID, enable, ok, id)
+	}
+	gotID, enable, ok = parseTopicToggleCallback("topoff:" + id.String())
+	if !ok || enable || gotID != id {
+		t.Fatalf("parseTopicToggleCallback(topoff:) = (%v,%v,%v), want (%v,false,true)", gotID, enable, ok, id)
+	}
+	for _, data := range []string{"", "noop", "top:" + id.String(), "topen:not-a-uuid", "topoff:not-a-uuid"} {
+		if _, _, ok := parseTopicToggleCallback(data); ok {
+			t.Fatalf("parseTopicToggleCallback(%q) unexpectedly succeeded", data)
+		}
+	}
+}
+
+func TestHandleTopicToggle_FlipsAndRerenders(t *testing.T) {
+	topicID := uuid.New()
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	stub := &stubTopicService{
+		children: map[uuid.UUID]TopicView{
+			topicID: {TopicID: topicID, IsQuizzable: true, Enabled: true, Breadcrumb: []TopicCrumb{{TopicID: topicID, Name: "Roads"}}},
+		},
+	}
+	b.topics = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: "topoff:" + topicID.String()}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.toggleCall.topicID != topicID || stub.toggleCall.enabled {
+		t.Fatalf("expected SetTopicEnabled(topicID, false), got %+v", stub.toggleCall)
+	}
+	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 42 {
+		t.Fatalf("expected the topic view re-rendered in place, got %+v", s.editedMsgs)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single inert ack, got %v", s.responses)
+	}
+}
+
+func TestHandleTopicToggle_NilTopicServiceIsInert(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	s := &fakeSession{userID: 1, data: "topen:" + uuid.New().String()}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single inert ack, got %v", s.responses)
+	}
+}
+
+func TestHandleTopicToggle_InvalidDataIsInert(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b.topics = &stubTopicService{}
+	s := &fakeSession{userID: 1, data: "topen:not-a-uuid"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single inert ack, got %v", s.responses)
 	}
 }
 

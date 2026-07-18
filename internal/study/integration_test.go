@@ -725,6 +725,41 @@ func TestV2FullLoop(t *testing.T) {
 	if len(quizView.Breadcrumb) < 2 {
 		t.Fatalf("expected a multi-level breadcrumb under Languages, got %+v", quizView.Breadcrumb)
 	}
+	if !quizView.Enabled {
+		t.Fatalf("a fresh user's topic should default enabled (architecture §2.10)")
+	}
+
+	// ── TopicService.SetTopicEnabled: the /decks-retired-onto-/topics
+	// toggle, and NextPracticeV2 respecting it ───────────────────────────
+	if err := svc.SetTopicEnabled(ctx, user.ID, quizzableChild.TopicID, false); err != nil {
+		t.Fatalf("SetTopicEnabled(false): %v", err)
+	}
+	disabledView, err := svc.Children(ctx, user.ID, quizzableChild.TopicID)
+	if err != nil {
+		t.Fatalf("TopicService.Children after disable: %v", err)
+	}
+	if disabledView.Enabled {
+		t.Fatalf("expected Enabled=false after SetTopicEnabled(false)")
+	}
+	disabledRootRows, err := svc.Root(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("TopicService.Root after disable: %v", err)
+	}
+	for _, r := range disabledRootRows {
+		if r.TopicID == quizzableChild.TopicID && r.Enabled {
+			t.Fatalf("expected the disabled topic's row to report Enabled=false")
+		}
+	}
+	if err := svc.SetTopicEnabled(ctx, user.ID, quizzableChild.TopicID, true); err != nil {
+		t.Fatalf("SetTopicEnabled(true): %v", err)
+	}
+	reenabledView, err := svc.Children(ctx, user.ID, quizzableChild.TopicID)
+	if err != nil {
+		t.Fatalf("TopicService.Children after re-enable: %v", err)
+	}
+	if !reenabledView.Enabled {
+		t.Fatalf("expected Enabled=true after SetTopicEnabled(true)")
+	}
 
 	// ── Budget exhaustion: cap=1 => the second NextIntro is exhausted ────
 	budgetUser, err := store.UpsertUser(ctx, 900004, "v2-budget-tester")

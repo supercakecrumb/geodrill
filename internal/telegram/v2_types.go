@@ -123,6 +123,14 @@ type TopicRow struct {
 	LockedTier int  // the lowest tier locked under this topic; meaningful only when AnyLocked
 
 	HasTips bool // true ⇒ render 💡 (a topics.TipProvider exists for this topic)
+
+	// Enabled is the user's user_topics opt-in/out flag for this topic
+	// (default-on, architecture §2.10) — rendered as a ✅/⬜ prefix so a
+	// disabled topic is visible from the listing without drilling in. Only
+	// a quizzable topic's flag has any gating effect (see
+	// internal/study.enabledQuizzableTopicIDs/disabledTopicSet); a
+	// container's Enabled is cosmetic.
+	Enabled bool
 }
 
 // TierRow is one per-tier progress line shown when drilling into a
@@ -149,6 +157,13 @@ type TopicView struct {
 
 	Children []TopicRow // populated when IsQuizzable == false
 	Tiers    []TierRow  // populated when IsQuizzable == true
+
+	// Enabled is this topic's user_topics opt-in/out flag (meaningful when
+	// IsQuizzable == true — see TopicRow.Enabled's doc): the drilled-in
+	// view renders a toggle row ("topen:"/"topoff:" callbacks) reflecting
+	// it, since /decks' per-deck on/off affordance retired onto /topics
+	// (architecture: /decks now points here instead of its own picker).
+	Enabled bool
 }
 
 // TopicService is the /topics tree browser, implemented by wave 4 over
@@ -160,6 +175,10 @@ type TopicService interface {
 	// Children drills into topicID: its breadcrumb plus either its child
 	// topics (container) or its per-tier progress (quizzable).
 	Children(ctx context.Context, userID, topicID uuid.UUID) (TopicView, error)
+	// SetTopicEnabled toggles a topic on/off for a user — the /topics
+	// counterpart of the retired /decks' per-deck toggle (only a quizzable
+	// topic's flag has any gating effect; see TopicRow.Enabled's doc).
+	SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error
 }
 
 // ── TrainerV2 — mode-aware exercises (architecture §1.6) ────────────────────

@@ -76,6 +76,29 @@ func (q *Queries) GetTopicPath(ctx context.Context, id uuid.UUID) (TopicPath, er
 	return i, err
 }
 
+const getUserTopicEnabled = `-- name: GetUserTopicEnabled :one
+SELECT COALESCE(ut.enabled, true) AS enabled
+FROM topics t
+LEFT JOIN user_topics ut ON ut.topic_id = t.id AND ut.user_id = $1
+WHERE t.id = $2
+`
+
+type GetUserTopicEnabledParams struct {
+	UserID uuid.UUID
+	ID     uuid.UUID
+}
+
+// v2 (internal/study.Service, the /topics enable/disable toggle): a single
+// topic's enabled flag for a user (default-on when no user_topics row
+// exists), for rendering the toggle's current state without listing every
+// topic (ListUserTopics).
+func (q *Queries) GetUserTopicEnabled(ctx context.Context, arg GetUserTopicEnabledParams) (bool, error) {
+	row := q.db.QueryRow(ctx, getUserTopicEnabled, arg.UserID, arg.ID)
+	var enabled bool
+	err := row.Scan(&enabled)
+	return enabled, err
+}
+
 const listAllTopics = `-- name: ListAllTopics :many
 SELECT id, parent_id, slug, name, position, base_tier, quiz_kind, exercise_modes, is_quizzable, config, created_at FROM topics ORDER BY position, slug
 `

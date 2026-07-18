@@ -630,6 +630,34 @@ func TestComposeAnsweredText_EscapesHTML(t *testing.T) {
 	}
 }
 
+// ── /decks (retired onto /topics) ────────────────────────────────────────
+
+func TestHandleDecks_AliasesTopicsWhenWired(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	b.topics = &stubTopicService{root: []TopicRow{{Name: "Languages"}}}
+
+	s := &fakeSession{userID: 1}
+	if err := b.handleDecks(context.Background(), s); err != nil {
+		t.Fatalf("handleDecks: %v", err)
+	}
+	if len(s.keyboards) != 1 || s.keyboards[0].text != topicsRootText {
+		t.Fatalf("expected /decks to alias the /topics root listing, got %+v", s.keyboards)
+	}
+}
+
+func TestHandleDecks_LegacyPickerWhenTopicsNil(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(&stubTrainer{}, st)
+
+	s := &fakeSession{userID: 1}
+	if err := b.handleDecks(context.Background(), s); err != nil {
+		t.Fatalf("handleDecks: %v", err)
+	}
+	if len(s.keyboards) != 1 || s.keyboards[0].text != decksPickerText {
+		t.Fatalf("expected the legacy deck picker, got %+v", s.keyboards)
+	}
+}
+
 // ── deckPickerRows ───────────────────────────────────────────────────────
 
 func TestDeckPickerRows(t *testing.T) {

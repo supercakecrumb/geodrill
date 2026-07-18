@@ -98,6 +98,11 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error)
 	GetUserItem(ctx context.Context, arg GetUserItemParams) (UserItem, error)
+	// v2 (internal/study.Service, the /topics enable/disable toggle): a single
+	// topic's enabled flag for a user (default-on when no user_topics row
+	// exists), for rendering the toggle's current state without listing every
+	// topic (ListUserTopics).
+	GetUserTopicEnabled(ctx context.Context, arg GetUserTopicEnabledParams) (bool, error)
 	InsertContent(ctx context.Context, arg InsertContentParams) error
 	// Typed insert: the caller sets exactly one of val_text/val_num/val_bool (the
 	// CHECK constraint enforces it); the other two are passed as NULL.

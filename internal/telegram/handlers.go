@@ -228,9 +228,16 @@ func (b *Bot) handleStartTrainCallback(ctx context.Context, s Session) error {
 	return b.sendNextTrain(ctx, s, user)
 }
 
-// ── /decks ───────────────────────────────────────────────────────────────
+// ── /decks (retired onto /topics) ────────────────────────────────────────
 
+// handleDecks serves the retired /decks command: it now aliases /topics
+// (architecture: confusion-group on/off moved to the per-topic toggle in a
+// quizzable TopicView, topics_ui.go's topicToggleButton) when TopicService
+// is wired, falling back to the legacy deck picker otherwise.
 func (b *Bot) handleDecks(ctx context.Context, s Session) error {
+	if b.topics != nil {
+		return b.handleTopics(ctx, s)
+	}
 	user, err := b.loadOrCreateUser(ctx, s)
 	if err != nil {
 		return err
@@ -390,6 +397,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleIntroCallback(ctx, s, data)
 	case data == dataStudyStart, data == dataStudyNext:
 		return b.handleStudyCallback(ctx, s)
+	case strings.HasPrefix(data, dataTopicEnablePrefix), strings.HasPrefix(data, dataTopicDisablePrefix):
+		return b.handleTopicToggle(ctx, s, data)
 	case strings.HasPrefix(data, "top:"):
 		return b.handleTopicCallback(ctx, s, data)
 	case strings.HasPrefix(data, dataV2AnswerPrefix):

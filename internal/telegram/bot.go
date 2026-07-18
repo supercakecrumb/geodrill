@@ -196,7 +196,7 @@ var botCommands = []telebot.Command{
 	{Text: "practice", Description: "Endless practice (no scheduling)"},
 	{Text: "study", Description: "Introduce new items (v2)"},
 	{Text: "topics", Description: "Browse topics, tiers & progress (v2)"},
-	{Text: "decks", Description: "Turn confusion groups on/off"},
+	{Text: "decks", Description: "Now points to /topics"},
 	{Text: "settings", Description: "Daily cap, reminders, button style"},
 	{Text: "stats", Description: "Your progress and mix-ups"},
 	{Text: "help", Description: "How geodrill works"},

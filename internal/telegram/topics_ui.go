@@ -85,6 +85,79 @@ func parseTopicNav(data string) (topicNav, bool) {
 	return topicNav{}, false
 }
 
+// ── topen:/topoff: callback (enable/disable toggle) ─────────────────────
+
+// dataTopicEnablePrefix / dataTopicDisablePrefix are the callback prefixes
+// for a quizzable TopicView's enable/disable toggle: "topen:<topic-uuid>" /
+// "topoff:<topic-uuid>" — the /topics counterpart of the retired /decks'
+// "deck:<uuid>" toggle.
+const (
+	dataTopicEnablePrefix  = "topen:"
+	dataTopicDisablePrefix = "topoff:"
+)
+
+// topicToggleCallbackData builds one toggle row's payload: enable=true
+// requests topen:, enable=false requests topoff:.
+func topicToggleCallbackData(topicID uuid.UUID, enable bool) string {
+	prefix := dataTopicDisablePrefix
+	if enable {
+		prefix = dataTopicEnablePrefix
+	}
+	return prefix + topicID.String()
+}
+
+// parseTopicToggleCallback parses a payload built by
+// topicToggleCallbackData. ok is false for anything malformed.
+func parseTopicToggleCallback(data string) (topicID uuid.UUID, enable bool, ok bool) {
+	if rest, has := strings.CutPrefix(data, dataTopicEnablePrefix); has {
+		id, err := uuid.Parse(rest)
+		if err != nil {
+			return uuid.UUID{}, false, false
+		}
+		return id, true, true
+	}
+	if rest, has := strings.CutPrefix(data, dataTopicDisablePrefix); has {
+		id, err := uuid.Parse(rest)
+		if err != nil {
+			return uuid.UUID{}, false, false
+		}
+		return id, false, true
+	}
+	return uuid.UUID{}, false, false
+}
+
+// handleTopicToggle applies a topen:/topoff: tap: flips the topic's
+// user_topics.enabled flag via TopicService.SetTopicEnabled, then
+// re-renders the SAME topic view in place (mirroring handleTopicCallback's
+// edit-in-place pattern) so the toggle row and the row's own ✅/⬜ prefix
+// reflect the new state immediately.
+func (b *Bot) handleTopicToggle(ctx context.Context, s Session, data string) error {
+	if b.topics == nil {
+		return s.Respond("")
+	}
+	topicID, enable, ok := parseTopicToggleCallback(data)
+	if !ok {
+		return s.Respond("")
+	}
+
+	user, err := b.loadOrCreateUser(ctx, s)
+	if err != nil {
+		return err
+	}
+	if err := b.topics.SetTopicEnabled(ctx, user.ID, topicID, enable); err != nil {
+		return err
+	}
+
+	view, err := b.topics.Children(ctx, user.ID, topicID)
+	if err != nil {
+		return err
+	}
+	if err := s.EditMessage(s.MessageID(), topicsBodyText(view), topicsViewRows(view)); err != nil {
+		b.logger.Warn("telegram: edit topics view after toggle", "error", err)
+	}
+	return s.Respond("")
+}
+
 // handleTopicCallback re-renders the /topics message in place for a "top:"
 // tap: drilling into a topic, going up to a parent, or back to the root
 // listing all edit the SAME message (mirroring rerenderDeckPicker /
@@ -155,14 +228,16 @@ func topicsBodyText(view TopicView) string {
 }
 
 // topicsViewRows renders a TopicView's body rows: child topics (container)
-// or per-tier progress (quizzable, non-interactive — noop), plus a trailing
-// ⬆️ navigation row.
+// or per-tier progress plus an enable/disable toggle (quizzable — the
+// /topics counterpart of the retired /decks' per-deck toggle), plus a
+// trailing ⬆️ navigation row.
 func topicsViewRows(view TopicView) [][]Btn {
-	rows := make([][]Btn, 0, len(view.Children)+len(view.Tiers)+1)
+	rows := make([][]Btn, 0, len(view.Children)+len(view.Tiers)+2)
 	if view.IsQuizzable {
 		for _, t := range view.Tiers {
 			rows = append(rows, []Btn{{Label: tierRowLabel(t), Data: train.DataNoop}})
 		}
+		rows = append(rows, []Btn{topicToggleButton(view)})
 	} else {
 		for _, c := range view.Children {
 			rows = append(rows, []Btn{{Label: topicRowLabel(c), Data: "top:" + c.TopicID.String()}})
@@ -170,6 +245,17 @@ func topicsViewRows(view TopicView) [][]Btn {
 	}
 	rows = append(rows, []Btn{topicNavButton(view)})
 	return rows
+}
+
+// topicToggleButton renders a quizzable TopicView's enable/disable row: tap
+// to flip user_topics.enabled in place (architecture: /decks' per-deck
+// on/off affordance retired onto /topics, so this is the ONLY place a
+// quizzable topic's enabled flag can be changed from now on).
+func topicToggleButton(view TopicView) Btn {
+	if view.Enabled {
+		return Btn{Label: "✅ Enabled — tap to disable", Data: topicToggleCallbackData(view.TopicID, false)}
+	}
+	return Btn{Label: "⬜ Disabled — tap to enable", Data: topicToggleCallbackData(view.TopicID, true)}
 }
 
 // topicNavButton is the ⬆️ row: back to the parent topic's view, or to the
@@ -181,14 +267,20 @@ func topicNavButton(view TopicView) Btn {
 	return Btn{Label: "⬆️ Up", Data: "top:up:" + view.ParentID.String()}
 }
 
-// topicRowLabel renders one topic row: name, aggregate progress (when this
-// topic has any items), a 🔒 badge for its lowest locked tier, and a 💡
-// badge when a TipProvider exists — architecture §5.2's
-// "▸ Languages   tier: 42/50 · introduced 48/50" mock, folded into a single
-// button label (Telegram button text is never markup-parsed, so no
-// escaping is needed here, unlike topicsBodyText).
+// topicRowLabel renders one topic row: a ✅/⬜ enabled-flag prefix (the
+// listing-level visibility the retired /decks picker gave for free), name,
+// aggregate progress (when this topic has any items), a 🔒 badge for its
+// lowest locked tier, and a 💡 badge when a TipProvider exists —
+// architecture §5.2's "▸ Languages   tier: 42/50 · introduced 48/50" mock,
+// folded into a single button label (Telegram button text is never
+// markup-parsed, so no escaping is needed here, unlike topicsBodyText).
 func topicRowLabel(row TopicRow) string {
 	var b strings.Builder
+	if row.Enabled {
+		b.WriteString("✅ ")
+	} else {
+		b.WriteString("⬜ ")
+	}
 	b.WriteString(row.Name)
 	if row.Total > 0 {
 		fmt.Fprintf(&b, "  %d/%d introduced · %d good", row.Introduced, row.Total, row.GoodShape)

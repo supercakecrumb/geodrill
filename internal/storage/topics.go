@@ -155,6 +155,13 @@ func (s *Store) SetUserTopicEnabled(ctx context.Context, userID, topicID uuid.UU
 	return s.q.SetUserTopicEnabled(ctx, db.SetUserTopicEnabledParams{UserID: userID, TopicID: topicID, Enabled: enabled})
 }
 
+// GetUserTopicEnabled returns a single topic's enabled flag for a user
+// (default-on when no user_topics row exists) — the /topics enable/disable
+// toggle's current-state read, without listing every topic (ListUserTopics).
+func (s *Store) GetUserTopicEnabled(ctx context.Context, userID, topicID uuid.UUID) (bool, error) {
+	return s.q.GetUserTopicEnabled(ctx, db.GetUserTopicEnabledParams{UserID: userID, ID: topicID})
+}
+
 // ListUserTopics returns every topic with the user's enabled flag
 // (default-on when no user_topics row exists).
 func (s *Store) ListUserTopics(ctx context.Context, userID uuid.UUID) ([]UserTopic, error) {
