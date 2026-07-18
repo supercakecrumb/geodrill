@@ -90,16 +90,15 @@ func TestHasTips(t *testing.T) {
 	}
 
 	// A container topic aggregates: true if ANY descendant has tips.
-	containerID := uuid.New()
-	container := storage.Topic{ID: containerID, QuizKind: "container", IsQuizzable: false}
-	tree := buildTopicTree([]storage.Topic{container, romance, cjk})
 	// buildTopicTree keys by parent_id; romance/cjk need a ParentID pointing
 	// at containerID to be found as its children.
+	containerID := uuid.New()
+	container := storage.Topic{ID: containerID, QuizKind: "container", IsQuizzable: false}
 	romanceChild := romance
 	romanceChild.ParentID = &containerID
 	cjkChild := cjk
 	cjkChild.ParentID = &containerID
-	tree = buildTopicTree([]storage.Topic{container, romanceChild, cjkChild})
+	tree := buildTopicTree([]storage.Topic{container, romanceChild, cjkChild})
 
 	if !svc.hasTips(container, tree) {
 		t.Fatalf("container with a tipped descendant (romance) should report HasTips=true")
