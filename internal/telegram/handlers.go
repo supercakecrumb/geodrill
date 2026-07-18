@@ -335,6 +335,10 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 	switch {
 	case strings.HasPrefix(data, "deck:"):
 		return b.handleDeckToggle(ctx, s, strings.TrimPrefix(data, "deck:"))
+	case strings.HasPrefix(data, "intro:"):
+		return b.handleIntroCallback(ctx, s, data)
+	case data == dataStudyStart, data == dataStudyNext:
+		return b.handleStudyCallback(ctx, s)
 	case data == "cap:inc":
 		return b.handleCapChange(ctx, s, 1)
 	case data == "cap:dec":

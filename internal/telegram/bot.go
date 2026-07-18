@@ -53,13 +53,22 @@ type reminderState struct {
 	followUps   int       // follow-ups sent so far today
 }
 
-// Config configures a Bot.
+// Config configures a Bot. The v2 fields (StudyService, TopicService,
+// TrainerV2, IntroCapStore) are OPTIONAL and nil-safe: cmd/bot (which this
+// package cannot touch) compiles unchanged against the pre-v2 zero value,
+// and every feature they gate degrades to a "🚧 coming with v2 wiring"
+// reply (or, for TrainerV2's OnText handler, simply isn't registered) until
+// a later wave supplies a real implementation.
 type Config struct {
 	Token   string
 	Store   *storage.Store
 	Service *train.Service
 	Logger  *slog.Logger
 	Now     func() time.Time
+
+	// StudyService powers /study, /introduce, and the reminder loop's
+	// introduction nudge (architecture §5.1, §5.3).
+	StudyService StudyService
 }
 
 // Bot wires telebot to geodrill's train/storage layers.
@@ -69,6 +78,10 @@ type Bot struct {
 	svc    trainer
 	logger *slog.Logger
 	now    func() time.Time
+
+	// study is nil until a later wave wires Config.StudyService — every
+	// call site checks it before use (see study.go).
+	study StudyService
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -125,6 +138,7 @@ func New(cfg Config) (*Bot, error) {
 		svc:           cfg.Service,
 		logger:        logger,
 		now:           now,
+		study:         cfg.StudyService,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
 	}
@@ -136,6 +150,8 @@ func New(cfg Config) (*Bot, error) {
 	tb.Handle("/settings", b.wrap(b.handleSettings))
 	tb.Handle("/stats", b.wrap(b.handleStats))
 	tb.Handle("/help", b.wrap(b.handleHelp))
+	tb.Handle("/study", b.wrap(b.handleStudy))
+	tb.Handle("/introduce", b.wrap(b.handleStudy)) // alias that fetches more intro cards on demand (decision 2)
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
 
 	// Populate the in-app "/" command menu (best-effort; a failure here must
@@ -151,6 +167,7 @@ func New(cfg Config) (*Bot, error) {
 var botCommands = []telebot.Command{
 	{Text: "train", Description: "Next due exercise"},
 	{Text: "practice", Description: "Endless practice (no scheduling)"},
+	{Text: "study", Description: "Introduce new items (v2)"},
 	{Text: "decks", Description: "Turn confusion groups on/off"},
 	{Text: "settings", Description: "Daily cap, reminders, button style"},
 	{Text: "stats", Description: "Your progress and mix-ups"},
