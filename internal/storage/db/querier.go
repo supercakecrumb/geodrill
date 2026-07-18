@@ -13,9 +13,24 @@ import (
 
 type Querier interface {
 	AnswerIntroduction(ctx context.Context, arg AnswerIntroductionParams) (Introduction, error)
+	// Attach item_id/mode/correct_answer to every still-unmapped exercise row
+	// for one legacy skill. correct_answer is the skill's own key: exercises.
+	// skill_id is always the exercise's TARGET (correct) skill, so the correct
+	// answer key never varies per exercise the way a review's chosen/correct
+	// key can.
+	BackfillExercisesForSkill(ctx context.Context, arg BackfillExercisesForSkillParams) (int64, error)
+	// Attach item_id/mode/chosen/correct_answer to every still-unmapped review
+	// row for one legacy skill. chosen/correct_answer are copied from each
+	// review's own chosen_key/correct_key (a wrong answer's chosen_key differs
+	// from correct_key), unlike exercises' fixed per-skill correct_answer.
+	BackfillReviewsForSkill(ctx context.Context, arg BackfillReviewsForSkillParams) (int64, error)
 	CountContentByKey(ctx context.Context, arg CountContentByKeyParams) (int64, error)
 	CountDueSkills(ctx context.Context, arg CountDueSkillsParams) (int64, error)
 	CountEnabledDecks(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Whether any introduction row (of any outcome) already exists for a
+	// user+item — the "if none exists" guard before synthesizing one
+	// (architecture §3.5).
+	CountIntroductionsForItem(ctx context.Context, arg CountIntroductionsForItemParams) (int64, error)
 	// "Introduced today" for the daily budget (architecture §2.4): distinct items
 	// with a first-exposure (seq=1), answered outcome, inside the caller-supplied
 	// local-day [from, to) bounds.
@@ -68,9 +83,29 @@ type Querier interface {
 	// (still NOT NULL until 000007 drops them) and the generalized item_id/mode/
 	// chosen/correct_answer columns (architecture §2.5, transitional).
 	InsertReviewV2(ctx context.Context, arg InsertReviewV2Params) error
+	// One synthesized first-exposure introduction row for a migrated user_item:
+	// seq=1, outcome=0 (got_it), shown_at=answered_at=introduced_at (architecture
+	// §3.5) — satisfies the "already introduced" invariant so migrated items are
+	// never re-introduced.
+	InsertSynthesizedIntroduction(ctx context.Context, arg InsertSynthesizedIntroductionParams) error
+	// Backfill-only insert: unlike PutUserItem's ON CONFLICT DO UPDATE (the
+	// live app's upsert), this is ON CONFLICT DO NOTHING so a re-run of
+	// -backfill-v2 never clobbers a user_items row the live app (or a prior
+	// backfill run) already created. Returns the number of rows actually
+	// inserted (0 or 1) so the caller knows whether this pair is newly migrated.
+	InsertUserItemIfAbsent(ctx context.Context, arg InsertUserItemIfAbsentParams) (int64, error)
 	ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error)
 	ListAllSkills(ctx context.Context) ([]Skill, error)
 	ListAllTopics(ctx context.Context) ([]Topic, error)
+	// Queries for cmd/ingest's -backfill-v2 mode (architecture §3.4/§3.5, task
+	// W4.1): maps legacy skills/user_skills/exercises/reviews onto the v2
+	// topics/items/user_items/introductions framework, in the same database.
+	// All additive — no schema change, just new queries against existing
+	// 000001-000006 tables.
+	// Every user_skills row across all users — the source rows -backfill-v2
+	// maps into user_items (there is no existing "list all" query; every other
+	// user_skills reader is scoped to one user).
+	ListAllUserSkills(ctx context.Context) ([]UserSkill, error)
 	ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error)
 	// Candidate items for the introduction queue: active, tier-unlocked
 	// (parameterized allowed-tiers array), and either no user_items row yet or

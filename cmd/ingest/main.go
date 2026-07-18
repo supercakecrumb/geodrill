@@ -42,6 +42,7 @@ func run() error {
 	seedN := flag.Int64("seed", 42, "seed for the deterministic sample used when capping candidates")
 	skipDownload := flag.Bool("skip-download", false, "use only cached dumps in -data; fail if a language's dump isn't cached")
 	seedOnly := flag.Bool("seed-only", false, "only upsert decks/skills from the seed file; skip content ingest")
+	backfillV2 := flag.Bool("backfill-v2", false, "map legacy skills/user_skills/exercises/reviews onto the v2 topics/items framework in the same database, then exit; requires languages/guess-the-language to already be seeded (see -seed-topics) — skips download/ingest entirely")
 	flag.Parse()
 
 	cfg, err := config.Load(false)
@@ -63,6 +64,12 @@ func run() error {
 		return fmt.Errorf("open store: %w", err)
 	}
 	defer store.Close()
+
+	if *backfillV2 {
+		logger.Info("backfill-v2 mode: skipping download/ingest")
+		_, err := runBackfillV2(ctx, logger, store)
+		return err
+	}
 
 	seeds, err := content.LoadSeeds(*seedsPath)
 	if err != nil {
