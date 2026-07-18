@@ -1,0 +1,2 @@
+kind: Added
+body: 'Add additive v2 storage queries/methods for the full v2 port (wave 4.3a): per-topic accuracy (ReviewStatsByTopic) and per-item-key confusion attempts (ListAttemptsSinceV2) for /stats, a global item key->label map (ListAllItemKeyLabels), due/FSRS/introduced/known user_items counts (CountDueUserItems, ListUserItemCardsInFSRS, CountIntroducedItems, CountKnownItems), and a tier-gated cross-topic active-item pool for /practice (ListActiveItemsForPractice)'

@@ -31,7 +31,14 @@ type Querier interface {
 	BackfillReviewsForSkill(ctx context.Context, arg BackfillReviewsForSkillParams) (int64, error)
 	CountContentByKey(ctx context.Context, arg CountContentByKeyParams) (int64, error)
 	CountDueSkills(ctx context.Context, arg CountDueSkillsParams) (int64, error)
+	// v2 (internal/study.Service.DueCount / the reminder loop's due count):
+	// Introduced/Reviewing cards due at or before now — replaces
+	// CountDueSkills for the v2 review path.
+	CountDueUserItems(ctx context.Context, arg CountDueUserItemsParams) (int64, error)
 	CountEnabledDecks(ctx context.Context, userID uuid.UUID) (int64, error)
+	// v2 (internal/study.Service.Stats, "introduced" count): items that have
+	// left lifecycle=new (Introduced, Reviewing, or Known).
+	CountIntroducedItems(ctx context.Context, userID uuid.UUID) (int64, error)
 	// Whether any introduction row (of any outcome) already exists for a
 	// user+item — the "if none exists" guard before synthesizing one
 	// (architecture §3.5).
@@ -40,6 +47,9 @@ type Querier interface {
 	// with a first-exposure (seq=1), answered outcome, inside the caller-supplied
 	// local-day [from, to) bounds.
 	CountIntroductionsToday(ctx context.Context, arg CountIntroductionsTodayParams) (int64, error)
+	// v2 (internal/study.Service.Stats, "known" count): items marked known via
+	// the "I know this" intro outcome.
+	CountKnownItems(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountReviewsSince(ctx context.Context, arg CountReviewsSinceParams) (int64, error)
 	// Clears every fact value for one country+def (used to replace multi-valued
 	// facts wholesale on reseed).
@@ -118,6 +128,19 @@ type Querier interface {
 	// inserted (0 or 1) so the caller knows whether this pair is newly migrated.
 	InsertUserItemIfAbsent(ctx context.Context, arg InsertUserItemIfAbsentParams) (int64, error)
 	ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error)
+	// v2 (internal/study.Service.NextPracticeV2): active items across a set of
+	// topics (the caller's enabled+quizzable topics), restricted to a set of
+	// tiers (the caller's currently-unlocked tiers) — the /practice candidate
+	// pool, mirroring the legacy ListEnabledSkills' "across a user's enabled
+	// decks" shape but tier-gated like every other v2 read.
+	ListActiveItemsForPractice(ctx context.Context, arg ListActiveItemsForPracticeParams) ([]Item, error)
+	// Global key->label lookup for confusion display (mirrors the legacy
+	// ListAllSkills key->label map). Best-effort: item keys are only unique
+	// WITHIN a topic (items' UNIQUE (topic_id, key) constraint), so a key shared
+	// by two topics resolves to whichever row this query returns last for it —
+	// an acceptable approximation for a "which language/character/word" hint,
+	// exactly like the legacy per-deck assumption it replaces.
+	ListAllItemKeyLabels(ctx context.Context) ([]ListAllItemKeyLabelsRow, error)
 	ListAllSkills(ctx context.Context) ([]Skill, error)
 	ListAllTopics(ctx context.Context) ([]Topic, error)
 	// Queries for cmd/ingest's -backfill-v2 mode (architecture §3.4/§3.5, task
@@ -130,6 +153,11 @@ type Querier interface {
 	// user_skills reader is scoped to one user).
 	ListAllUserSkills(ctx context.Context) ([]UserSkill, error)
 	ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error)
+	// v2 (internal/study.Service.Stats): answer records for quiz.Confusion,
+	// restricted to v2 attempts (item_id IS NOT NULL, so chosen/correct_answer
+	// are always populated by the v2 write path — see internal/study's
+	// finishAnswer).
+	ListAttemptsSinceV2(ctx context.Context, arg ListAttemptsSinceV2Params) ([]ListAttemptsSinceV2Row, error)
 	// Candidate items for the introduction queue: active, tier-unlocked
 	// (parameterized allowed-tiers array), and either no user_items row yet or
 	// still lifecycle=new. Ordered tier, then topic position, then item position
@@ -167,6 +195,11 @@ type Querier interface {
 	ListTierProgressForUser(ctx context.Context, userID uuid.UUID) ([]UserTierProgress, error)
 	ListTopicPaths(ctx context.Context) ([]TopicPath, error)
 	ListUserDecks(ctx context.Context, userID uuid.UUID) ([]ListUserDecksRow, error)
+	// v2 (internal/study.Service.Stats' DueForecast input): every Introduced/
+	// Reviewing card for a user — replaces ListCardsForUser for the v2 review
+	// path. Known/new rows are excluded: they carry a zeroed/absent due date
+	// that would otherwise skew engram.DueForecast's "due today" bucket.
+	ListUserItemCardsInFSRS(ctx context.Context, userID uuid.UUID) ([]UserItem, error)
 	ListUserItemsByLifecycle(ctx context.Context, arg ListUserItemsByLifecycleParams) ([]UserItem, error)
 	// Every topic with the user's enabled flag (default-on when no row exists,
 	// per architecture §2.10 / §9 open question 5).
@@ -211,6 +244,10 @@ type Querier interface {
 	// so the topic_paths recursive view stays cheap even after this.
 	ReparentTopic(ctx context.Context, arg ReparentTopicParams) error
 	ReviewStatsByDeck(ctx context.Context, arg ReviewStatsByDeckParams) ([]ReviewStatsByDeckRow, error)
+	// v2 (internal/study.Service.Stats): per-topic accuracy since a time,
+	// restricted to v2 attempts (item_id IS NOT NULL) — replaces ReviewStatsByDeck
+	// for the /stats view once every write path is item-based (architecture §2.5).
+	ReviewStatsByTopic(ctx context.Context, arg ReviewStatsByTopicParams) ([]ReviewStatsByTopicRow, error)
 	// Random sentence for a skill key, excluding the user's last-50 seen content
 	// for that key (recently-seen exclusion, contract §4).
 	SampleContent(ctx context.Context, arg SampleContentParams) (SampleContentRow, error)

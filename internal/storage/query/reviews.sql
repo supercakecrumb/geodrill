@@ -64,3 +64,27 @@ JOIN decks d ON d.id = s.deck_id
 WHERE r.user_id = $1 AND r.reviewed_at >= $2
 GROUP BY d.slug, d.name
 ORDER BY d.slug;
+
+-- name: ReviewStatsByTopic :many
+-- v2 (internal/study.Service.Stats): per-topic accuracy since a time,
+-- restricted to v2 attempts (item_id IS NOT NULL) — replaces ReviewStatsByDeck
+-- for the /stats view once every write path is item-based (architecture §2.5).
+SELECT t.id AS topic_id, t.name,
+       count(*) AS total,
+       count(*) FILTER (WHERE r.correct) AS correct
+FROM reviews r
+JOIN items i ON i.id = r.item_id
+JOIN topics t ON t.id = i.topic_id
+WHERE r.user_id = $1 AND r.reviewed_at >= $2 AND r.item_id IS NOT NULL
+GROUP BY t.id, t.name
+ORDER BY t.name;
+
+-- name: ListAttemptsSinceV2 :many
+-- v2 (internal/study.Service.Stats): answer records for quiz.Confusion,
+-- restricted to v2 attempts (item_id IS NOT NULL, so chosen/correct_answer
+-- are always populated by the v2 write path — see internal/study's
+-- finishAnswer).
+SELECT correct_answer, chosen, correct, response_ms, reviewed_at
+FROM reviews
+WHERE user_id = $1 AND reviewed_at >= $2 AND item_id IS NOT NULL
+ORDER BY reviewed_at;

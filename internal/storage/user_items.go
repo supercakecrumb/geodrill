@@ -113,6 +113,51 @@ func (s *Store) ListDueUserItems(ctx context.Context, userID uuid.UUID, now time
 	return out, nil
 }
 
+// CountDueUserItems counts a user's Introduced/Reviewing cards due at or
+// before now — the v2 counterpart of CountDueSkills (internal/study.Service.
+// DueCount / the reminder loop's due count).
+func (s *Store) CountDueUserItems(ctx context.Context, userID uuid.UUID, now time.Time) (int, error) {
+	n, err := s.q.CountDueUserItems(ctx, db.CountDueUserItemsParams{UserID: userID, Due: timeTs(now)})
+	return int(n), err
+}
+
+// ListUserItemCardsInFSRS returns every Introduced/Reviewing card for a user
+// — the v2 counterpart of ListCardsForUser (internal/study.Service.Stats'
+// DueForecast input).
+func (s *Store) ListUserItemCardsInFSRS(ctx context.Context, userID uuid.UUID) ([]CardFields, error) {
+	rows, err := s.q.ListUserItemCardsInFSRS(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]CardFields, len(rows))
+	for i, r := range rows {
+		out[i] = CardFields{
+			Due:        tsTime(r.Due),
+			Stability:  r.Stability,
+			Difficulty: r.Difficulty,
+			Reps:       int(r.Reps),
+			Lapses:     int(r.Lapses),
+			State:      r.State,
+			LastReview: tsTime(r.LastReview),
+		}
+	}
+	return out, nil
+}
+
+// CountIntroducedItems counts items that have left lifecycle=new (Introduced,
+// Reviewing, or Known) for a user — /stats' "introduced" count.
+func (s *Store) CountIntroducedItems(ctx context.Context, userID uuid.UUID) (int, error) {
+	n, err := s.q.CountIntroducedItems(ctx, userID)
+	return int(n), err
+}
+
+// CountKnownItems counts items marked known ("I know this") for a user —
+// /stats' "known" count.
+func (s *Store) CountKnownItems(ctx context.Context, userID uuid.UUID) (int, error) {
+	n, err := s.q.CountKnownItems(ctx, userID)
+	return int(n), err
+}
+
 // ListCandidateIntroItems returns candidate items for the introduction queue:
 // active, tier-unlocked (allowedTiers), and either never seen by this user or
 // still lifecycle=new. Ordered tier, then topic position, then item position

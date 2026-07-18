@@ -256,6 +256,56 @@ func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSincePa
 	return items, nil
 }
 
+const listAttemptsSinceV2 = `-- name: ListAttemptsSinceV2 :many
+SELECT correct_answer, chosen, correct, response_ms, reviewed_at
+FROM reviews
+WHERE user_id = $1 AND reviewed_at >= $2 AND item_id IS NOT NULL
+ORDER BY reviewed_at
+`
+
+type ListAttemptsSinceV2Params struct {
+	UserID     uuid.UUID
+	ReviewedAt pgtype.Timestamptz
+}
+
+type ListAttemptsSinceV2Row struct {
+	CorrectAnswer pgtype.Text
+	Chosen        pgtype.Text
+	Correct       bool
+	ResponseMs    pgtype.Int4
+	ReviewedAt    pgtype.Timestamptz
+}
+
+// v2 (internal/study.Service.Stats): answer records for quiz.Confusion,
+// restricted to v2 attempts (item_id IS NOT NULL, so chosen/correct_answer
+// are always populated by the v2 write path — see internal/study's
+// finishAnswer).
+func (q *Queries) ListAttemptsSinceV2(ctx context.Context, arg ListAttemptsSinceV2Params) ([]ListAttemptsSinceV2Row, error) {
+	rows, err := q.db.Query(ctx, listAttemptsSinceV2, arg.UserID, arg.ReviewedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAttemptsSinceV2Row{}
+	for rows.Next() {
+		var i ListAttemptsSinceV2Row
+		if err := rows.Scan(
+			&i.CorrectAnswer,
+			&i.Chosen,
+			&i.Correct,
+			&i.ResponseMs,
+			&i.ReviewedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReviewsSince = `-- name: ListReviewsSince :many
 SELECT id, user_id, skill_id, exercise_id, content_id, chosen_key, correct_key, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, reviewed_at, practice, item_id, mode, chosen, correct_answer FROM reviews
 WHERE user_id = $1 AND reviewed_at >= $2
@@ -371,6 +421,58 @@ func (q *Queries) ReviewStatsByDeck(ctx context.Context, arg ReviewStatsByDeckPa
 		var i ReviewStatsByDeckRow
 		if err := rows.Scan(
 			&i.Slug,
+			&i.Name,
+			&i.Total,
+			&i.Correct,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reviewStatsByTopic = `-- name: ReviewStatsByTopic :many
+SELECT t.id AS topic_id, t.name,
+       count(*) AS total,
+       count(*) FILTER (WHERE r.correct) AS correct
+FROM reviews r
+JOIN items i ON i.id = r.item_id
+JOIN topics t ON t.id = i.topic_id
+WHERE r.user_id = $1 AND r.reviewed_at >= $2 AND r.item_id IS NOT NULL
+GROUP BY t.id, t.name
+ORDER BY t.name
+`
+
+type ReviewStatsByTopicParams struct {
+	UserID     uuid.UUID
+	ReviewedAt pgtype.Timestamptz
+}
+
+type ReviewStatsByTopicRow struct {
+	TopicID uuid.UUID
+	Name    string
+	Total   int64
+	Correct int64
+}
+
+// v2 (internal/study.Service.Stats): per-topic accuracy since a time,
+// restricted to v2 attempts (item_id IS NOT NULL) — replaces ReviewStatsByDeck
+// for the /stats view once every write path is item-based (architecture §2.5).
+func (q *Queries) ReviewStatsByTopic(ctx context.Context, arg ReviewStatsByTopicParams) ([]ReviewStatsByTopicRow, error) {
+	rows, err := q.db.Query(ctx, reviewStatsByTopic, arg.UserID, arg.ReviewedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReviewStatsByTopicRow{}
+	for rows.Next() {
+		var i ReviewStatsByTopicRow
+		if err := rows.Scan(
+			&i.TopicID,
 			&i.Name,
 			&i.Total,
 			&i.Correct,

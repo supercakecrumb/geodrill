@@ -563,3 +563,59 @@ func (s *Store) ReviewStatsByDeck(ctx context.Context, userID uuid.UUID, since t
 	}
 	return out, nil
 }
+
+// TopicStat is aggregate accuracy for one topic over a window (the v2
+// counterpart of DeckStat).
+type TopicStat struct {
+	TopicID uuid.UUID
+	Name    string
+	Total   int
+	Correct int
+}
+
+// ReviewStatsByTopic returns per-topic accuracy aggregates since a time,
+// restricted to v2 attempts (item_id IS NOT NULL) — the v2 counterpart of
+// ReviewStatsByDeck.
+func (s *Store) ReviewStatsByTopic(ctx context.Context, userID uuid.UUID, since time.Time) ([]TopicStat, error) {
+	rows, err := s.q.ReviewStatsByTopic(ctx, db.ReviewStatsByTopicParams{UserID: userID, ReviewedAt: timeTs(since)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TopicStat, len(rows))
+	for i, r := range rows {
+		out[i] = TopicStat{TopicID: r.TopicID, Name: r.Name, Total: int(r.Total), Correct: int(r.Correct)}
+	}
+	return out, nil
+}
+
+// AttemptV2 is the minimal per-answer record for quiz.Confusion over v2
+// attempts (the v2 counterpart of Attempt): CorrectAnswer/Chosen are the
+// generalized, mode-serialized strings (architecture §2.5) rather than
+// legacy skill keys.
+type AttemptV2 struct {
+	CorrectAnswer string
+	Chosen        string
+	Correct       bool
+	ResponseMS    int
+	AnsweredAt    time.Time
+}
+
+// ListAttemptsSinceV2 returns v2 answer records (item_id IS NOT NULL) for
+// quiz.Confusion — the v2 counterpart of ListAttemptsSince.
+func (s *Store) ListAttemptsSinceV2(ctx context.Context, userID uuid.UUID, since time.Time) ([]AttemptV2, error) {
+	rows, err := s.q.ListAttemptsSinceV2(ctx, db.ListAttemptsSinceV2Params{UserID: userID, ReviewedAt: timeTs(since)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AttemptV2, len(rows))
+	for i, r := range rows {
+		out[i] = AttemptV2{
+			CorrectAnswer: r.CorrectAnswer.String,
+			Chosen:        r.Chosen.String,
+			Correct:       r.Correct,
+			ResponseMS:    int4Int(r.ResponseMs),
+			AnsweredAt:    tsTime(r.ReviewedAt),
+		}
+	}
+	return out, nil
+}

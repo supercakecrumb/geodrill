@@ -80,6 +80,91 @@ func (q *Queries) ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID)
 	return items, nil
 }
 
+const listActiveItemsForPractice = `-- name: ListActiveItemsForPractice :many
+SELECT i.id, i.topic_id, i.key, i.label, i.tier, i.payload, i.country_id, i.position, i.active, i.created_at FROM items i
+JOIN item_tiers it ON it.item_id = i.id
+WHERE i.active = true
+  AND i.topic_id = ANY($1::uuid[])
+  AND it.tier = ANY($2::smallint[])
+ORDER BY i.topic_id, i.position
+`
+
+type ListActiveItemsForPracticeParams struct {
+	Column1 []uuid.UUID
+	Column2 []int16
+}
+
+// v2 (internal/study.Service.NextPracticeV2): active items across a set of
+// topics (the caller's enabled+quizzable topics), restricted to a set of
+// tiers (the caller's currently-unlocked tiers) — the /practice candidate
+// pool, mirroring the legacy ListEnabledSkills' "across a user's enabled
+// decks" shape but tier-gated like every other v2 read.
+func (q *Queries) ListActiveItemsForPractice(ctx context.Context, arg ListActiveItemsForPracticeParams) ([]Item, error) {
+	rows, err := q.db.Query(ctx, listActiveItemsForPractice, arg.Column1, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.TopicID,
+			&i.Key,
+			&i.Label,
+			&i.Tier,
+			&i.Payload,
+			&i.CountryID,
+			&i.Position,
+			&i.Active,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllItemKeyLabels = `-- name: ListAllItemKeyLabels :many
+SELECT key, label FROM items
+`
+
+type ListAllItemKeyLabelsRow struct {
+	Key   string
+	Label string
+}
+
+// Global key->label lookup for confusion display (mirrors the legacy
+// ListAllSkills key->label map). Best-effort: item keys are only unique
+// WITHIN a topic (items' UNIQUE (topic_id, key) constraint), so a key shared
+// by two topics resolves to whichever row this query returns last for it —
+// an acceptable approximation for a "which language/character/word" hint,
+// exactly like the legacy per-deck assumption it replaces.
+func (q *Queries) ListAllItemKeyLabels(ctx context.Context) ([]ListAllItemKeyLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listAllItemKeyLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllItemKeyLabelsRow{}
+	for rows.Next() {
+		var i ListAllItemKeyLabelsRow
+		if err := rows.Scan(&i.Key, &i.Label); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItemsByTopic = `-- name: ListItemsByTopic :many
 SELECT id, topic_id, key, label, tier, payload, country_id, position, active, created_at FROM items WHERE topic_id = $1 ORDER BY position, key
 `

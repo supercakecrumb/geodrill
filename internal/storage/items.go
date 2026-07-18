@@ -113,3 +113,36 @@ func (s *Store) ListItemsWithTierByTopic(ctx context.Context, topicID uuid.UUID)
 func (s *Store) GetItemEffectiveTier(ctx context.Context, itemID uuid.UUID) (int16, error) {
 	return s.q.GetItemEffectiveTier(ctx, itemID)
 }
+
+// ListActiveItemsForPractice returns active items across topicIDs restricted
+// to allowedTiers — the /practice candidate pool (internal/study.Service.
+// NextPracticeV2): enabled+quizzable topics, tier-gated like every other v2
+// read.
+func (s *Store) ListActiveItemsForPractice(ctx context.Context, topicIDs []uuid.UUID, allowedTiers []int16) ([]Item, error) {
+	rows, err := s.q.ListActiveItemsForPractice(ctx, db.ListActiveItemsForPracticeParams{
+		Column1: topicIDs,
+		Column2: allowedTiers,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Item, len(rows))
+	for i, r := range rows {
+		out[i] = itemFrom(r)
+	}
+	return out, nil
+}
+
+// ListAllItemKeyLabels returns a global key->label map across every item
+// (best-effort; see the underlying query's doc) for /stats confusion display.
+func (s *Store) ListAllItemKeyLabels(ctx context.Context) (map[string]string, error) {
+	rows, err := s.q.ListAllItemKeyLabels(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		out[r.Key] = r.Label
+	}
+	return out, nil
+}
