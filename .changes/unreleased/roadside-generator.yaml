@@ -1,0 +1,2 @@
+kind: Added
+body: "Add internal/topics/roadside.Generator (quiz_kind road_side): a fixed-order (never shuffled) Left/Right MCQ and a flag-prefixed intro card, reading only each item's cached payload so it never needs a DB-backed country lookup"
