@@ -75,6 +75,8 @@ type Config struct {
 	// /train prefers it over the legacy trainer, and its presence is what
 	// decides whether the free-text OnText handler is registered at all.
 	TrainerV2 TrainerV2
+	// IntroCapStore powers the /settings daily intro-cap row.
+	IntroCapStore IntroCapStore
 }
 
 // Bot wires telebot to geodrill's train/storage layers.
@@ -94,6 +96,7 @@ type Bot struct {
 	// trainerV2 is nil until a later wave wires Config.TrainerV2 — every
 	// call site checks it before use (see trainv2.go).
 	trainerV2 TrainerV2
+	introCap  IntroCapStore
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -153,6 +156,7 @@ func New(cfg Config) (*Bot, error) {
 		study:         cfg.StudyService,
 		topics:        cfg.TopicService,
 		trainerV2:     cfg.TrainerV2,
+		introCap:      cfg.IntroCapStore,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
 	}

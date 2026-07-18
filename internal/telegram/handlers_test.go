@@ -678,15 +678,15 @@ func TestSettingsRows(t *testing.T) {
 		FollowUpDelayMin: 60,
 	}
 
-	collect := func(u storage.User) []Btn {
+	collect := func(u storage.User, introCap *int) []Btn {
 		var all []Btn
-		for _, row := range settingsRows(u) {
+		for _, row := range settingsRows(u, introCap) {
 			all = append(all, row...)
 		}
 		return all
 	}
 
-	all := collect(user)
+	all := collect(user, nil)
 	assertHasBtn(t, all, Btn{Label: "-5", Data: "cap:dec5"})
 	assertHasBtn(t, all, Btn{Label: "cap: 7", Data: "noop"})
 	assertHasBtn(t, all, Btn{Label: "+5", Data: "cap:inc5"})
@@ -701,9 +701,117 @@ func TestSettingsRows(t *testing.T) {
 	// Off states flip the labels.
 	user.RemindersEnabled = false
 	user.FollowUpEnabled = false
-	allOff := collect(user)
+	allOff := collect(user, nil)
 	assertHasBtn(t, allOff, Btn{Label: "🔔 reminders: off", Data: "rem:toggle"})
 	assertHasBtn(t, allOff, Btn{Label: "🔁 follow-up: off", Data: "fup:toggle"})
+}
+
+func TestSettingsRows_IntroCapRow(t *testing.T) {
+	user := storage.User{DailyNewCap: 7, LabelStyle: "name"}
+	cap := 12
+	var all []Btn
+	for _, row := range settingsRows(user, &cap) {
+		all = append(all, row...)
+	}
+	assertHasBtn(t, all, Btn{Label: "🎯 -1", Data: "icap:dec"})
+	assertHasBtn(t, all, Btn{Label: "intro cap: 12", Data: "noop"})
+	assertHasBtn(t, all, Btn{Label: "🎯 +1", Data: "icap:inc"})
+}
+
+// stubIntroCapStore implements IntroCapStore in memory.
+type stubIntroCapStore struct {
+	cap int
+	err error
+}
+
+func (s *stubIntroCapStore) GetIntroCap(ctx context.Context, userID uuid.UUID) (int, error) {
+	return s.cap, s.err
+}
+
+func (s *stubIntroCapStore) SetIntroCap(ctx context.Context, userID uuid.UUID, cap int) error {
+	s.cap = cap
+	return s.err
+}
+
+func TestIntroCapFor(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{})
+	if got := b.introCapFor(context.Background(), uuid.New()); got != nil {
+		t.Fatalf("expected nil when IntroCapStore is unset, got %v", *got)
+	}
+	b.introCap = &stubIntroCapStore{cap: 15}
+	got := b.introCapFor(context.Background(), uuid.New())
+	if got == nil || *got != 15 {
+		t.Fatalf("expected 15, got %v", got)
+	}
+}
+
+func TestHandleIntroCapChange_AdjustsAndRerenders(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(&stubTrainer{}, st)
+	stub := &stubIntroCapStore{cap: 10}
+	b.introCap = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != 11 {
+		t.Fatalf("expected icap:inc to raise the cap to 11, got %d", stub.cap)
+	}
+	if len(s.edits) != 1 {
+		t.Fatalf("expected the settings keyboard re-rendered in place, got %d edits", len(s.edits))
+	}
+
+	s.data = "icap:dec"
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != 10 {
+		t.Fatalf("expected icap:dec to lower the cap back to 10, got %d", stub.cap)
+	}
+}
+
+func TestHandleIntroCapChange_ClampsToBounds(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(&stubTrainer{}, st)
+	stub := &stubIntroCapStore{cap: maxIntroCap}
+	b.introCap = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.cap != maxIntroCap {
+		t.Fatalf("expected the cap clamped at %d, got %d", maxIntroCap, stub.cap)
+	}
+}
+
+func TestHandleIntroCapChange_NilStoreIsInert(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single inert ack, got %v", s.responses)
+	}
+	if len(s.edits) != 0 {
+		t.Fatalf("expected no re-render when IntroCapStore is nil, got %d edits", len(s.edits))
+	}
+}
+
+func TestHelpTextFor(t *testing.T) {
+	if got := helpTextFor(false, false); got != helpText {
+		t.Fatalf("helpTextFor(false, false) must return helpText verbatim")
+	}
+	studyOnly := helpTextFor(true, false)
+	if !strings.Contains(studyOnly, "/study") || strings.Contains(studyOnly, "/topics") {
+		t.Fatalf("helpTextFor(true, false) = %q, expected /study but not /topics", studyOnly)
+	}
+	topicsOnly := helpTextFor(false, true)
+	if !strings.Contains(topicsOnly, "/topics") || strings.Contains(topicsOnly, "/study") {
+		t.Fatalf("helpTextFor(false, true) = %q, expected /topics but not /study", topicsOnly)
+	}
 }
 
 func assertHasBtn(t *testing.T, btns []Btn, want Btn) {
@@ -1102,5 +1210,21 @@ func TestHandleHelp(t *testing.T) {
 	}
 	if !strings.Contains(s.sent[0], "Sentences: Tatoeba (tatoeba.org), CC-BY.") {
 		t.Fatalf("expected help text to carry the Tatoeba CC-BY credit line; got:\n%s", s.sent[0])
+	}
+}
+
+func TestHandleHelp_MentionsStudyAndTopicsWhenWired(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: storage.User{ID: uuid.New()}})
+	b.study = &stubStudyService{}
+	b.topics = &stubTopicService{}
+	s := &fakeSession{userID: 1}
+
+	if err := b.handleHelp(context.Background(), s); err != nil {
+		t.Fatalf("handleHelp: %v", err)
+	}
+	for _, want := range []string{"/study", "/introduce", "/topics"} {
+		if !strings.Contains(s.sent[0], want) {
+			t.Fatalf("expected help text to mention %q when wired; got:\n%s", want, s.sent[0])
+		}
 	}
 }

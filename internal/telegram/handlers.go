@@ -68,6 +68,11 @@ const (
 	maxDailyCap = 50
 )
 
+const (
+	minIntroCap = 0
+	maxIntroCap = 50
+)
+
 // ── label-style cycle ───────────────────────────────────────────────────────
 
 // labelStyleCycle is the order the "🔤 ..." control in /decks advances
@@ -245,14 +250,44 @@ func (b *Bot) handleSettings(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.SendKeyboard(settingsText, settingsRows(user))
+	_, err = s.SendKeyboard(settingsText, settingsRows(user, b.introCapFor(ctx, user.ID)))
 	return err
+}
+
+func (b *Bot) introCapFor(ctx context.Context, userID uuid.UUID) *int {
+	if b.introCap == nil {
+		return nil
+	}
+	v, err := b.introCap.GetIntroCap(ctx, userID)
+	if err != nil {
+		b.logger.Warn("telegram: get intro cap", "error", err)
+		return nil
+	}
+	return &v
+}
+
+func (b *Bot) handleIntroCapChange(ctx context.Context, s Session, delta int) error {
+	if b.introCap == nil {
+		return s.Respond("")
+	}
+	user, err := b.loadOrCreateUser(ctx, s)
+	if err != nil {
+		return err
+	}
+	cur, err := b.introCap.GetIntroCap(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	if err := b.introCap.SetIntroCap(ctx, user.ID, clamp(cur+delta, minIntroCap, maxIntroCap)); err != nil {
+		return err
+	}
+	return b.rerenderSettings(ctx, s, user)
 }
 
 // rerenderSettings re-renders the settings keyboard in place (after a cap,
 // style, reminder, hour, or follow-up change) and acks the callback.
 func (b *Bot) rerenderSettings(ctx context.Context, s Session, user storage.User) error {
-	if err := s.EditKeyboard(s.MessageID(), settingsRows(user)); err != nil {
+	if err := s.EditKeyboard(s.MessageID(), settingsRows(user, b.introCapFor(ctx, user.ID))); err != nil {
 		return err
 	}
 	return s.Respond("")
@@ -297,7 +332,27 @@ func (b *Bot) handleFollowUpDelayCycle(ctx context.Context, s Session) error {
 // ── /help ────────────────────────────────────────────────────────────────
 
 func (b *Bot) handleHelp(ctx context.Context, s Session) error {
-	return s.Send(helpText)
+	return s.Send(helpTextFor(b.study != nil, b.topics != nil))
+}
+
+// helpTextFor appends a mention of /study and/or /topics to the base
+// helpText when the corresponding v2 service is wired, so /help never
+// advertises a command that would just reply "🚧 coming with v2 wiring".
+// Returns helpText verbatim when both are nil (today's exact message).
+func helpTextFor(hasStudy, hasTopics bool) string {
+	if !hasStudy && !hasTopics {
+		return helpText
+	}
+	var b strings.Builder
+	b.WriteString(helpText)
+	b.WriteString("\n\nAlso available:\n")
+	if hasStudy {
+		b.WriteString("/study — teaching cards for new items (✅ Got it / 🧠 I know this / 🎯 Test me); /introduce fetches more on demand\n")
+	}
+	if hasTopics {
+		b.WriteString("/topics — browse topics, tiers, and your progress\n")
+	}
+	return b.String()
 }
 
 // ── /stats ───────────────────────────────────────────────────────────────
@@ -343,6 +398,10 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleCapChange(ctx, s, 5)
 	case data == "cap:dec5":
 		return b.handleCapChange(ctx, s, -5)
+	case data == "icap:inc":
+		return b.handleIntroCapChange(ctx, s, 1)
+	case data == "icap:dec":
+		return b.handleIntroCapChange(ctx, s, -1)
 	case data == "rem:toggle":
 		return b.handleRemindersToggle(ctx, s)
 	case data == "rhour:inc":
@@ -682,8 +741,8 @@ func deckPickerRows(decks []storage.UserDeck) [][]Btn {
 // the label-style cycle, and the reminder controls (on/off, local hour, and
 // the follow-up nudge's own on/off + delay). Each control group sits on its own
 // row so labels aren't squeezed or truncated.
-func settingsRows(user storage.User) [][]Btn {
-	rows := make([][]Btn, 0, 6)
+func settingsRows(user storage.User, introCap *int) [][]Btn {
+	rows := make([][]Btn, 0, 7)
 
 	// Daily new-skill cap: -5 / -1 / value / +1 / +5.
 	rows = append(rows, []Btn{
@@ -693,6 +752,14 @@ func settingsRows(user storage.User) [][]Btn {
 		{Label: "+1", Data: "cap:inc"},
 		{Label: "+5", Data: "cap:inc5"},
 	})
+
+	if introCap != nil {
+		rows = append(rows, []Btn{
+			{Label: "🎯 -1", Data: "icap:dec"},
+			{Label: fmt.Sprintf("intro cap: %d", *introCap), Data: "noop"},
+			{Label: "🎯 +1", Data: "icap:inc"},
+		})
+	}
 
 	// Button label style.
 	rows = append(rows, []Btn{
