@@ -1,0 +1,2274 @@
+# Cities dataset — population-ranked world cities for city→country recognition quiz
+# Schema:
+#   key: <iso2-lowercase>:<city-slug> — collision-safe unique identifier
+#   name: English exonym (name GeoGuessr players would use)
+#   country: ISO2 uppercase code (must exist in seeds/tlds.yaml)
+#   population: approximate metro or city population (integer, thousands; used for ordering)
+# Coverage rule: Every country with real GeoGuessr Street View has 2–3 largest cities.
+# Globally famous/GeoGuessr-recognizable cities included even if mid-sized (e.g., Reykjavik).
+# Omit disputed territories; use current common English names.
+cities:
+  - key: in:mumbai
+    name: Mumbai
+    country: IN
+    population: 20900000
+
+  - key: cn:shanghai
+    name: Shanghai
+    country: CN
+    population: 24256000
+
+  - key: cn:beijing
+    name: Beijing
+    country: CN
+    population: 19618000
+
+  - key: in:delhi
+    name: Delhi
+    country: IN
+    population: 16787000
+
+  - key: br:sao-paulo
+    name: São Paulo
+    country: BR
+    population: 21066000
+
+  - key: cn:guangzhou
+    name: Guangzhou
+    country: CN
+    population: 13501000
+
+  - key: ru:moscow
+    name: Moscow
+    country: RU
+    population: 12678000
+
+  - key: jp:tokyo
+    name: Tokyo
+    country: JP
+    population: 13960000
+
+  - key: cn:shenzhen
+    name: Shenzhen
+    country: CN
+    population: 12344000
+
+  - key: mx:mexico-city
+    name: Mexico City
+    country: MX
+    population: 8918000
+
+  - key: id:jakarta
+    name: Jakarta
+    country: ID
+    population: 10040000
+
+  - key: br:rio-de-janeiro
+    name: Rio de Janeiro
+    country: BR
+    population: 6748000
+
+  - key: eg:cairo
+    name: Cairo
+    country: EG
+    population: 11001000
+
+  - key: pk:karachi
+    name: Karachi
+    country: PK
+    population: 15400000
+
+  - key: bd:dhaka
+    name: Dhaka
+    country: BD
+    population: 10009000
+
+  - key: ng:lagos
+    name: Lagos
+    country: NG
+    population: 13463000
+
+  - key: tr:istanbul
+    name: Istanbul
+    country: TR
+    population: 14751000
+
+  - key: gb:london
+    name: London
+    country: GB
+    population: 9002000
+
+  - key: fr:paris
+    name: Paris
+    country: FR
+    population: 2161000
+
+  - key: de:berlin
+    name: Berlin
+    country: DE
+    population: 3645000
+
+  - key: es:madrid
+    name: Madrid
+    country: ES
+    population: 6681000
+
+  - key: it:rome
+    name: Rome
+    country: IT
+    population: 2761000
+
+  - key: us:new-york
+    name: New York
+    country: US
+    population: 8336000
+
+  - key: us:los-angeles
+    name: Los Angeles
+    country: US
+    population: 3979000
+
+  - key: us:chicago
+    name: Chicago
+    country: US
+    population: 2716000
+
+  - key: us:houston
+    name: Houston
+    country: US
+    population: 2320000
+
+  - key: us:phoenix
+    name: Phoenix
+    country: US
+    population: 1606000
+
+  - key: us:philadelphia
+    name: Philadelphia
+    country: US
+    population: 1603000
+
+  - key: us:san-antonio
+    name: San Antonio
+    country: US
+    population: 1547000
+
+  - key: us:san-diego
+    name: San Diego
+    country: US
+    population: 1356000
+
+  - key: us:dallas
+    name: Dallas
+    country: US
+    population: 1343000
+
+  - key: us:san-jose
+    name: San Jose
+    country: US
+    population: 1021000
+
+  - key: us:austin
+    name: Austin
+    country: US
+    population: 978000
+
+  - key: us:seattle
+    name: Seattle
+    country: US
+    population: 753000
+
+  - key: us:denver
+    name: Denver
+    country: US
+    population: 727000
+
+  - key: us:boston
+    name: Boston
+    country: US
+    population: 692000
+
+  - key: us:miami
+    name: Miami
+    country: US
+    population: 442000
+
+  - key: us:portland
+    name: Portland
+    country: US
+    population: 653000
+
+  - key: us:vegas
+    name: Las Vegas
+    country: US
+    population: 644000
+
+  - key: ca:toronto
+    name: Toronto
+    country: CA
+    population: 2931000
+
+  - key: ca:vancouver
+    name: Vancouver
+    country: CA
+    population: 631000
+
+  - key: ca:montreal
+    name: Montreal
+    country: CA
+    population: 1738000
+
+  - key: ca:calgary
+    name: Calgary
+    country: CA
+    population: 1336000
+
+  - key: ca:ottawa
+    name: Ottawa
+    country: CA
+    population: 1017000
+
+  - key: br:brasilia
+    name: Brasília
+    country: BR
+    population: 2817000
+
+  - key: br:salvador
+    name: Salvador
+    country: BR
+    population: 2676000
+
+  - key: br:fortaleza
+    name: Fortaleza
+    country: BR
+    population: 2627000
+
+  - key: br:belo-horizonte
+    name: Belo Horizonte
+    country: BR
+    population: 2385000
+
+  - key: br:manaus
+    name: Manaus
+    country: BR
+    population: 2219000
+
+  - key: br:curitiba
+    name: Curitiba
+    country: BR
+    population: 1963000
+
+  - key: mx:guadalajara
+    name: Guadalajara
+    country: MX
+    population: 5268000
+
+  - key: mx:ecatepec
+    name: Ecatepec
+    country: MX
+    population: 1620000
+
+  - key: mx:monterrey
+    name: Monterrey
+    country: MX
+    population: 4381000
+
+  - key: mx:puebla
+    name: Puebla
+    country: MX
+    population: 2167000
+
+  - key: mx:cancun
+    name: Cancun
+    country: MX
+    population: 885000
+
+  - key: co:bogota
+    name: Bogotá
+    country: CO
+    population: 8080000
+
+  - key: co:medellin
+    name: Medellín
+    country: CO
+    population: 3898000
+
+  - key: co:cali
+    name: Cali
+    country: CO
+    population: 2419000
+
+  - key: co:barranquilla
+    name: Barranquilla
+    country: CO
+    population: 1386000
+
+  - key: ar:buenos-aires
+    name: Buenos Aires
+    country: AR
+    population: 2891000
+
+  - key: ar:cordoba
+    name: Córdoba
+    country: AR
+    population: 1317000
+
+  - key: ar:rosario
+    name: Rosario
+    country: AR
+    population: 948000
+
+  - key: cl:santiago
+    name: Santiago
+    country: CL
+    population: 7112000
+
+  - key: cl:valparaiso
+    name: Valparaiso
+    country: CL
+    population: 268000
+
+  - key: cl:concepcion
+    name: Concepción
+    country: CL
+    population: 215000
+
+  - key: pe:lima
+    name: Lima
+    country: PE
+    population: 9886000
+
+  - key: pe:arequipa
+    name: Arequipa
+    country: PE
+    population: 798000
+
+  - key: ve:caracas
+    name: Caracas
+    country: VE
+    population: 2923000
+
+  - key: ve:maracaibo
+    name: Maracaibo
+    country: VE
+    population: 2225000
+
+  - key: ec:quito
+    name: Quito
+    country: EC
+    population: 1781000
+
+  - key: ec:guayaquil
+    name: Guayaquil
+    country: EC
+    population: 2291000
+
+  - key: bo:la-paz
+    name: La Paz
+    country: BO
+    population: 1940000
+
+  - key: bo:santa-cruz
+    name: Santa Cruz de la Sierra
+    country: BO
+    population: 1441000
+
+  - key: uy:montevideo
+    name: Montevideo
+    country: UY
+    population: 1305000
+
+  - key: py:asuncion
+    name: Asunción
+    country: PY
+    population: 525000
+
+  - key: de:hamburg
+    name: Hamburg
+    country: DE
+    population: 1852000
+
+  - key: de:munich
+    name: Munich
+    country: DE
+    population: 1471000
+
+  - key: de:cologne
+    name: Cologne
+    country: DE
+    population: 1087000
+
+  - key: de:frankfurt
+    name: Frankfurt
+    country: DE
+    population: 753000
+
+  - key: de:dusseldorf
+    name: Düsseldorf
+    country: DE
+    population: 621000
+
+  - key: de:dortmund
+    name: Dortmund
+    country: DE
+    population: 586000
+
+  - key: de:essen
+    name: Essen
+    country: DE
+    population: 582000
+
+  - key: de:leipzig
+    name: Leipzig
+    country: DE
+    population: 597000
+
+  - key: de:Dresden
+    name: Dresden
+    country: DE
+    population: 556000
+
+  - key: fr:marseille
+    name: Marseille
+    country: FR
+    population: 869000
+
+  - key: fr:lyon
+    name: Lyon
+    country: FR
+    population: 513000
+
+  - key: fr:toulouse
+    name: Toulouse
+    country: FR
+    population: 479000
+
+  - key: fr:nice
+    name: Nice
+    country: FR
+    population: 340000
+
+  - key: gb:manchester
+    name: Manchester
+    country: GB
+    population: 530000
+
+  - key: gb:birmingham
+    name: Birmingham
+    country: GB
+    population: 1141000
+
+  - key: gb:leeds
+    name: Leeds
+    country: GB
+    population: 793000
+
+  - key: gb:glasgow
+    name: Glasgow
+    country: GB
+    population: 633000
+
+  - key: gb:liverpool
+    name: Liverpool
+    country: GB
+    population: 498000
+
+  - key: gb:newcastle
+    name: Newcastle
+    country: GB
+    population: 302000
+
+  - key: gb:edinburgh
+    name: Edinburgh
+    country: GB
+    population: 530000
+
+  - key: es:barcelona
+    name: Barcelona
+    country: ES
+    population: 1602000
+
+  - key: es:valencia
+    name: Valencia
+    country: ES
+    population: 1609000
+
+  - key: es:seville
+    name: Seville
+    country: ES
+    population: 1534000
+
+  - key: es:bilbao
+    name: Bilbao
+    country: ES
+    population: 366000
+
+  - key: es:malaga
+    name: Málaga
+    country: ES
+    population: 580000
+
+  - key: pt:lisbon
+    name: Lisbon
+    country: PT
+    population: 505000
+
+  - key: pt:porto
+    name: Porto
+    country: PT
+    population: 1688000
+
+  - key: it:milan
+    name: Milan
+    country: IT
+    population: 1335000
+
+  - key: it:naples
+    name: Naples
+    country: IT
+    population: 909000
+
+  - key: it:turin
+    name: Turin
+    country: IT
+    population: 870000
+
+  - key: it:palermo
+    name: Palermo
+    country: IT
+    population: 873000
+
+  - key: it:florence
+    name: Florence
+    country: IT
+    population: 382000
+
+  - key: it:venice
+    name: Venice
+    country: IT
+    population: 261000
+
+  - key: gr:athens
+    name: Athens
+    country: GR
+    population: 3154000
+
+  - key: gr:thessaloniki
+    name: Thessaloniki
+    country: GR
+    population: 1092000
+
+  - key: nl:amsterdam
+    name: Amsterdam
+    country: NL
+    population: 873000
+
+  - key: nl:rotterdam
+    name: Rotterdam
+    country: NL
+    population: 651000
+
+  - key: nl:the-hague
+    name: The Hague
+    country: NL
+    population: 537000
+
+  - key: nl:utrecht
+    name: Utrecht
+    country: NL
+    population: 357000
+
+  - key: be:brussels
+    name: Brussels
+    country: BE
+    population: 1210000
+
+  - key: be:antwerp
+    name: Antwerp
+    country: BE
+    population: 520000
+
+  - key: be:ghent
+    name: Ghent
+    country: BE
+    population: 252000
+
+  - key: ch:zurich
+    name: Zurich
+    country: CH
+    population: 1315000
+
+  - key: ch:geneva
+    name: Geneva
+    country: CH
+    population: 615000
+
+  - key: ch:basel
+    name: Basel
+    country: CH
+    population: 175000
+
+  - key: at:vienna
+    name: Vienna
+    country: AT
+    population: 1920000
+
+  - key: at:graz
+    name: Graz
+    country: AT
+    population: 291000
+
+  - key: at:linz
+    name: Linz
+    country: AT
+    population: 206000
+
+  - key: cz:prague
+    name: Prague
+    country: CZ
+    population: 1319000
+
+  - key: cz:brno
+    name: Brno
+    country: CZ
+    population: 382000
+
+  - key: sk:bratislava
+    name: Bratislava
+    country: SK
+    population: 475000
+
+  - key: hu:budapest
+    name: Budapest
+    country: HU
+    population: 1752000
+
+  - key: hu:debrecen
+    name: Debrecen
+    country: HU
+    population: 204000
+
+  - key: pl:warsaw
+    name: Warsaw
+    country: PL
+    population: 1863000
+
+  - key: pl:krakow
+    name: Krakow
+    country: PL
+    population: 779000
+
+  - key: pl:wroclaw
+    name: Wrocław
+    country: PL
+    population: 644000
+
+  - key: pl:poznan
+    name: Poznań
+    country: PL
+    population: 537000
+
+  - key: pl:gdansk
+    name: Gdańsk
+    country: PL
+    population: 461000
+
+  - key: pl:szczecin
+    name: Szczecin
+    country: PL
+    population: 399000
+
+  - key: pl:lodz
+    name: Łódź
+    country: PL
+    population: 664000
+
+  - key: ro:bucharest
+    name: Bucharest
+    country: RO
+    population: 1830000
+
+  - key: ro:cluj-napoca
+    name: Cluj-Napoca
+    country: RO
+    population: 405000
+
+  - key: ro:timisoara
+    name: Timișoara
+    country: RO
+    population: 319000
+
+  - key: bg:sofia
+    name: Sofia
+    country: BG
+    population: 1242000
+
+  - key: bg:plovdiv
+    name: Plovdiv
+    country: BG
+    population: 346000
+
+  - key: rs:belgrade
+    name: Belgrade
+    country: RS
+    population: 1164000
+
+  - key: rs:nis
+    name: Niš
+    country: RS
+    population: 259000
+
+  - key: ba:sarajevo
+    name: Sarajevo
+    country: BA
+    population: 369000
+
+  - key: ba:banja-luka
+    name: Banja Luka
+    country: BA
+    population: 185000
+
+  - key: hr:zagreb
+    name: Zagreb
+    country: HR
+    population: 768000
+
+  - key: hr:split
+    name: Split
+    country: HR
+    population: 176000
+
+  - key: si:ljubljana
+    name: Ljubljana
+    country: SI
+    population: 295000
+
+  - key: ua:kyiv
+    name: Kyiv
+    country: UA
+    population: 2962000
+
+  - key: ua:kharkiv
+    name: Kharkiv
+    country: UA
+    population: 1436000
+
+  - key: ua:odesa
+    name: Odesa
+    country: UA
+    population: 1009000
+
+  - key: ua:lviv
+    name: Lviv
+    country: UA
+    population: 721000
+
+  - key: ua:dnipro
+    name: Dnipro
+    country: UA
+    population: 993000
+
+  - key: ru:st-petersburg
+    name: Saint Petersburg
+    country: RU
+    population: 5398000
+
+  - key: ru:novosibirsk
+    name: Novosibirsk
+    country: RU
+    population: 1625000
+
+  - key: ru:yekaterinburg
+    name: Yekaterinburg
+    country: RU
+    population: 1495000
+
+  - key: ru:nizhny-novgorod
+    name: Nizhny Novgorod
+    country: RU
+    population: 1250000
+
+  - key: ru:kazan
+    name: Kazan
+    country: RU
+    population: 1257000
+
+  - key: ru:chelyabinsk
+    name: Chelyabinsk
+    country: RU
+    population: 1196000
+
+  - key: se:stockholm
+    name: Stockholm
+    country: SE
+    population: 975000
+
+  - key: se:gothenburg
+    name: Gothenburg
+    country: SE
+    population: 639000
+
+  - key: se:malmo
+    name: Malmö
+    country: SE
+    population: 316000
+
+  - key: no:oslo
+    name: Oslo
+    country: NO
+    population: 1019000
+
+  - key: no:bergen
+    name: Bergen
+    country: NO
+    population: 291000
+
+  - key: no:stavanger
+    name: Stavanger
+    country: NO
+    population: 130000
+
+  - key: dk:copenhagen
+    name: Copenhagen
+    country: DK
+    population: 799000
+
+  - key: dk:aarhus
+    name: Aarhus
+    country: DK
+    population: 330000
+
+  - key: dk:odense
+    name: Odense
+    country: DK
+    population: 174000
+
+  - key: fi:helsinki
+    name: Helsinki
+    country: FI
+    population: 656000
+
+  - key: fi:tampere
+    name: Tampere
+    country: FI
+    population: 246000
+
+  - key: fi:turku
+    name: Turku
+    country: FI
+    population: 196000
+
+  - key: ie:dublin
+    name: Dublin
+    country: IE
+    population: 1228000
+
+  - key: ie:cork
+    name: Cork
+    country: IE
+    population: 208000
+
+  - key: is:reykjavik
+    name: Reykjavik
+    country: IS
+    population: 128000
+
+  - key: tr:ankara
+    name: Ankara
+    country: TR
+    population: 5445000
+
+  - key: tr:izmir
+    name: Izmir
+    country: TR
+    population: 4113000
+
+  - key: tr:bursa
+    name: Bursa
+    country: TR
+    population: 3056000
+
+  - key: tr:antalya
+    name: Antalya
+    country: TR
+    population: 1247000
+
+  - key: tr:gaziantep
+    name: Gaziantep
+    country: TR
+    population: 1974000
+
+  - key: ru:omsk
+    name: Omsk
+    country: RU
+    population: 1154000
+
+  - key: ru:vladivostok
+    name: Vladivostok
+    country: RU
+    population: 604000
+
+  - key: ge:tbilisi
+    name: Tbilisi
+    country: GE
+    population: 1160000
+
+  - key: ge:batumi
+    name: Batumi
+    country: GE
+    population: 41000
+
+  - key: am:yerevan
+    name: Yerevan
+    country: AM
+    population: 1093000
+
+  - key: az:baku
+    name: Baku
+    country: AZ
+    population: 3114000
+
+  - key: kz:almaty
+    name: Almaty
+    country: KZ
+    population: 1406000
+
+  - key: kz:nur-sultan
+    name: Nur-Sultan
+    country: KZ
+    population: 1405000
+
+  - key: kz:karaganda
+    name: Karaganda
+    country: KZ
+    population: 629000
+
+  - key: uz:tashkent
+    name: Tashkent
+    country: UZ
+    population: 2432000
+
+  - key: uz:samarkand
+    name: Samarkand
+    country: UZ
+    population: 375000
+
+  - key: uz:bukhara
+    name: Bukhara
+    country: UZ
+    population: 238000
+
+  - key: kg:bishkek
+    name: Bishkek
+    country: KG
+    population: 1019000
+
+  - key: tl:dushanbe
+    name: Dushanbe
+    country: TJ
+    population: 863000
+
+  - key: mn:ulaanbaatar
+    name: Ulaanbaatar
+    country: MN
+    population: 1612000
+
+  - key: jp:osaka
+    name: Osaka
+    country: JP
+    population: 19222000
+
+  - key: jp:yokohama
+    name: Yokohama
+    country: JP
+    population: 3757000
+
+  - key: jp:kobe
+    name: Kobe
+    country: JP
+    population: 1537000
+
+  - key: jp:kyoto
+    name: Kyoto
+    country: JP
+    population: 1463000
+
+  - key: jp:fukuoka
+    name: Fukuoka
+    country: JP
+    population: 2594000
+
+  - key: jp:sapporo
+    name: Sapporo
+    country: JP
+    population: 1973000
+
+  - key: jp:nagoya
+    name: Nagoya
+    country: JP
+    population: 3259000
+
+  - key: kr:seoul
+    name: Seoul
+    country: KR
+    population: 9776000
+
+  - key: kr:busan
+    name: Busan
+    country: KR
+    population: 3471000
+
+  - key: kr:daegu
+    name: Daegu
+    country: KR
+    population: 2466000
+
+  - key: kr:daejeon
+    name: Daejeon
+    country: KR
+    population: 1454000
+
+  - key: kr:incheon
+    name: Incheon
+    country: KR
+    population: 2995000
+
+  - key: kr:gwangju
+    name: Gwangju
+    country: KR
+    population: 1489000
+
+  - key: tw:taipei
+    name: Taipei
+    country: TW
+    population: 2618000
+
+  - key: tw:kaohsiung
+    name: Kaohsiung
+    country: TW
+    population: 1940000
+
+  - key: tw:taichung
+    name: Taichung
+    country: TW
+    population: 2820000
+
+  - key: hk:hong-kong
+    name: Hong Kong
+    country: HK
+    population: 7496000
+
+  - key: mo:macau
+    name: Macau
+    country: MO
+    population: 680000
+
+  - key: sg:singapore
+    name: Singapore
+    country: SG
+    population: 5850000
+
+  - key: my:kuala-lumpur
+    name: Kuala Lumpur
+    country: MY
+    population: 1982000
+
+  - key: my:george-town
+    name: George Town
+    country: MY
+    population: 909000
+
+  - key: my:ipoh
+    name: Ipoh
+    country: MY
+    population: 657000
+
+  - key: my:johor-bahru
+    name: Johor Bahru
+    country: MY
+    population: 497000
+
+  - key: th:bangkok
+    name: Bangkok
+    country: TH
+    population: 8305000
+
+  - key: th:chiang-mai
+    name: Chiang Mai
+    country: TH
+    population: 504000
+
+  - key: th:phuket
+    name: Phuket
+    country: TH
+    population: 446000
+
+  - key: vn:ho-chi-minh
+    name: Ho Chi Minh City
+    country: VN
+    population: 8426000
+
+  - key: vn:hanoi
+    name: Hanoi
+    country: VN
+    population: 8053000
+
+  - key: vn:hai-phong
+    name: Hai Phong
+    country: VN
+    population: 2029000
+
+  - key: vn:da-nang
+    name: Da Nang
+    country: VN
+    population: 1039000
+
+  - key: kh:phnom-penh
+    name: Phnom Penh
+    country: KH
+    population: 2009000
+
+  - key: kh:siem-reap
+    name: Siem Reap
+    country: KH
+    population: 255000
+
+  - key: la:vientiane
+    name: Vientiane
+    country: LA
+    population: 613000
+
+  - key: mm:yangon
+    name: Yangon
+    country: MM
+    population: 4477000
+
+  - key: mm:naypyidaw
+    name: Naypyidaw
+    country: MM
+    population: 1160000
+
+  - key: mm:mandalay
+    name: Mandalay
+    country: MM
+    population: 1207000
+
+  - key: id:surabaya
+    name: Surabaya
+    country: ID
+    population: 2765000
+
+  - key: id:bandung
+    name: Bandung
+    country: ID
+    population: 2444000
+
+  - key: id:medan
+    name: Medan
+    country: ID
+    population: 2210000
+
+  - key: id:semarang
+    name: Semarang
+    country: ID
+    population: 1555000
+
+  - key: id:makassar
+    name: Makassar
+    country: ID
+    population: 1338000
+
+  - key: id:palembang
+    name: Palembang
+    country: ID
+    population: 1561000
+
+  - key: id:bali
+    name: Denpasar
+    country: ID
+    population: 433000
+
+  - key: ph:manila
+    name: Manila
+    country: PH
+    population: 1846000
+
+  - key: ph:quezon-city
+    name: Quezon City
+    country: PH
+    population: 2936000
+
+  - key: ph:cebu-city
+    name: Cebu City
+    country: PH
+    population: 866000
+
+  - key: ph:davao-city
+    name: Davao City
+    country: PH
+    population: 1776000
+
+  - key: bd:dhaka
+    name: Dhaka
+    country: BD
+    population: 10009000
+
+  - key: bd:chittagong
+    name: Chittagong
+    country: BD
+    population: 4009000
+
+  - key: bd:sylhet
+    name: Sylhet
+    country: BD
+    population: 520000
+
+  - key: lk:colombo
+    name: Colombo
+    country: LK
+    population: 644000
+
+  - key: lk:kandy
+    name: Kandy
+    country: LK
+    population: 111000
+
+  - key: in:bangalore
+    name: Bangalore
+    country: IN
+    population: 8436000
+
+  - key: in:hyderabad
+    name: Hyderabad
+    country: IN
+    population: 6809000
+
+  - key: in:chennai
+    name: Chennai
+    country: IN
+    population: 4646000
+
+  - key: in:kolkata
+    name: Kolkata
+    country: IN
+    population: 14681000
+
+  - key: in:pune
+    name: Pune
+    country: IN
+    population: 6430000
+
+  - key: in:ahmedabad
+    name: Ahmedabad
+    country: IN
+    population: 8450000
+
+  - key: in:jaipur
+    name: Jaipur
+    country: IN
+    population: 3046000
+
+  - key: in:lucknow
+    name: Lucknow
+    country: IN
+    population: 2921000
+
+  - key: in:chandigarh
+    name: Chandigarh
+    country: IN
+    population: 1055000
+
+  - key: in:indore
+    name: Indore
+    country: IN
+    population: 1994000
+
+  - key: in:surat
+    name: Surat
+    country: IN
+    population: 6082000
+
+  - key: in:nagpur
+    name: Nagpur
+    country: IN
+    population: 2405000
+
+  - key: in:lucknow
+    name: Lucknow
+    country: IN
+    population: 2921000
+
+  - key: in:vadodara
+    name: Vadodara
+    country: IN
+    population: 1662000
+
+  - key: in:goa-panaji
+    name: Panaji
+    country: IN
+    population: 7000
+
+  - key: np:kathmandu
+    name: Kathmandu
+    country: NP
+    population: 1442000
+
+  - key: np:pokhara
+    name: Pokhara
+    country: NP
+    population: 255000
+
+  - key: pk:lahore
+    name: Lahore
+    country: PK
+    population: 11126000
+
+  - key: pk:islamabad
+    name: Islamabad
+    country: PK
+    population: 2006000
+
+  - key: pk:peshawar
+    name: Peshawar
+    country: PK
+    population: 2006000
+
+  - key: pk:faisalabad
+    name: Faisalabad
+    country: PK
+    population: 3204000
+
+  - key: pk:multan
+    name: Multan
+    country: PK
+    population: 1871000
+
+  - key: pk:rawalpindi
+    name: Rawalpindi
+    country: PK
+    population: 1742000
+
+  - key: pk:hyderabad
+    name: Hyderabad
+    country: PK
+    population: 1736000
+
+  - key: af:kabul
+    name: Kabul
+    country: AF
+    population: 4436000
+
+  - key: af:kandahar
+    name: Kandahar
+    country: AF
+    population: 614000
+
+  - key: ir:tehran
+    name: Tehran
+    country: IR
+    population: 8694000
+
+  - key: ir:isfahan
+    name: Isfahan
+    country: IR
+    population: 1961000
+
+  - key: ir:mashhad
+    name: Mashhad
+    country: IR
+    population: 3001000
+
+  - key: iq:baghdad
+    name: Baghdad
+    country: IQ
+    population: 7216000
+
+  - key: iq:basra
+    name: Basra
+    country: IQ
+    population: 2911000
+
+  - key: iq:mosul
+    name: Mosul
+    country: IQ
+    population: 1460000
+
+  - key: jo:amman
+    name: Amman
+    country: JO
+    population: 2065000
+
+  - key: lb:beirut
+    name: Beirut
+    country: LB
+    population: 1916000
+
+  - key: sa:riyadh
+    name: Riyadh
+    country: SA
+    population: 6988000
+
+  - key: sa:jeddah
+    name: Jeddah
+    country: SA
+    population: 3431000
+
+  - key: sa:dammam
+    name: Dammam
+    country: SA
+    population: 1064000
+
+  - key: ae:dubai
+    name: Dubai
+    country: AE
+    population: 3622000
+
+  - key: ae:abu-dhabi
+    name: Abu Dhabi
+    country: AE
+    population: 1544000
+
+  - key: ae:sharjah
+    name: Sharjah
+    country: AE
+    population: 1209000
+
+  - key: qa:doha
+    name: Doha
+    country: QA
+    population: 1856000
+
+  - key: kw:kuwait-city
+    name: Kuwait City
+    country: KW
+    population: 1206000
+
+  - key: bh:manama
+    name: Manama
+    country: BH
+    population: 475000
+
+  - key: om:muscat
+    name: Muscat
+    country: OM
+    population: 797000
+
+  - key: il:jerusalem
+    name: Jerusalem
+    country: IL
+    population: 1150000
+
+  - key: il:tel-aviv
+    name: Tel Aviv
+    country: IL
+    population: 438000
+
+  - key: il:haifa
+    name: Haifa
+    country: IL
+    population: 265000
+
+  - key: il:beer-sheva
+    name: Beer Sheva
+    country: IL
+    population: 194000
+
+  - key: eg:alexandria
+    name: Alexandria
+    country: EG
+    population: 5195000
+
+  - key: eg:giza
+    name: Giza
+    country: EG
+    population: 4303000
+
+  - key: eg:luxor
+    name: Luxor
+    country: EG
+    population: 505000
+
+  - key: eg:aswan
+    name: Aswan
+    country: EG
+    population: 290000
+
+  - key: ly:tripoli
+    name: Tripoli
+    country: LY
+    population: 1150000
+
+  - key: ly:benghazi
+    name: Benghazi
+    country: LY
+    population: 659000
+
+  - key: tn:tunis
+    name: Tunis
+    country: TN
+    population: 638000
+
+  - key: tn:sfax
+    name: Sfax
+    country: TN
+    population: 367000
+
+  - key: tn:sousse
+    name: Sousse
+    country: TN
+    population: 271000
+
+  - key: ma:casablanca
+    name: Casablanca
+    country: MA
+    population: 3359000
+
+  - key: ma:fes
+    name: Fes
+    country: MA
+    population: 1112000
+
+  - key: ma:marrakech
+    name: Marrakech
+    country: MA
+    population: 928000
+
+  - key: ma:tangier
+    name: Tangier
+    country: MA
+    population: 948000
+
+  - key: ma:rabat
+    name: Rabat
+    country: MA
+    population: 577000
+
+  - key: dz:algiers
+    name: Algiers
+    country: DZ
+    population: 3354000
+
+  - key: dz:oran
+    name: Oran
+    country: DZ
+    population: 803000
+
+  - key: dz:constantine
+    name: Constantine
+    country: DZ
+    population: 448000
+
+  - key: sd:khartoum
+    name: Khartoum
+    country: SD
+    population: 2340000
+
+  - key: sd:omdurman
+    name: Omdurman
+    country: SD
+    population: 2395000
+
+  - key: tz:dar-es-salaam
+    name: Dar es Salaam
+    country: TZ
+    population: 4364000
+
+  - key: tz:dodoma
+    name: Dodoma
+    country: TZ
+    population: 410000
+
+  - key: ke:nairobi
+    name: Nairobi
+    country: KE
+    population: 4386000
+
+  - key: ke:mombasa
+    name: Mombasa
+    country: KE
+    population: 1208000
+
+  - key: ke:kisumu
+    name: Kisumu
+    country: KE
+    population: 440000
+
+  - key: et:addis-ababa
+    name: Addis Ababa
+    country: ET
+    population: 5112000
+
+  - key: et:dire-dawa
+    name: Dire Dawa
+    country: ET
+    population: 562000
+
+  - key: ug:kampala
+    name: Kampala
+    country: UG
+    population: 1659000
+
+  - key: ug:gulu
+    name: Gulu
+    country: UG
+    population: 182000
+
+  - key: rw:kigali
+    name: Kigali
+    country: RW
+    population: 1000000
+
+  - key: bi:bujumbura
+    name: Bujumbura
+    country: BI
+    population: 758000
+
+  - key: bi:gitega
+    name: Gitega
+    country: BI
+    population: 88000
+
+  - key: zm:lusaka
+    name: Lusaka
+    country: ZM
+    population: 1267000
+
+  - key: zm:kitwe
+    name: Kitwe
+    country: ZM
+    population: 411000
+
+  - key: zw:harare
+    name: Harare
+    country: ZW
+    population: 1550000
+
+  - key: zw:bulawayo
+    name: Bulawayo
+    country: ZW
+    population: 653000
+
+  - key: mz:maputo
+    name: Maputo
+    country: MZ
+    population: 1102000
+
+  - key: mz:beira
+    name: Beira
+    country: MZ
+    population: 412000
+
+  - key: mw:lilongwe
+    name: Lilongwe
+    country: MW
+    population: 989000
+
+  - key: mw:blantyre
+    name: Blantyre
+    country: MW
+    population: 858000
+
+  - key: za:johannesburg
+    name: Johannesburg
+    country: ZA
+    population: 5635000
+
+  - key: za:cape-town
+    name: Cape Town
+    country: ZA
+    population: 3740000
+
+  - key: za:durban
+    name: Durban
+    country: ZA
+    population: 3442000
+
+  - key: za:pretoria
+    name: Pretoria
+    country: ZA
+    population: 2921000
+
+  - key: za:port-elizabeth
+    name: Port Elizabeth
+    country: ZA
+    population: 1214000
+
+  - key: za:pietermaritzburg
+    name: Pietermaritzburg
+    country: ZA
+    population: 752000
+
+  - key: gh:accra
+    name: Accra
+    country: GH
+    population: 2291000
+
+  - key: gh:kumasi
+    name: Kumasi
+    country: GH
+    population: 1170000
+
+  - key: gh:sekondi-takoradi
+    name: Sekondi-Takoradi
+    country: GH
+    population: 449000
+
+  - key: ng:kano
+    name: Kano
+    country: NG
+    population: 3622000
+
+  - key: ng:ibadan
+    name: Ibadan
+    country: NG
+    population: 3565000
+
+  - key: ng:benin-city
+    name: Benin City
+    country: NG
+    population: 1227000
+
+  - key: ng:port-harcourt
+    name: Port Harcourt
+    country: NG
+    population: 2841000
+
+  - key: ng:abuja
+    name: Abuja
+    country: NG
+    population: 3950000
+
+  - key: sn:dakar
+    name: Dakar
+    country: SN
+    population: 1146000
+
+  - key: sn:thiés
+    name: Thiès
+    country: SN
+    population: 320000
+
+  - key: ci:abidjan
+    name: Abidjan
+    country: CI
+    population: 4707000
+
+  - key: ci:yamoussoukro
+    name: Yamoussoukro
+    country: CI
+    population: 355000
+
+  - key: ml:bamako
+    name: Bamako
+    country: ML
+    population: 1297000
+
+  - key: bf:ouagadougou
+    name: Ouagadougou
+    country: BF
+    population: 2053000
+
+  - key: bf:bobo-dioulasso
+    name: Bobo-Dioulasso
+    country: BF
+    population: 549000
+
+  - key: ne:niamey
+    name: Niamey
+    country: NE
+    population: 1302000
+
+  - key: ng:katsina
+    name: Katsina
+    country: NG
+    population: 413000
+
+  - key: cm:douala
+    name: Douala
+    country: CM
+    population: 4060000
+
+  - key: cm:yaounde
+    name: Yaoundé
+    country: CM
+    population: 4050000
+
+  - key: ga:libreville
+    name: Libreville
+    country: GA
+    population: 705000
+
+  - key: cg:brazzaville
+    name: Brazzaville
+    country: CG
+    population: 1926000
+
+  - key: cd:kinshasa
+    name: Kinshasa
+    country: CD
+    population: 14970000
+
+  - key: cd:lubumbashi
+    name: Lubumbashi
+    country: CD
+    population: 1743000
+
+  - key: cd:goma
+    name: Goma
+    country: CD
+    population: 1049000
+
+  - key: ao:luanda
+    name: Luanda
+    country: AO
+    population: 2776000
+
+  - key: ao:benguela
+    name: Benguela
+    country: AO
+    population: 155000
+
+  - key: au:sydney
+    name: Sydney
+    country: AU
+    population: 5312000
+
+  - key: au:melbourne
+    name: Melbourne
+    country: AU
+    population: 5159000
+
+  - key: au:brisbane
+    name: Brisbane
+    country: AU
+    population: 2507000
+
+  - key: au:perth
+    name: Perth
+    country: AU
+    population: 2197000
+
+  - key: au:adelaide
+    name: Adelaide
+    country: AU
+    population: 1406000
+
+  - key: au:hobart
+    name: Hobart
+    country: AU
+    population: 226000
+
+  - key: au:canberra
+    name: Canberra
+    country: AU
+    population: 460000
+
+  - key: nz:auckland
+    name: Auckland
+    country: NZ
+    population: 1657000
+
+  - key: nz:wellington
+    name: Wellington
+    country: NZ
+    population: 418000
+
+  - key: nz:christchurch
+    name: Christchurch
+    country: NZ
+    population: 369000
+
+  - key: nz:queenstown
+    name: Queenstown
+    country: NZ
+    population: 53000
+
+  - key: fj:suva
+    name: Suva
+    country: FJ
+    population: 208000
+
+  - key: fj:nadi
+    name: Nadi
+    country: FJ
+    population: 75000
+
+  - key: sb:honiara
+    name: Honiara
+    country: SB
+    population: 84000
+
+  - key: pg:port-moresby
+    name: Port Moresby
+    country: PG
+    population: 390000
+
+  - key: ws:apia
+    name: Apia
+    country: WS
+    population: 40000
+
+  - key: to:nuku-alofa
+    name: Nuku'alofa
+    country: TO
+    population: 22000
+
+  - key: vu:port-vila
+    name: Port Vila
+    country: VU
+    population: 44000
+
+  - key: nc:noumea
+    name: Nouméa
+    country: NC
+    population: 99000
+
+  - key: pf:papeete
+    name: Papeete
+    country: PF
+    population: 35000
+
+  - key: gu:hagatna
+    name: Hagatna
+    country: GU
+    population: 1000
+
+  - key: mp:saipan
+    name: Saipan
+    country: MP
+    population: 48000
+
+  - key: as:pago-pago
+    name: Pago Pago
+    country: AS
+    population: 4200
+
+  - key: vi:charlotte-amalie
+    name: Charlotte Amalie
+    country: VI
+    population: 20000
+
+  - key: pr:san-juan
+    name: San Juan
+    country: PR
+    population: 395000
+
+  - key: do:santo-domingo
+    name: Santo Domingo
+    country: DO
+    population: 2144000
+
+  - key: do:santiago
+    name: Santiago
+    country: DO
+    population: 545000
+
+  - key: jm:kingston
+    name: Kingston
+    country: JM
+    population: 937000
+
+  - key: jm:montego-bay
+    name: Montego Bay
+    country: JM
+    population: 110000
+
+  - key: tt:port-of-spain
+    name: Port of Spain
+    country: TT
+    population: 49000
+
+  - key: tt:san-fernando
+    name: San Fernando
+    country: TT
+    population: 52000
+
+  - key: bs:nassau
+    name: Nassau
+    country: BS
+    population: 210000
+
+  - key: bb:bridgetown
+    name: Bridgetown
+    country: BB
+    population: 110000
+
+  - key: ky:george-town
+    name: George Town
+    country: KY
+    population: 28000
+
+  - key: bz:belize-city
+    name: Belize City
+    country: BZ
+    population: 67000
+
+  - key: cr:san-jose
+    name: San José
+    country: CR
+    population: 2394000
+
+  - key: cr:san-isidro
+    name: San Isidro
+    country: CR
+    population: 60000
+
+  - key: pa:panama-city
+    name: Panama City
+    country: PA
+    population: 1908000
+
+  - key: pa:colon
+    name: Colón
+    country: PA
+    population: 152000
+
+  - key: hn:tegucigalpa
+    name: Tegucigalpa
+    country: HN
+    population: 1515000
+
+  - key: hn:san-pedro-sula
+    name: San Pedro Sula
+    country: HN
+    population: 769000
+
+  - key: sv:san-salvador
+    name: San Salvador
+    country: SV
+    population: 525000
+
+  - key: sv:santa-ana
+    name: Santa Ana
+    country: SV
+    population: 240000
+
+  - key: ni:managua
+    name: Managua
+    country: NI
+    population: 1029000
+
+  - key: ni:leon
+    name: León
+    country: NI
+    population: 189000
+
+  - key: gt:guatemala-city
+    name: Guatemala City
+    country: GT
+    population: 3438000
+
+  - key: gt:quetzaltenango
+    name: Quetzaltenango
+    country: GT
+    population: 190000
+
+  - key: al:tirana
+    name: Tirana
+    country: AL
+    population: 418000
+
+  - key: al:durres
+    name: Durrës
+    country: AL
+    population: 183000
+
+  - key: mk:skopje
+    name: Skopje
+    country: MK
+    population: 494000
+
+  - key: mk:bitola
+    name: Bitola
+    country: MK
+    population: 74000
+
+  - key: me:podgorica
+    name: Podgorica
+    country: ME
+    population: 187000
+
+  - key: me:kotor
+    name: Kotor
+    country: ME
+    population: 13000
+
+  - key: ad:andorra-la-vella
+    name: Andorra la Vella
+    country: AD
+    population: 22000
+
+  - key: lu:luxembourg-city
+    name: Luxembourg City
+    country: LU
+    population: 128000
+
+  - key: sm:san-marino-city
+    name: San Marino
+    country: SM
+    population: 4300
+
+  - key: va:vatican-city
+    name: Vatican City
+    country: VA
+    population: 825
+
+  - key: md:chisinau
+    name: Chișinău
+    country: MD
+    population: 635000
+
+  - key: md:balti
+    name: Bălți
+    country: MD
+    population: 149000
+
+  - key: by:minsk
+    name: Minsk
+    country: BY
+    population: 2005000
+
+  - key: by:gomel
+    name: Gomel
+    country: BY
+    population: 495000
+
+  - key: lt:vilnius
+    name: Vilnius
+    country: LT
+    population: 580000
+
+  - key: lt:kaunas
+    name: Kaunas
+    country: LT
+    population: 383000
+
+  - key: lt:klaipeda
+    name: Klaipėda
+    country: LT
+    population: 160000
+
+  - key: lv:riga
+    name: Riga
+    country: LV
+    population: 633000
+
+  - key: lv:daugavpils
+    name: Daugavpils
+    country: LV
+    population: 100000
+
+  - key: ee:tallinn
+    name: Tallinn
+    country: EE
+    population: 438000
+
+  - key: ee:tartu
+    name: Tartu
+    country: EE
+    population: 438000
+
+  - key: ee:narva
+    name: Narva
+    country: EE
+    population: 58000
+
+  - key: cy:nicosia
+    name: Nicosia
+    country: CY
+    population: 207000
+
+  - key: cy:limassol
+    name: Limassol
+    country: CY
+    population: 159000
+
+  - key: cy:larnaca
+    name: Larnaca
+    country: CY
+    population: 48000
+
+  - key: tm:ashgabat
+    name: Ashgabat
+    country: TM
+    population: 745000
+
+  - key: tm:turkmenbashi
+    name: Turkmenbashi
+    country: TM
+    population: 131000
+
+  - key: gl:nuuk
+    name: Nuuk
+    country: GL
+    population: 19000
+
+  - key: gf:cayenne
+    name: Cayenne
+    country: GF
+    population: 55000
+
+  - key: sr:paramaribo
+    name: Paramaribo
+    country: SR
+    population: 277000
+
+  - key: gy:georgetown
+    name: Georgetown
+    country: GY
+    population: 235000
+
+  - key: im:douglas
+    name: Douglas
+    country: IM
+    population: 27000
+
+  - key: gg:st-peter-port
+    name: St. Peter Port
+    country: GG
+    population: 18000
+
+  - key: je:st-helier
+    name: St. Helier
+    country: JE
+    population: 33000
+
+  - key: mt:valletta
+    name: Valletta
+    country: MT
+    population: 6000
+
+  - key: mt:sliema
+    name: Sliema
+    country: MT
+    population: 6400
+
+  - key: cy:kyrenia
+    name: Kyrenia
+    country: CY
+    population: 18000
+
+  - key: ax:mariehamn
+    name: Mariehamn
+    country: AX
+    population: 11000
+
+  - key: fo:torshavn
+    name: Tórshavn
+    country: FO
+    population: 18000
+
+  - key: kz:aktau
+    name: Aktau
+    country: KZ
+    population: 169000
+
+  - key: uz:nukus
+    name: Nukus
+    country: UZ
+    population: 235000
+
+  - key: tk:atata-harbour
+    name: Nuku'alofa
+    country: TK
+    population: 100
