@@ -109,10 +109,8 @@ func (s *Service) earliestFutureDue(ctx context.Context, userID uuid.UUID, now t
 	return best, nil
 }
 
-// buildExerciseV2 loads itemID's item/topic/generator/siblings and tries the
-// topic's configured exercise modes in rotation order (modeRotationOrder)
-// until one builds successfully. built=false means every configured mode
-// failed (the item currently can't be quizzed) — the caller skips it.
+// buildExerciseV2 loads itemID's item and delegates to buildExerciseForItem
+// for the (non-practice) /train path.
 func (s *Service) buildExerciseV2(ctx context.Context, user storage.User, itemID uuid.UUID, now time.Time) (telegram.PromptV2, bool, error) {
 	item, found, err := s.store.GetItemByID(ctx, itemID)
 	if err != nil {
@@ -121,6 +119,18 @@ func (s *Service) buildExerciseV2(ctx context.Context, user storage.User, itemID
 	if !found {
 		return telegram.PromptV2{}, false, nil
 	}
+	return s.buildExerciseForItem(ctx, user, item, false, now)
+}
+
+// buildExerciseForItem loads item's topic/generator/siblings and tries the
+// topic's configured exercise modes in rotation order (modeRotationOrder)
+// until one builds successfully, persisting the result with practice's
+// value (architecture: /practice exercises are marked practice=true at
+// creation time so AnswerV2/AnswerText's shared grading path — finishAnswer
+// — knows to skip FSRS movement without the answer callback needing to say
+// so again). built=false means every configured mode failed (the item
+// currently can't be quizzed) — the caller skips it.
+func (s *Service) buildExerciseForItem(ctx context.Context, user storage.User, item storage.Item, practice bool, now time.Time) (telegram.PromptV2, bool, error) {
 	topic, found, err := s.store.GetTopicByID(ctx, item.TopicID)
 	if err != nil {
 		return telegram.PromptV2{}, false, err
@@ -139,7 +149,7 @@ func (s *Service) buildExerciseV2(ctx context.Context, user storage.User, itemID
 	}
 	siblings = removeItemFromSlice(siblings, item.ID)
 
-	userItem, _, err := s.store.GetUserItem(ctx, user.ID, itemID)
+	userItem, _, err := s.store.GetUserItem(ctx, user.ID, item.ID)
 	if err != nil {
 		return telegram.PromptV2{}, false, err
 	}
@@ -154,7 +164,7 @@ func (s *Service) buildExerciseV2(ctx context.Context, user storage.User, itemID
 		if buildErr != nil {
 			continue
 		}
-		prompt, err := s.persistExerciseV2(ctx, user.ID, item, ex, now)
+		prompt, err := s.persistExerciseV2(ctx, user.ID, item, ex, practice, now)
 		if err != nil {
 			return telegram.PromptV2{}, false, err
 		}
@@ -208,8 +218,10 @@ func modeFromString(m string) quiz.Mode {
 }
 
 // persistExerciseV2 serializes ex per its mode (model.go) and inserts the
-// exercises row, returning the ready-to-send PromptV2.
-func (s *Service) persistExerciseV2(ctx context.Context, userID uuid.UUID, item storage.Item, ex topics.Exercise, now time.Time) (telegram.PromptV2, error) {
+// exercises row, returning the ready-to-send PromptV2. practice is persisted
+// on the row (exercises.practice) so the answer path (finishAnswer) can tell
+// a /practice exercise from a /train one without any extra caller state.
+func (s *Service) persistExerciseV2(ctx context.Context, userID uuid.UUID, item storage.Item, ex topics.Exercise, practice bool, now time.Time) (telegram.PromptV2, error) {
 	optionsJSON, correctAnswer, err := serializeExerciseV2(ex)
 	if err != nil {
 		return telegram.PromptV2{}, err
@@ -234,7 +246,7 @@ func (s *Service) persistExerciseV2(ctx context.Context, userID uuid.UUID, item 
 		Options:       optionsJSON,
 		CorrectAnswer: correctAnswer,
 		IsMedia:       ex.MediaPath != "",
-		Practice:      false,
+		Practice:      practice,
 	})
 	if err != nil {
 		return telegram.PromptV2{}, err
@@ -247,6 +259,7 @@ func (s *Service) persistExerciseV2(ctx context.Context, userID uuid.UUID, item 
 		MediaPath:  ex.MediaPath,
 		Mode:       ex.Mode,
 		Options:    optionV2sFor(ex),
+		Practice:   practice,
 	}, nil
 }
 
@@ -417,80 +430,114 @@ func (s *Service) AnswerText(ctx context.Context, userID uuid.UUID, typed string
 }
 
 // finishAnswer is the shared atomic write path for AnswerV2/AnswerText
-// (architecture §1.6 steps 5/6, §5.5): single-use MarkExerciseAnswered
+// (architecture §1.6 steps 5/6, §5.5). Both callers already guard
+// ex.ItemID != nil before calling in, so itemID is always valid here.
+//
+// Scheduled answers (ex.Practice == false): single-use MarkExerciseAnswered
 // guard, engram Scheduler.Next on the item's current card, PutUserItem
 // (with lifecycle promotion via engram.LifecycleFor), InsertReviewV2, and
-// the affected tier's progress recompute, all inside one transaction. A
-// stale (already-answered) exercise is detected by the guard and returns
+// the affected tier's progress recompute, all inside one transaction.
+//
+// Practice answers (ex.Practice == true, set at exercise-creation time by
+// NextPracticeV2): the single-use guard plus InsertReviewV2 with
+// practice=true and every FSRS field zeroed — mirroring the legacy
+// train.Service.recordPractice's "count in stats, never touch scheduling"
+// contract. No PutUserItem, no tier recompute: practice must never move an
+// item's lifecycle or due date.
+//
+// A stale (already-answered) exercise is detected by the guard and returns
 // AnswerResultV2{Stale: true} without touching anything else.
 func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage.ExerciseV2, chosen string, correct bool, gradedOptions []telegram.GradedOptionV2, now time.Time) (telegram.AnswerResultV2, error) {
 	itemID := *ex.ItemID
 	rating := engram.RatingForAnswer(correct)
-
-	effectiveTier, err := s.store.GetItemEffectiveTier(ctx, itemID)
-	if err != nil {
-		return telegram.AnswerResultV2{}, err
-	}
 	bridgeSkill, _, err := s.bridgeIDs(ctx)
 	if err != nil {
 		return telegram.AnswerResultV2{}, err
 	}
 
 	var stale bool
-	err = s.store.WithTxStore(ctx, func(tx *storage.Store) error {
-		owned, err := tx.MarkExerciseAnswered(ctx, ex.ID, now)
-		if err != nil {
-			return err
-		}
-		if !owned {
-			stale = true
-			return nil
-		}
-
-		userItem, hasUI, err := tx.GetUserItem(ctx, userID, itemID)
-		if err != nil {
-			return err
-		}
-		cs := s.sched.NewCardState(now)
-		introducedAt, knownAt := now, time.Time{}
-		if hasUI {
-			cs = engramstore.CardStateFrom(userItem.Card)
-			introducedAt, knownAt = userItem.IntroducedAt, userItem.KnownAt
-		}
-		newCard, rev := s.sched.Next(cs, now, rating)
-		lifecycleAfter := engram.LifecycleFor(newCard)
-		if err := tx.PutUserItem(ctx, userID, itemID, int16(lifecycleAfter), engramstore.CardFieldsFrom(newCard), introducedAt, knownAt); err != nil {
-			return err
-		}
-
-		ms := max0(int(now.Sub(ex.CreatedAt).Milliseconds()))
-		exID := ex.ID
-		if err := tx.InsertReviewV2(ctx, storage.ReviewInsertV2{
-			ReviewInsert: storage.ReviewInsert{
-				UserID: userID, SkillID: bridgeSkill, ExerciseID: &exID, ContentID: ex.ContentID,
-				ChosenKey: chosen, CorrectKey: ex.CorrectAnswer, Correct: correct, Rating: int16(rating), ResponseMS: &ms,
-				StabilityBefore: rev.StabilityBefore, DifficultyBefore: rev.DifficultyBefore,
-				StabilityAfter: rev.StabilityAfter, DifficultyAfter: rev.DifficultyAfter,
-				StateBefore: int16(rev.StateBefore), ScheduledDays: rev.ScheduledDays, ElapsedDays: rev.ElapsedDays,
-				ReviewedAt: now, Practice: false,
-			},
-			ItemID: &itemID, Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
-		}); err != nil {
-			return err
-		}
-
-		progress, ok, err := tx.RecomputeTierProgressForTier(ctx, userID, effectiveTier)
-		if err != nil {
-			return err
-		}
-		if ok {
-			progress.Complete = tierComplete(progress)
-			if err := tx.UpsertTierProgress(ctx, progress); err != nil {
+	if ex.Practice {
+		err = s.store.WithTxStore(ctx, func(tx *storage.Store) error {
+			owned, err := tx.MarkExerciseAnswered(ctx, ex.ID, now)
+			if err != nil {
 				return err
 			}
+			if !owned {
+				stale = true
+				return nil
+			}
+			ms := max0(int(now.Sub(ex.CreatedAt).Milliseconds()))
+			exID := ex.ID
+			return tx.InsertReviewV2(ctx, storage.ReviewInsertV2{
+				ReviewInsert: storage.ReviewInsert{
+					UserID: userID, SkillID: bridgeSkill, ExerciseID: &exID, ContentID: ex.ContentID,
+					ChosenKey: chosen, CorrectKey: ex.CorrectAnswer, Correct: correct, Rating: int16(rating), ResponseMS: &ms,
+					ReviewedAt: now, Practice: true,
+				},
+				ItemID: &itemID, Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
+			})
+		})
+	} else {
+		var effectiveTier int16
+		effectiveTier, err = s.store.GetItemEffectiveTier(ctx, itemID)
+		if err != nil {
+			return telegram.AnswerResultV2{}, err
 		}
-		return nil
-	})
+		err = s.store.WithTxStore(ctx, func(tx *storage.Store) error {
+			owned, err := tx.MarkExerciseAnswered(ctx, ex.ID, now)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				stale = true
+				return nil
+			}
+
+			userItem, hasUI, err := tx.GetUserItem(ctx, userID, itemID)
+			if err != nil {
+				return err
+			}
+			cs := s.sched.NewCardState(now)
+			introducedAt, knownAt := now, time.Time{}
+			if hasUI {
+				cs = engramstore.CardStateFrom(userItem.Card)
+				introducedAt, knownAt = userItem.IntroducedAt, userItem.KnownAt
+			}
+			newCard, rev := s.sched.Next(cs, now, rating)
+			lifecycleAfter := engram.LifecycleFor(newCard)
+			if err := tx.PutUserItem(ctx, userID, itemID, int16(lifecycleAfter), engramstore.CardFieldsFrom(newCard), introducedAt, knownAt); err != nil {
+				return err
+			}
+
+			ms := max0(int(now.Sub(ex.CreatedAt).Milliseconds()))
+			exID := ex.ID
+			if err := tx.InsertReviewV2(ctx, storage.ReviewInsertV2{
+				ReviewInsert: storage.ReviewInsert{
+					UserID: userID, SkillID: bridgeSkill, ExerciseID: &exID, ContentID: ex.ContentID,
+					ChosenKey: chosen, CorrectKey: ex.CorrectAnswer, Correct: correct, Rating: int16(rating), ResponseMS: &ms,
+					StabilityBefore: rev.StabilityBefore, DifficultyBefore: rev.DifficultyBefore,
+					StabilityAfter: rev.StabilityAfter, DifficultyAfter: rev.DifficultyAfter,
+					StateBefore: int16(rev.StateBefore), ScheduledDays: rev.ScheduledDays, ElapsedDays: rev.ElapsedDays,
+					ReviewedAt: now, Practice: false,
+				},
+				ItemID: &itemID, Mode: ex.Mode, Chosen: chosen, CorrectAnswer: ex.CorrectAnswer,
+			}); err != nil {
+				return err
+			}
+
+			progress, ok, err := tx.RecomputeTierProgressForTier(ctx, userID, effectiveTier)
+			if err != nil {
+				return err
+			}
+			if ok {
+				progress.Complete = tierComplete(progress)
+				if err := tx.UpsertTierProgress(ctx, progress); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
 	if err != nil {
 		return telegram.AnswerResultV2{}, err
 	}
@@ -503,9 +550,10 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 		text += "\n\n💡 " + tip
 	}
 	return telegram.AnswerResultV2{
-		Correct: correct,
-		Text:    text,
-		Options: gradedOptions,
+		Correct:  correct,
+		Text:     text,
+		Options:  gradedOptions,
+		Practice: ex.Practice,
 	}, nil
 }
 

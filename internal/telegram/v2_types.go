@@ -175,8 +175,13 @@ const (
 	// PromptV2KindNothingDue: nothing is due now (DueAt may hold the next
 	// due time).
 	PromptV2KindNothingDue
-	// PromptV2KindNoContent: due items exist but none have content ready.
+	// PromptV2KindNoContent: due (or, for /practice, tier-unlocked) items
+	// exist but none have content ready.
 	PromptV2KindNoContent
+	// PromptV2KindNoTopics: /practice found no enabled+quizzable topics at
+	// all (nudge the caller to /topics) — the v2 counterpart of the legacy
+	// KindNoDecks.
+	PromptV2KindNoTopics
 )
 
 // OptionV2 is one answer option for a PromptV2 in ModeSingle/ModeSet. Label
@@ -205,6 +210,12 @@ type PromptV2 struct {
 	Mode      quiz.Mode  // ModeSingle | ModeSet | ModeText
 	Options   []OptionV2 // populated for ModeSingle/ModeSet; empty for ModeText
 	DueAt     time.Time  // set when Kind == PromptV2KindNothingDue and a future due exists
+
+	// Practice is true for a /practice exercise (NextPracticeV2): the
+	// telegram layer adds a Stop control and answers route through the
+	// v2p: callback prefix instead of v2a:, mirroring the legacy
+	// train.Prompt.Practice flag.
+	Practice bool
 }
 
 // GradedOptionV2 is one OptionV2 after grading, for the in-place edit.
@@ -229,6 +240,13 @@ type AnswerResultV2 struct {
 
 	MessageID  int64
 	HasMessage bool
+
+	// Practice echoes back the graded exercise's Practice flag (read from
+	// storage.ExerciseV2 at answer time) — handleText has no callback
+	// prefix to tell a practice tap from a scheduled one, so it reads this
+	// field to decide whether the "next" step is NextPracticeV2 or
+	// NextExerciseV2.
+	Practice bool
 }
 
 // TrainerV2 supplements trainer with the mode-aware v2 exercise path
@@ -237,6 +255,11 @@ type AnswerResultV2 struct {
 // bot.go's New).
 type TrainerV2 interface {
 	NextExerciseV2(ctx context.Context, userID uuid.UUID) (PromptV2, error)
+	// NextPracticeV2 generates an unscheduled practice exercise (PromptV2.
+	// Practice=true) from a random active item across the caller's
+	// enabled+tier-unlocked topics — the v2 counterpart of the legacy
+	// trainer.NextPractice.
+	NextPracticeV2(ctx context.Context, userID uuid.UUID) (PromptV2, error)
 	AnswerV2(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResultV2, error)
 	// AnswerText grades a free-typed message against the caller's single
 	// open ModeText exercise (answered_at IS NULL, newest). ok=false means

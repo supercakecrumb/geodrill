@@ -128,6 +128,7 @@ const welcomeText = "Hi! I'm geodrill — I'll show you short sentences in diffe
 
 const noDecksText = "You don't have any decks enabled yet. Pick at least one below, then /train again."
 const noContentText = "The content for your due skills hasn't been ingested yet. Try again later, or enable a different deck via /decks."
+const noTopicsText = "You don't have any topics enabled for practice yet. Check /topics to turn some on, then /practice again."
 const allCaughtUpText = "You're all caught up for now."
 const fallbackText = "Something went wrong on my end. Please try again in a moment."
 const staleToast = "⏳ already answered"
@@ -185,13 +186,8 @@ func (b *Bot) handlePractice(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	now := b.now()
-	b.markPracticeStart(s.UserID(), now)
-	res, err := b.svc.NextPractice(ctx, user, now)
-	if err != nil {
-		return err
-	}
-	return b.sendNextResult(ctx, s, user, res)
+	b.markPracticeStart(s.UserID(), b.now())
+	return b.sendNextPractice(ctx, s, user)
 }
 
 // handleStopPractice ends the caller's /practice session and rewrites the
@@ -390,6 +386,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleTopicCallback(ctx, s, data)
 	case strings.HasPrefix(data, dataV2AnswerPrefix):
 		return b.handleV2AnswerCallback(ctx, s, data)
+	case strings.HasPrefix(data, dataV2PracticePrefix):
+		return b.handleV2PracticeAnswerCallback(ctx, s, data)
 	case data == "cap:inc":
 		return b.handleCapChange(ctx, s, 1)
 	case data == "cap:dec":
