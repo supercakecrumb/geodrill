@@ -1,0 +1,1238 @@
+# Country profile facts: dominant languages, plurality religion, region.
+# region uses the fixed taxonomy below — no other values allowed.
+profiles:
+
+  - country: "AD"
+    languages: ["Catalan", "French", "Spanish"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "AE"
+    languages: ["Arabic", "English"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "AF"
+    languages: ["Pashto", "Dari"]
+    main_religion: "Islam"
+    region: "South Asia"
+
+  - country: "AG"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "AI"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "AL"
+    languages: ["Albanian"]
+    main_religion: "Islam"
+    region: "Southern Europe"
+
+  - country: "AM"
+    languages: ["Armenian"]
+    main_religion: "Christianity"
+    region: "Middle East"
+
+  - country: "AO"
+    languages: ["Portuguese"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "AR"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "AS"
+    languages: ["English", "Samoan"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "AT"
+    languages: ["German"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "AU"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "AW"
+    languages: ["Dutch", "Papiamento"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "AX"
+    languages: ["Swedish"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "AZ"
+    languages: ["Azerbaijani"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "BA"
+    languages: ["Bosnian", "Serbian", "Croatian"]
+    main_religion: "Islam"
+    region: "Southern Europe"
+
+  - country: "BB"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "BD"
+    languages: ["Bengali"]
+    main_religion: "Islam"
+    region: "South Asia"
+
+  - country: "BE"
+    languages: ["Dutch", "French", "German"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "BF"
+    languages: ["French", "Mossi"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "BG"
+    languages: ["Bulgarian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "BH"
+    languages: ["Arabic", "English"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "BI"
+    languages: ["Kirundi", "French"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "BJ"
+    languages: ["French", "Fon"]
+    main_religion: "Folk religion"
+    region: "West Africa"
+
+  - country: "BL"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "BM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "North America"
+
+  - country: "BN"
+    languages: ["Malay", "English"]
+    main_religion: "Islam"
+    region: "Southeast Asia"
+
+  - country: "BO"
+    languages: ["Spanish", "Quechua", "Aymara"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "BQ"
+    languages: ["Dutch"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "BR"
+    languages: ["Portuguese"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "BS"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "BT"
+    languages: ["Dzongkha", "English"]
+    main_religion: "Buddhism"
+    region: "South Asia"
+
+  - country: "BW"
+    languages: ["English", "Setswana"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "BY"
+    languages: ["Belarusian", "Russian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "BZ"
+    languages: ["English", "Spanish"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "CA"
+    languages: ["English", "French"]
+    main_religion: "Christianity"
+    region: "North America"
+
+  - country: "CC"
+    languages: ["English", "Malay"]
+    main_religion: "Islam"
+    region: "South Asia"
+
+  - country: "CD"
+    languages: ["French", "Lingala", "Kikongo"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "CF"
+    languages: ["French", "Sango"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "CG"
+    languages: ["French", "Lingala"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "CH"
+    languages: ["German", "French", "Italian"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "CI"
+    languages: ["French"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "CK"
+    languages: ["English", "Cook Islands Māori"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "CL"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "CM"
+    languages: ["French", "English"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "CN"
+    languages: ["Mandarin"]
+    main_religion: "Unaffiliated"
+    region: "East Asia"
+
+  - country: "CO"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "CR"
+    languages: ["Spanish", "English"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "CU"
+    languages: ["Spanish"]
+    main_religion: "Unaffiliated"
+    region: "Caribbean"
+
+  - country: "CV"
+    languages: ["Portuguese", "Cape Verdean Creole"]
+    main_religion: "Christianity"
+    region: "West Africa"
+
+  - country: "CW"
+    languages: ["Dutch", "Papiamento"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "CX"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "CY"
+    languages: ["Greek", "Turkish"]
+    main_religion: "Christianity"
+    region: "Middle East"
+
+  - country: "CZ"
+    languages: ["Czech"]
+    main_religion: "Unaffiliated"
+    region: "Eastern Europe"
+
+  - country: "DE"
+    languages: ["German"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "DJ"
+    languages: ["French", "Arabic"]
+    main_religion: "Islam"
+    region: "East Africa"
+
+  - country: "DK"
+    languages: ["Danish"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "DM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "DO"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "DZ"
+    languages: ["Arabic", "French"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "EC"
+    languages: ["Spanish", "Quechua"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "EE"
+    languages: ["Estonian"]
+    main_religion: "Unaffiliated"
+    region: "Northern Europe"
+
+  - country: "EG"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "EH"
+    languages: ["Arabic", "Berber"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "ER"
+    languages: ["Tigrinya", "Arabic"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "ES"
+    languages: ["Spanish", "Catalan", "Basque"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "ET"
+    languages: ["Amharic", "Oromo"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "FI"
+    languages: ["Finnish", "Swedish"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "FJ"
+    languages: ["English", "Fijian"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "FK"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "FM"
+    languages: ["English", "Chuukese"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "FO"
+    languages: ["Faroese", "Danish"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "FR"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "GA"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "GB"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "GD"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "GE"
+    languages: ["Georgian"]
+    main_religion: "Christianity"
+    region: "Middle East"
+
+  - country: "GF"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "GG"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "GH"
+    languages: ["English", "Akan"]
+    main_religion: "Christianity"
+    region: "West Africa"
+
+  - country: "GI"
+    languages: ["English", "Spanish"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "GL"
+    languages: ["Greenlandic", "Danish"]
+    main_religion: "Christianity"
+    region: "North America"
+
+  - country: "GM"
+    languages: ["English", "Mandinka"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "GN"
+    languages: ["French"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "GP"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "GQ"
+    languages: ["Spanish", "French"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "GR"
+    languages: ["Greek"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "GS"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "GT"
+    languages: ["Spanish", "Quiche"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "GU"
+    languages: ["English", "Chamorro"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "GW"
+    languages: ["Portuguese"]
+    main_religion: "Folk religion"
+    region: "West Africa"
+
+  - country: "GY"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "HK"
+    languages: ["Chinese", "English"]
+    main_religion: "Unaffiliated"
+    region: "East Asia"
+
+  - country: "HM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "HN"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "HR"
+    languages: ["Croatian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "HT"
+    languages: ["French", "Haitian Creole"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "HU"
+    languages: ["Hungarian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "ID"
+    languages: ["Indonesian", "Javanese"]
+    main_religion: "Islam"
+    region: "Southeast Asia"
+
+  - country: "IE"
+    languages: ["English", "Irish"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "IL"
+    languages: ["Hebrew", "Arabic"]
+    main_religion: "Judaism"
+    region: "Middle East"
+
+  - country: "IM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "IN"
+    languages: ["Hindi", "English"]
+    main_religion: "Hinduism"
+    region: "South Asia"
+
+  - country: "IO"
+    languages: ["English"]
+    main_religion: "Islam"
+    region: "South Asia"
+
+  - country: "IQ"
+    languages: ["Arabic", "Kurdish"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "IR"
+    languages: ["Persian"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "IS"
+    languages: ["Icelandic"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "IT"
+    languages: ["Italian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "JE"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "JM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "JO"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "JP"
+    languages: ["Japanese"]
+    main_religion: "Shinto/Buddhism"
+    region: "East Asia"
+
+  - country: "KE"
+    languages: ["Swahili", "English"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "KG"
+    languages: ["Kyrgyz", "Russian"]
+    main_religion: "Islam"
+    region: "Central Asia"
+
+  - country: "KH"
+    languages: ["Khmer"]
+    main_religion: "Buddhism"
+    region: "Southeast Asia"
+
+  - country: "KI"
+    languages: ["English", "Gilbertese"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "KM"
+    languages: ["French", "Arabic"]
+    main_religion: "Islam"
+    region: "East Africa"
+
+  - country: "KN"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "KP"
+    languages: ["Korean"]
+    main_religion: "Unaffiliated"
+    region: "East Asia"
+
+  - country: "KR"
+    languages: ["Korean"]
+    main_religion: "Unaffiliated"
+    region: "East Asia"
+
+  - country: "KW"
+    languages: ["Arabic", "English"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "KY"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "KZ"
+    languages: ["Kazakh", "Russian"]
+    main_religion: "Islam"
+    region: "Central Asia"
+
+  - country: "LA"
+    languages: ["Lao"]
+    main_religion: "Buddhism"
+    region: "Southeast Asia"
+
+  - country: "LB"
+    languages: ["Arabic", "French"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "LC"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "LI"
+    languages: ["German"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "LK"
+    languages: ["Sinhala", "Tamil", "English"]
+    main_religion: "Buddhism"
+    region: "South Asia"
+
+  - country: "LR"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "West Africa"
+
+  - country: "LS"
+    languages: ["English", "Sesotho"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "LT"
+    languages: ["Lithuanian"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "LU"
+    languages: ["Luxembourgish", "French", "German"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "LV"
+    languages: ["Latvian"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "LY"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "MA"
+    languages: ["Arabic", "Berber"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "MC"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "MD"
+    languages: ["Romanian", "Russian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "ME"
+    languages: ["Serbian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "MF"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "MG"
+    languages: ["Malagasy", "French"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "MH"
+    languages: ["English", "Marshallese"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "MK"
+    languages: ["Macedonian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "ML"
+    languages: ["French", "Bambara"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "MM"
+    languages: ["Burmese"]
+    main_religion: "Buddhism"
+    region: "Southeast Asia"
+
+  - country: "MN"
+    languages: ["Mongolian"]
+    main_religion: "Buddhism"
+    region: "East Asia"
+
+  - country: "MO"
+    languages: ["Chinese", "Portuguese"]
+    main_religion: "Unaffiliated"
+    region: "East Asia"
+
+  - country: "MP"
+    languages: ["English", "Chamorro"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "MQ"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "MR"
+    languages: ["Arabic", "French"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "MS"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "MT"
+    languages: ["Maltese", "English"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "MU"
+    languages: ["English", "Mauritian Creole"]
+    main_religion: "Hinduism"
+    region: "East Africa"
+
+  - country: "MV"
+    languages: ["Dhivehi"]
+    main_religion: "Islam"
+    region: "South Asia"
+
+  - country: "MW"
+    languages: ["English", "Chichewa"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "MX"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "North America"
+
+  - country: "MY"
+    languages: ["Malay", "English"]
+    main_religion: "Islam"
+    region: "Southeast Asia"
+
+  - country: "MZ"
+    languages: ["Portuguese"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "NA"
+    languages: ["English", "Oshivambo"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "NC"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "NE"
+    languages: ["French", "Hausa"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "NF"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "NG"
+    languages: ["English", "Yoruba", "Igbo"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "NI"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "NL"
+    languages: ["Dutch"]
+    main_religion: "Christianity"
+    region: "Western Europe"
+
+  - country: "NO"
+    languages: ["Norwegian"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "NP"
+    languages: ["Nepali"]
+    main_religion: "Hinduism"
+    region: "South Asia"
+
+  - country: "NR"
+    languages: ["English", "Nauruan"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "NU"
+    languages: ["English", "Niuean"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "NZ"
+    languages: ["English", "Māori"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "OM"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "PA"
+    languages: ["Spanish", "English"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "PE"
+    languages: ["Spanish", "Quechua"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "PF"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "PG"
+    languages: ["English", "Tok Pisin"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "PH"
+    languages: ["Filipino", "English"]
+    main_religion: "Christianity"
+    region: "Southeast Asia"
+
+  - country: "PK"
+    languages: ["Urdu", "English"]
+    main_religion: "Islam"
+    region: "South Asia"
+
+  - country: "PL"
+    languages: ["Polish"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "PM"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "North America"
+
+  - country: "PN"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "PR"
+    languages: ["Spanish", "English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "PS"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "PT"
+    languages: ["Portuguese"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "PW"
+    languages: ["English", "Palauan"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "PY"
+    languages: ["Spanish", "Guarani"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "QA"
+    languages: ["Arabic", "English"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "RE"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "RO"
+    languages: ["Romanian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "RS"
+    languages: ["Serbian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "RU"
+    languages: ["Russian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "RW"
+    languages: ["Kinyarwanda", "French", "English"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "SA"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "SB"
+    languages: ["English", "Tok Pisin"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "SC"
+    languages: ["English", "Seychellois Creole"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "SD"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "SE"
+    languages: ["Swedish"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "SG"
+    languages: ["English", "Mandarin", "Malay"]
+    main_religion: "Buddhism"
+    region: "Southeast Asia"
+
+  - country: "SH"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "West Africa"
+
+  - country: "SI"
+    languages: ["Slovenian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "SJ"
+    languages: ["Norwegian"]
+    main_religion: "Christianity"
+    region: "Northern Europe"
+
+  - country: "SK"
+    languages: ["Slovak"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "SL"
+    languages: ["English"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "SM"
+    languages: ["Italian"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "SN"
+    languages: ["French", "Wolof"]
+    main_religion: "Islam"
+    region: "West Africa"
+
+  - country: "SO"
+    languages: ["Somali", "Arabic"]
+    main_religion: "Islam"
+    region: "East Africa"
+
+  - country: "SR"
+    languages: ["Dutch"]
+    main_religion: "Hinduism"
+    region: "South America"
+
+  - country: "SS"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "ST"
+    languages: ["Portuguese"]
+    main_religion: "Christianity"
+    region: "Central Africa"
+
+  - country: "SV"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "Central America"
+
+  - country: "SX"
+    languages: ["Dutch", "English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "SY"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "SZ"
+    languages: ["English", "Siswati"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "TC"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "TD"
+    languages: ["French", "Arabic"]
+    main_religion: "Islam"
+    region: "Central Africa"
+
+  - country: "TF"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "TG"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "West Africa"
+
+  - country: "TH"
+    languages: ["Thai"]
+    main_religion: "Buddhism"
+    region: "Southeast Asia"
+
+  - country: "TJ"
+    languages: ["Tajik", "Russian"]
+    main_religion: "Islam"
+    region: "Central Asia"
+
+  - country: "TK"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "TL"
+    languages: ["Tetum", "Portuguese"]
+    main_religion: "Christianity"
+    region: "Southeast Asia"
+
+  - country: "TM"
+    languages: ["Turkmen", "Russian"]
+    main_religion: "Islam"
+    region: "Central Asia"
+
+  - country: "TN"
+    languages: ["Arabic", "French"]
+    main_religion: "Islam"
+    region: "North Africa"
+
+  - country: "TO"
+    languages: ["English", "Tongan"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "TR"
+    languages: ["Turkish"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "TT"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "TV"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "TW"
+    languages: ["Mandarin", "Taiwanese"]
+    main_religion: "Unaffiliated"
+    region: "East Asia"
+
+  - country: "TZ"
+    languages: ["Swahili", "English"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "UA"
+    languages: ["Ukrainian"]
+    main_religion: "Christianity"
+    region: "Eastern Europe"
+
+  - country: "UG"
+    languages: ["English", "Luganda"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "UM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "US"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "North America"
+
+  - country: "UY"
+    languages: ["Spanish"]
+    main_religion: "Unaffiliated"
+    region: "South America"
+
+  - country: "UZ"
+    languages: ["Uzbek", "Russian"]
+    main_religion: "Islam"
+    region: "Central Asia"
+
+  - country: "VA"
+    languages: ["Italian", "Latin"]
+    main_religion: "Christianity"
+    region: "Southern Europe"
+
+  - country: "VC"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "VE"
+    languages: ["Spanish"]
+    main_religion: "Christianity"
+    region: "South America"
+
+  - country: "VG"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "VI"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Caribbean"
+
+  - country: "VN"
+    languages: ["Vietnamese"]
+    main_religion: "Unaffiliated"
+    region: "Southeast Asia"
+
+  - country: "VU"
+    languages: ["Bislama", "English"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "WF"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "WS"
+    languages: ["English", "Samoan"]
+    main_religion: "Christianity"
+    region: "Oceania"
+
+  - country: "YE"
+    languages: ["Arabic"]
+    main_religion: "Islam"
+    region: "Middle East"
+
+  - country: "YT"
+    languages: ["French"]
+    main_religion: "Christianity"
+    region: "East Africa"
+
+  - country: "ZA"
+    languages: ["Zulu", "English", "Afrikaans"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "ZM"
+    languages: ["English"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
+
+  - country: "ZW"
+    languages: ["English", "Shona"]
+    main_religion: "Christianity"
+    region: "Southern Africa"
