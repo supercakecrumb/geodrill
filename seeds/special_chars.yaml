@@ -1,0 +1,222 @@
+# Special characters dataset — chars distinctive within the geodrill deck languages.
+# languages: ISO 639-3, only in-scope codes. tier per the v2 rubric.
+# Claims audited against the Tatoeba corpus; entries failing audit get pruned.
+topic: languages/special-characters
+chars:
+  # Latin script — single-language entries
+  - char: "ą"
+    script: latin
+    languages: [pol]
+    tier: 2
+    note: "a with ogonek — Polish"
+  - char: "ă"
+    script: latin
+    languages: [ron]
+    tier: 2
+    note: "a with breve — Romanian"
+  - char: "ã"
+    script: latin
+    languages: [por]
+    tier: 2
+    note: "a with tilde — Portuguese"
+  - char: "ć"
+    script: latin
+    languages: [pol]
+    tier: 3
+    note: "c with acute — Polish"
+  - char: "ð"
+    script: latin
+    languages: [isl]
+    tier: 2
+    note: "eth — Icelandic"
+  - char: "ę"
+    script: latin
+    languages: [pol]
+    tier: 2
+    note: "e with ogonek — Polish"
+  - char: "ě"
+    script: latin
+    languages: [ces]
+    tier: 3
+    note: "e with caron — Czech"
+  - char: "ł"
+    script: latin
+    languages: [pol]
+    tier: 2
+    note: "barred l — Polish"
+  - char: "ń"
+    script: latin
+    languages: [pol]
+    tier: 3
+    note: "n with acute — Polish"
+  - char: "ñ"
+    script: latin
+    languages: [spa]
+    tier: 0
+    note: "eñe — Spanish"
+  - char: "õ"
+    script: latin
+    languages: [por]
+    tier: 2
+    note: "o with tilde — Portuguese"
+  - char: "ś"
+    script: latin
+    languages: [pol]
+    tier: 3
+    note: "s with acute — Polish"
+  - char: "ș"
+    script: latin
+    languages: [ron]
+    tier: 2
+    note: "s with comma below — Romanian"
+  - char: "þ"
+    script: latin
+    languages: [isl]
+    tier: 2
+    note: "thorn — Icelandic"
+  - char: "ț"
+    script: latin
+    languages: [ron]
+    tier: 2
+    note: "t with comma below — Romanian"
+  - char: "ų"
+    script: latin
+    languages: [pol]
+    tier: 2
+    note: "u with ogonek — Polish"
+  - char: "ů"
+    script: latin
+    languages: [ces]
+    tier: 3
+    note: "u with ring above — Czech"
+  - char: "ż"
+    script: latin
+    languages: [pol]
+    tier: 2
+    note: "z with dot above — Polish"
+  - char: "ź"
+    script: latin
+    languages: [pol]
+    tier: 3
+    note: "z with acute — Polish"
+
+  # Latin script — multi-language entries
+  - char: "æ"
+    script: latin
+    languages: [nor, dan, isl]
+    tier: 2
+    note: "ash ligature — Norwegian, Danish, Icelandic"
+  - char: "å"
+    script: latin
+    languages: [swe, nor, dan]
+    tier: 1
+    note: "a with ring above — Swedish, Norwegian, Danish"
+  - char: "ä"
+    script: latin
+    languages: [swe, fin]
+    tier: 2
+    note: "a with diaeresis — Swedish, Finnish"
+  - char: "ö"
+    script: latin
+    languages: [swe, fin, isl]
+    tier: 2
+    note: "o with diaeresis — Swedish, Finnish, Icelandic"
+  - char: "ø"
+    script: latin
+    languages: [nor, dan]
+    tier: 2
+    note: "o with stroke — Norwegian, Danish"
+  - char: "ç"
+    script: latin
+    languages: [fra, por]
+    tier: 2
+    note: "c with cedilla — French, Portuguese"
+  - char: "č"
+    script: latin
+    languages: [ces, slk, hrv, slv]
+    tier: 2
+    note: "c with caron — Czech, Slovak, Croatian, Slovenian"
+  - char: "š"
+    script: latin
+    languages: [ces, slk, hrv, slv]
+    tier: 2
+    note: "s with caron — Czech, Slovak, Croatian, Slovenian"
+  - char: "ž"
+    script: latin
+    languages: [ces, slk, hrv, slv]
+    tier: 2
+    note: "z with caron — Czech, Slovak, Croatian, Slovenian"
+  - char: "đ"
+    script: latin
+    languages: [hrv, vie]
+    tier: 3
+    note: "d with stroke — Croatian, Vietnamese"
+  - char: "ň"
+    script: latin
+    languages: [ces, slk]
+    tier: 3
+    note: "n with caron — Czech, Slovak"
+
+  # Cyrillic script — single-language entries
+  - char: "ё"
+    script: cyrillic
+    languages: [rus]
+    tier: 1
+    note: "yo — Russian"
+  - char: "є"
+    script: cyrillic
+    languages: [ukr]
+    tier: 2
+    note: "ye — Ukrainian"
+  - char: "ґ"
+    script: cyrillic
+    languages: [ukr]
+    tier: 2
+    note: "ghe with upturn — Ukrainian"
+  - char: "ї"
+    script: cyrillic
+    languages: [ukr]
+    tier: 2
+    note: "yi — Ukrainian"
+  - char: "ђ"
+    script: cyrillic
+    languages: [srp]
+    tier: 3
+    note: "dje — Serbian"
+  - char: "ћ"
+    script: cyrillic
+    languages: [srp]
+    tier: 3
+    note: "tshe — Serbian"
+  - char: "ѓ"
+    script: cyrillic
+    languages: [mkd]
+    tier: 3
+    note: "gje — Macedonian"
+  - char: "ќ"
+    script: cyrillic
+    languages: [mkd]
+    tier: 3
+    note: "kje — Macedonian"
+  - char: "ѕ"
+    script: cyrillic
+    languages: [mkd]
+    tier: 3
+    note: "dze — Macedonian"
+
+  # Cyrillic script — multi-language entries
+  - char: "љ"
+    script: cyrillic
+    languages: [srp, mkd]
+    tier: 3
+    note: "lje — Serbian, Macedonian"
+  - char: "њ"
+    script: cyrillic
+    languages: [srp, mkd]
+    tier: 3
+    note: "nje — Serbian, Macedonian"
+  - char: "џ"
+    script: cyrillic
+    languages: [srp, mkd]
+    tier: 3
+    note: "dze (U+045F) — Serbian, Macedonian"
