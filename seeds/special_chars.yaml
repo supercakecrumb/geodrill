@@ -9,21 +9,6 @@ chars:
     languages: [pol]
     tier: 2
     note: "a with ogonek — Polish"
-  - char: "ă"
-    script: latin
-    languages: [ron]
-    tier: 2
-    note: "a with breve — Romanian"
-  - char: "ã"
-    script: latin
-    languages: [por]
-    tier: 2
-    note: "a with tilde — Portuguese"
-  - char: "ć"
-    script: latin
-    languages: [pol]
-    tier: 3
-    note: "c with acute — Polish"
   - char: "ð"
     script: latin
     languages: [isl]
@@ -54,11 +39,6 @@ chars:
     languages: [spa]
     tier: 0
     note: "eñe — Spanish"
-  - char: "õ"
-    script: latin
-    languages: [por]
-    tier: 2
-    note: "o with tilde — Portuguese"
   - char: "ś"
     script: latin
     languages: [pol]
@@ -79,11 +59,6 @@ chars:
     languages: [ron]
     tier: 2
     note: "t with comma below — Romanian"
-  - char: "ų"
-    script: latin
-    languages: [pol]
-    tier: 2
-    note: "u with ogonek — Polish"
   - char: "ů"
     script: latin
     languages: [ces]
@@ -113,9 +88,9 @@ chars:
     note: "a with ring above — Swedish, Norwegian, Danish"
   - char: "ä"
     script: latin
-    languages: [swe, fin]
+    languages: [swe, fin, slk]
     tier: 2
-    note: "a with diaeresis — Swedish, Finnish"
+    note: "a with diaeresis — Swedish, Finnish; also Slovak's \"wide a\" (audited: 2.46% of Slovak sentences)"
   - char: "ö"
     script: latin
     languages: [swe, fin, isl]
@@ -128,9 +103,9 @@ chars:
     note: "o with stroke — Norwegian, Danish"
   - char: "ç"
     script: latin
-    languages: [fra, por]
+    languages: [fra, por, cat]
     tier: 2
-    note: "c with cedilla — French, Portuguese"
+    note: "c with cedilla — French, Portuguese; also Catalan's \"c trencada\" (audited: 3.78% of Catalan sentences)"
   - char: "č"
     script: latin
     languages: [ces, slk, hrv, slv]
@@ -156,6 +131,26 @@ chars:
     languages: [ces, slk]
     tier: 3
     note: "n with caron — Czech, Slovak"
+  - char: "ă"
+    script: latin
+    languages: [ron, vie]
+    tier: 2
+    note: "a with breve — Romanian; also a core Vietnamese vowel (audited: 7.24% of Vietnamese sentences, e.g. \"ăn\"/\"răng\")"
+  - char: "ã"
+    script: latin
+    languages: [por, vie]
+    tier: 2
+    note: "a with tilde — Portuguese; also Vietnamese's ngã tone on \"a\" (audited: 17.92% of Vietnamese sentences, mostly via \"đã\")"
+  - char: "ć"
+    script: latin
+    languages: [pol, hrv]
+    tier: 3
+    note: "c with acute — Polish; also a distinct Croatian letter alongside č (audited: 17.56% of Croatian sentences)"
+  - char: "õ"
+    script: latin
+    languages: [por]
+    tier: 2
+    note: "o with tilde — Portuguese (Vietnamese also uses õ, e.g. \"rõ\"/\"theo dõi\", but only 0.44% of Vietnamese sentences — below the 0.5% claimed-language floor, so not claimed here; audited)"
 
   # Cyrillic script — single-language entries
   - char: "ё"
@@ -168,11 +163,6 @@ chars:
     languages: [ukr]
     tier: 2
     note: "ye — Ukrainian"
-  - char: "ґ"
-    script: cyrillic
-    languages: [ukr]
-    tier: 2
-    note: "ghe with upturn — Ukrainian"
   - char: "ї"
     script: cyrillic
     languages: [ukr]
@@ -198,12 +188,6 @@ chars:
     languages: [mkd]
     tier: 3
     note: "kje — Macedonian"
-  - char: "ѕ"
-    script: cyrillic
-    languages: [mkd]
-    tier: 3
-    note: "dze — Macedonian"
-
   # Cyrillic script — multi-language entries
   - char: "љ"
     script: cyrillic
