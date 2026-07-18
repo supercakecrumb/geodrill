@@ -1,0 +1,21 @@
+name: Deploy
+
+# Inert seam only — no deploy logic exists yet. Fires after a GitHub Release
+# is published (release.yml creates that release once the GHCR image is
+# pushed). Aurora's future self-hosted PaaS deploy hooks in here: pull
+# ghcr.io/supercakecrumb/geodrill:<tag> and roll it out. See CLAUDE.md
+# "CI (being introduced with v2)" — deployment method is still TBD.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op (deploy target not configured yet)
+        run: |
+          echo "Release ${{ github.event.release.tag_name }} published."
+          echo "No deploy target is wired up yet — this is an inert seam."
