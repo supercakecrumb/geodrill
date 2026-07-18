@@ -53,12 +53,13 @@ type reminderState struct {
 	followUps   int       // follow-ups sent so far today
 }
 
-// Config configures a Bot. The v2 fields (StudyService, TopicService,
-// TrainerV2, IntroCapStore) are OPTIONAL and nil-safe: cmd/bot (which this
-// package cannot touch) compiles unchanged against the pre-v2 zero value,
-// and every feature they gate degrades to a "🚧 coming with v2 wiring"
-// reply (or, for TrainerV2's OnText handler, simply isn't registered) until
-// a later wave supplies a real implementation.
+// Config configures a Bot. StudyService, TopicService, and IntroCapStore
+// are OPTIONAL and nil-safe: every feature they gate degrades to a
+// "🚧 coming with v2 wiring" reply until wired. TrainerV2 is REQUIRED
+// (deliverable 5's v2 cutover): /train, /practice, /stats, and the
+// reminder loop's due-review count all call it unconditionally now — the
+// legacy trainer fallback they used to have is gone, and the free-text
+// OnText handler is only registered when it's non-nil.
 type Config struct {
 	Token   string
 	Store   *storage.Store
@@ -72,7 +73,8 @@ type Config struct {
 	// TopicService powers the /topics tree browser (architecture §5.2).
 	TopicService TopicService
 	// TrainerV2 powers the mode-aware v2 exercise path (architecture §1.6):
-	// /train prefers it over the legacy trainer, and its presence is what
+	// /train, /practice, /stats, and the reminder loop's due count all
+	// require it now (see this type's doc comment); its presence also
 	// decides whether the free-text OnText handler is registered at all.
 	TrainerV2 TrainerV2
 	// IntroCapStore powers the /settings daily intro-cap row.
@@ -93,8 +95,10 @@ type Bot struct {
 	// topics is nil until a later wave wires Config.TopicService — every
 	// call site checks it before use (see topics_ui.go).
 	topics TopicService
-	// trainerV2 is nil until a later wave wires Config.TrainerV2 — every
-	// call site checks it before use (see trainv2.go).
+	// trainerV2 is required (Config.TrainerV2, see this package's Config
+	// doc comment) — /train, /practice, /stats, and the reminder loop's
+	// due count call it unconditionally (trainv2.go); only OnText's
+	// registration still checks it for nil (bot.go's New).
 	trainerV2 TrainerV2
 	introCap  IntroCapStore
 
@@ -274,7 +278,7 @@ func (b *Bot) sendReminders(ctx context.Context) {
 		day := local.Format("2006-01-02")
 		st := b.getReminderState(u.ID)
 
-		due, err := b.dueCount(ctx, u, now)
+		due, err := b.trainerV2.DueCount(ctx, u.ID)
 		if err != nil {
 			b.logger.Error("telegram: reminders: due count", "user", u.ID, "error", err)
 			continue

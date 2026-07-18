@@ -3,11 +3,9 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"html"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -125,7 +123,6 @@ const welcomeText = "Hi! I'm geodrill — I'll show you short sentences in diffe
 	"and quiz you on which language they're in, spacing out repeats so they stick.\n\n" +
 	"All decks start disabled. Pick at least one below, then send /train to begin."
 
-const noDecksText = "You don't have any decks enabled yet. Pick at least one below, then /train again."
 const noContentText = "The content for your due skills hasn't been ingested yet. Try again later, or enable a different deck via /decks."
 const noTopicsText = "You don't have any topics enabled for practice yet. Check /topics to turn some on, then /practice again."
 const allCaughtUpText = "You're all caught up for now."
@@ -384,10 +381,14 @@ func (b *Bot) handleStats(ctx context.Context, s Session) error {
 
 func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 	data := s.Data()
-	now := b.now()
 
-	if cb, ok := train.ParseCallback(data); ok {
-		return b.handleAnswerCallback(ctx, s, cb, now)
+	// Old in-flight messages from before the v2 cutover may still carry a
+	// legacy "ans:"/"prac:" answer button; the legacy trainer that graded
+	// them is gone, so tapping one now gets a friendly "expired" toast
+	// instead (deliverable 5: /train and /practice answers only ever
+	// arrive via v2a:/v2p: from here on).
+	if isLegacyAnswerCallback(data) {
+		return s.Respond(legacyAnswerExpiredToast)
 	}
 
 	switch {
@@ -438,67 +439,17 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 	}
 }
 
-// handleAnswerCallback grades a /train or /practice tap, edits the answered
-// message in place (appending a recognition tip below the sentence when one
-// is available, otherwise just regrading the keyboard), toasts the result,
-// then sends the next exercise as a new message.
-func (b *Bot) handleAnswerCallback(ctx context.Context, s Session, cb train.Callback, now time.Time) error {
-	res, err := b.svc.Answer(ctx, cb, now)
-	if err != nil {
-		return err
-	}
-	if res.Stale {
-		return s.Respond(staleToast)
-	}
-
-	user, err := b.loadOrCreateUser(ctx, s)
-	if err != nil {
-		return err
-	}
-
-	msgID := s.MessageID()
-	if res.HasMessage {
-		msgID = res.MessageID
-	}
-	// Both edits are best-effort: the answer is already graded and scheduled,
-	// so an edit failure (message too old, race, network) must not swallow
-	// the toast or the next exercise.
-	rows := gradedButtonRows(user.LabelStyle, res.Buttons)
-	edited := false
-	if res.Tip != "" && res.SentenceText != "" {
-		if text, ok := composeAnsweredText(res.SentenceText, res.Tip); ok {
-			if err := s.EditMessage(msgID, text, rows); err != nil {
-				b.logger.Warn("telegram: edit answered message", "error", err)
-			} else {
-				edited = true
-			}
-		}
-	}
-	if !edited {
-		if err := s.EditKeyboard(msgID, rows); err != nil {
-			b.logger.Warn("telegram: edit graded keyboard", "error", err)
-		}
-	}
-
-	toast := wrongToast
-	if res.Correct {
-		toast = correctToast
-	}
-	if err := s.Respond(toast); err != nil {
-		return err
-	}
-
-	var next train.NextResult
-	if cb.Practice {
-		next, err = b.svc.NextPractice(ctx, user, now)
-	} else {
-		next, err = b.svc.NextExercise(ctx, user, now)
-	}
-	if err != nil {
-		return err
-	}
-	return b.sendNextResult(ctx, s, user, next)
+// isLegacyAnswerCallback reports whether data has the shape of a pre-v2
+// "ans:<uuid>:<key>" or "prac:<uuid>:<key>" answer tap (the prefixes
+// train.ParseCallback used to parse) — recognized only by shape now, since
+// the legacy trainer that graded them no longer exists.
+func isLegacyAnswerCallback(data string) bool {
+	return strings.HasPrefix(data, "ans:") || strings.HasPrefix(data, "prac:")
 }
+
+// legacyAnswerExpiredToast is shown when a stale "ans:"/"prac:" button from
+// before the v2 cutover is tapped.
+const legacyAnswerExpiredToast = "⏳ This quiz expired — run /train"
 
 func (b *Bot) handleDeckToggle(ctx context.Context, s Session, idStr string) error {
 	deckID, err := uuid.Parse(idStr)
@@ -571,47 +522,6 @@ func (b *Bot) handleStyleCycle(ctx context.Context, s Session) error {
 
 // ── shared rendering helpers ─────────────────────────────────────────────
 
-// sendNextResult renders a train.NextResult: a fresh exercise, a "nothing
-// due"/"all caught up" message, a nudge to enable decks, or a no-content
-// notice.
-func (b *Bot) sendNextResult(ctx context.Context, s Session, user storage.User, res train.NextResult) error {
-	switch res.Kind {
-	case train.KindExercise:
-		return b.sendPrompt(ctx, s, user, res.Prompt)
-	case train.KindNothingDue:
-		if !res.DueAt.IsZero() {
-			loc := locationFor(user)
-			return s.Send(fmt.Sprintf("Nothing due right now. Come back at %s.", res.DueAt.In(loc).Format("15:04")))
-		}
-		return s.Send(allCaughtUpText)
-	case train.KindNoDecks:
-		if err := s.Send(noDecksText); err != nil {
-			return err
-		}
-		return b.sendDeckPicker(ctx, s, user)
-	case train.KindNoContent:
-		return s.Send(noContentText)
-	default:
-		return s.Send(fallbackText)
-	}
-}
-
-// sendPrompt sends an exercise prompt with its answer buttons and records
-// the sent message id so the keyboard can be edited in place at answer time.
-func (b *Bot) sendPrompt(ctx context.Context, s Session, user storage.User, p *train.Prompt) error {
-	rows := buttonRows(user.LabelStyle, p.Buttons)
-	if p.Practice {
-		// A Stop control on each practice exercise ends the session and shows a
-		// tally (see handleStopPractice).
-		rows = append(rows, []Btn{{Label: "⏹ Stop practice", Data: dataStopPractice}})
-	}
-	msgID, err := s.SendKeyboard(p.Text, rows)
-	if err != nil {
-		return err
-	}
-	return b.store.SetExerciseMessageID(ctx, p.ExerciseID, msgID)
-}
-
 // formatPracticeSummary is the quick tally shown when a /practice session is
 // stopped.
 func formatPracticeSummary(total, correct int) string {
@@ -667,72 +577,6 @@ func (b *Bot) loadOrCreateUser(ctx context.Context, s Session) (storage.User, er
 }
 
 // ── pure, unit-tested formatting ─────────────────────────────────────────
-
-// telegramMaxMessageLen approximates Telegram's 4096-UTF-16-unit message
-// text cap; counting runes with headroom keeps edits safely under it.
-const telegramMaxMessageLen = 4000
-
-// composeAnsweredText appends the recognition tip below the sentence for
-// the in-place answer edit, rendering the tip as a Telegram blockquote. The
-// output is HTML because Session.EditMessage sends it with Telegram's HTML
-// parse mode — both the sentence and the tip must be escaped since sentences
-// (and tips) can contain <, >, or &. ok=false means the combined text would
-// exceed the edit limit — the caller then keeps the keyboard-only edit.
-func composeAnsweredText(sentence, tip string) (string, bool) {
-	text := html.EscapeString(sentence) + "\n\n<blockquote>💡 " + html.EscapeString(tip) + "</blockquote>"
-	if utf8.RuneCountInString(text) > telegramMaxMessageLen {
-		return "", false
-	}
-	return text, true
-}
-
-// buttonRows lays out the exercise answer buttons two per row (a trailing
-// odd button sits alone on the last row), each rendered per the user's
-// chosen label style (see answerLabel). Two per row keeps longer labels
-// (e.g. "🇫🇮 Finnish") from being truncated by Telegram.
-func buttonRows(style string, buttons []train.Button) [][]Btn {
-	if len(buttons) == 0 {
-		return nil
-	}
-	rows := make([][]Btn, 0, (len(buttons)+1)/2)
-	for i := 0; i < len(buttons); i += 2 {
-		btn := buttons[i]
-		row := []Btn{{Label: answerLabel(style, btn.Key, btn.Label), Data: btn.CallbackData}}
-		if i+1 < len(buttons) {
-			next := buttons[i+1]
-			row = append(row, Btn{Label: answerLabel(style, next.Key, next.Label), Data: next.CallbackData})
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
-
-// gradedButtonRows lays out the graded answer buttons two per row (a
-// trailing odd button sits alone on the last row), each rendered per the
-// user's chosen label style and decorated with ✅/❌, all wired to the inert
-// noop callback. When a button has no raw Name (e.g. in tests) it falls back
-// to its pre-decorated Label.
-func gradedButtonRows(style string, buttons []train.GradedButton) [][]Btn {
-	if len(buttons) == 0 {
-		return nil
-	}
-	graded := func(btn train.GradedButton) Btn {
-		label := btn.Label
-		if btn.Name != "" {
-			label = train.DecorateLabel(answerLabel(style, btn.Key, btn.Name), btn.Mark)
-		}
-		return Btn{Label: label, Data: train.DataNoop}
-	}
-	rows := make([][]Btn, 0, (len(buttons)+1)/2)
-	for i := 0; i < len(buttons); i += 2 {
-		row := []Btn{graded(buttons[i])}
-		if i+1 < len(buttons) {
-			row = append(row, graded(buttons[i+1]))
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
 
 // deckPickerRows renders one row per deck (✅/⬜ + name, toggling it). All the
 // non-deck controls (cap, reminders, style) live in settingsRows / /settings.

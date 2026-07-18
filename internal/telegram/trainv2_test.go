@@ -151,20 +151,6 @@ func TestHandleTrain_PrefersV2WhenWired(t *testing.T) {
 	}
 }
 
-func TestHandleTrain_LegacyWhenV2Nil(t *testing.T) {
-	tr := &stubTrainer{next: train.NextResult{Kind: train.KindNothingDue}}
-	st := &stubStore{user: newTestUser()}
-	b := newTestBot(tr, st)
-
-	s := &fakeSession{userID: 1}
-	if err := b.handleTrain(context.Background(), s); err != nil {
-		t.Fatalf("handleTrain: %v", err)
-	}
-	if len(s.sent) != 1 || s.sent[0] != allCaughtUpText {
-		t.Fatalf("expected the legacy nothing-due path, got %v", s.sent)
-	}
-}
-
 // ── /practice V2 preference ──────────────────────────────────────────────
 
 func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
@@ -198,20 +184,6 @@ func TestHandlePractice_PrefersV2WhenWired(t *testing.T) {
 	}
 }
 
-func TestHandlePractice_LegacyWhenV2Nil(t *testing.T) {
-	tr := &stubTrainer{next: train.NextResult{Kind: train.KindNoDecks}}
-	st := &stubStore{user: newTestUser()}
-	b := newTestBot(tr, st)
-
-	s := &fakeSession{userID: 1}
-	if err := b.handlePractice(context.Background(), s); err != nil {
-		t.Fatalf("handlePractice: %v", err)
-	}
-	if len(s.sent) != 1 || s.sent[0] != noDecksText {
-		t.Fatalf("expected the legacy no-decks path, got %v", s.sent)
-	}
-}
-
 func TestSendPromptV2_NoTopics(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubTrainer{}, &stubStore{})
@@ -224,31 +196,6 @@ func TestSendPromptV2_NoTopics(t *testing.T) {
 }
 
 // ── sendPromptV2 / sendExerciseV2 ────────────────────────────────────────
-
-// ── dueCount V2 preference ───────────────────────────────────────────────
-
-func TestDueCount_PrefersV2WhenWired(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{})
-	b.trainerV2 = &stubTrainerV2{due: 7}
-	got, err := b.dueCount(context.Background(), newTestUser(), time.Now())
-	if err != nil {
-		t.Fatalf("dueCount: %v", err)
-	}
-	if got != 7 {
-		t.Fatalf("expected the v2 due count (7), got %d", got)
-	}
-}
-
-func TestDueCount_LegacyWhenV2Nil(t *testing.T) {
-	b := newTestBot(&stubTrainer{}, &stubStore{})
-	got, err := b.dueCount(context.Background(), newTestUser(), time.Now())
-	if err != nil {
-		t.Fatalf("dueCount: %v", err)
-	}
-	if got != 0 { // stubTrainer.DueCount always returns 0
-		t.Fatalf("expected the legacy due count (0), got %d", got)
-	}
-}
 
 // ── /stats V2 ────────────────────────────────────────────────────────────
 

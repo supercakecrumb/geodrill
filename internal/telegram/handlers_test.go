@@ -238,53 +238,11 @@ func newTestBot(tr *stubTrainer, st *stubStore) *Bot {
 }
 
 // ── /practice Stop control ───────────────────────────────────────────────
-
-func TestSendPrompt_PracticeAddsStopButton(t *testing.T) {
-	st := &stubStore{user: storage.User{ID: uuid.New(), LabelStyle: "name"}}
-	b := newTestBot(&stubTrainer{}, st)
-	s := &fakeSession{userID: 1}
-
-	p := &train.Prompt{
-		ExerciseID: uuid.New(),
-		Text:       "Menen katsomaan.",
-		Practice:   true,
-		Buttons: []train.Button{
-			{Key: "fin", Label: "Finnish", CallbackData: "prac:x:fin"},
-			{Key: "swe", Label: "Swedish", CallbackData: "prac:x:swe"},
-		},
-	}
-	if err := b.sendPrompt(context.Background(), s, st.user, p); err != nil {
-		t.Fatalf("sendPrompt: %v", err)
-	}
-	if len(s.keyboards) != 1 {
-		t.Fatalf("expected one keyboard sent, got %d", len(s.keyboards))
-	}
-	var sawStop bool
-	for _, row := range s.keyboards[0].rows {
-		for _, btn := range row {
-			if btn.Data == dataStopPractice {
-				sawStop = true
-			}
-		}
-	}
-	if !sawStop {
-		t.Fatalf("expected a Stop-practice button on a practice prompt; rows=%+v", s.keyboards[0].rows)
-	}
-
-	// A non-practice prompt must NOT get a Stop button.
-	s2 := &fakeSession{userID: 1}
-	p.Practice = false
-	if err := b.sendPrompt(context.Background(), s2, st.user, p); err != nil {
-		t.Fatalf("sendPrompt (non-practice): %v", err)
-	}
-	for _, row := range s2.keyboards[0].rows {
-		for _, btn := range row {
-			if btn.Data == dataStopPractice {
-				t.Fatalf("did not expect a Stop button on a /train prompt")
-			}
-		}
-	}
-}
+//
+// The Stop button itself (its v2 rendering) is covered by trainv2_test.go's
+// TestSendExerciseV2_PracticeUsesV2pPrefixAndStopButton; the tests below
+// cover handleStopPractice, which is independent of TrainerV2/legacy trainer
+// (it only reads storage.Store.PracticeStatsSince).
 
 func TestHandleStopPractice(t *testing.T) {
 	st := &stubStore{
@@ -343,21 +301,12 @@ func TestHandleStopPractice_NoAnswers(t *testing.T) {
 // TestHandleCallback_StartTrain covers the "Start reviewing" button on the
 // daily reminder: it acks the tap and dispatches the next due exercise.
 func TestHandleCallback_StartTrain(t *testing.T) {
-	tr := &stubTrainer{
-		next: train.NextResult{
-			Kind: train.KindExercise,
-			Prompt: &train.Prompt{
-				ExerciseID: uuid.New(),
-				Text:       "Uma frase.",
-				Buttons: []train.Button{
-					{Label: "🇵🇹 Portuguese", Key: "por"},
-					{Label: "🇪🇸 Spanish", Key: "spa"},
-				},
-			},
-		},
-	}
 	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(tr, st)
+	b := newTestBot(&stubTrainer{}, st)
+	b.trainerV2 = &stubTrainerV2{next: PromptV2{
+		Kind: PromptV2KindExercise, ExerciseID: uuid.New(), Text: "Uma frase.",
+		Options: []OptionV2{{Index: 0, Label: "🇵🇹 Portuguese"}, {Index: 1, Label: "🇪🇸 Spanish"}},
+	}}
 
 	s := &fakeSession{userID: 1, data: dataStartTrain}
 
@@ -368,7 +317,7 @@ func TestHandleCallback_StartTrain(t *testing.T) {
 	if len(s.responses) != 1 || s.responses[0] != "" {
 		t.Fatalf("expected exactly one empty ack response, got %v", s.responses)
 	}
-	// The next exercise must be sent as a keyboard message.
+	// The next exercise must be sent as a keyboard message (via TrainerV2).
 	if len(s.keyboards) != 1 {
 		t.Fatalf("expected exactly one exercise keyboard, got %d", len(s.keyboards))
 	}
@@ -377,256 +326,29 @@ func TestHandleCallback_StartTrain(t *testing.T) {
 	}
 }
 
-// ── handleCallback: stale / correct / wrong ─────────────────────────────
+// ── handleCallback: legacy ans:/prac: buttons ────────────────────────────
+//
+// The legacy trainer that graded "ans:"/"prac:" taps is gone: an old
+// in-flight message carrying one of these buttons now gets a friendly
+// "expired" toast instead of being routed anywhere for grading.
+// The equivalent v2 grading coverage (stale/correct/wrong/tips) lives in
+// trainv2_test.go's TestHandleV2AnswerCallback_* tests.
 
-func TestHandleCallback_Stale(t *testing.T) {
-	tr := &stubTrainer{
-		answer: train.AnswerResult{Stale: true},
-		next:   train.NextResult{Kind: train.KindNothingDue},
-	}
-	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(tr, st)
+func TestHandleCallback_LegacyAnswerIsExpired(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{user: newTestUser()})
 
-	s := &fakeSession{userID: 1, messageID: 42, data: "ans:" + uuid.NewString() + ":por"}
-
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-
-	if len(s.edits) != 0 {
-		t.Fatalf("expected no EditKeyboard call on a stale tap, got %d", len(s.edits))
-	}
-	if len(s.responses) != 1 || s.responses[0] != staleToast {
-		t.Fatalf("expected toast %q, got %v", staleToast, s.responses)
-	}
-}
-
-func TestHandleCallback_Correct(t *testing.T) {
-	tr := &stubTrainer{
-		answer: train.AnswerResult{
-			Correct: true,
-			Buttons: []train.GradedButton{
-				{Label: "✅ Portuguese", Mark: train.MarkCorrect},
-				{Label: "Spanish", Mark: train.MarkNone},
-			},
-			HasMessage: true,
-			MessageID:  99,
-		},
-		next: train.NextResult{Kind: train.KindNothingDue},
-	}
-	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(tr, st)
-
-	s := &fakeSession{userID: 1, messageID: 42, data: "ans:" + uuid.NewString() + ":por"}
-
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-
-	if len(s.edits) != 1 {
-		t.Fatalf("expected exactly one EditKeyboard call, got %d", len(s.edits))
-	}
-	edit := s.edits[0]
-	if edit.messageID != 99 {
-		t.Fatalf("expected edit on message 99 (AnswerResult.MessageID, HasMessage=true), got %d", edit.messageID)
-	}
-
-	var sawDecoratedLabel bool
-	for _, row := range edit.rows {
-		for _, btn := range row {
-			if btn.Data != train.DataNoop {
-				t.Fatalf("expected every graded button to carry noop callback data, got %q", btn.Data)
-			}
-			if btn.Label == "✅ Portuguese" {
-				sawDecoratedLabel = true
-			}
+	for _, data := range []string{"ans:" + uuid.NewString() + ":por", "prac:" + uuid.NewString() + ":fin"} {
+		s := &fakeSession{userID: 1, messageID: 42, data: data}
+		if err := b.handleCallback(context.Background(), s); err != nil {
+			t.Fatalf("handleCallback(%q): %v", data, err)
 		}
-	}
-	if !sawDecoratedLabel {
-		t.Fatalf("expected the ✅-decorated correct label to be preserved in the edit")
-	}
-
-	if len(s.responses) != 1 || s.responses[0] != correctToast {
-		t.Fatalf("expected toast %q, got %v", correctToast, s.responses)
-	}
-
-	// The next exercise send path should have run (KindNothingDue -> a plain
-	// Send, not a keyboard).
-	if len(s.sent) != 1 {
-		t.Fatalf("expected the next-result message to be sent, got %d sends", len(s.sent))
-	}
-}
-
-func TestHandleCallback_Wrong(t *testing.T) {
-	tr := &stubTrainer{
-		answer: train.AnswerResult{
-			Correct: false,
-			Buttons: []train.GradedButton{
-				{Label: "✅ Portuguese", Mark: train.MarkCorrect},
-				{Label: "❌ Spanish", Mark: train.MarkWrong},
-			},
-			HasMessage: false, // fall back to the session's current message id
-		},
-		next: train.NextResult{Kind: train.KindNothingDue},
-	}
-	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(tr, st)
-
-	s := &fakeSession{userID: 1, messageID: 42, data: "ans:" + uuid.NewString() + ":spa"}
-
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-
-	if len(s.edits) != 1 {
-		t.Fatalf("expected exactly one EditKeyboard call, got %d", len(s.edits))
-	}
-	edit := s.edits[0]
-	if edit.messageID != 42 {
-		t.Fatalf("expected fallback to session MessageID (42) when HasMessage=false, got %d", edit.messageID)
-	}
-
-	var sawWrongLabel bool
-	for _, row := range edit.rows {
-		for _, btn := range row {
-			if btn.Data != train.DataNoop {
-				t.Fatalf("expected every graded button to carry noop callback data, got %q", btn.Data)
-			}
-			if btn.Label == "❌ Spanish" {
-				sawWrongLabel = true
-			}
+		if len(s.responses) != 1 || s.responses[0] != legacyAnswerExpiredToast {
+			t.Fatalf("handleCallback(%q): expected the expired toast, got %v", data, s.responses)
 		}
-	}
-	if !sawWrongLabel {
-		t.Fatalf("expected the ❌-decorated wrong label to be preserved in the edit")
-	}
-
-	if len(s.responses) != 1 || s.responses[0] != wrongToast {
-		t.Fatalf("expected toast %q, got %v", wrongToast, s.responses)
-	}
-}
-
-// ── handleCallback: recognition tips ─────────────────────────────────────
-
-// tipAnswerResult is a wrong-answer result carrying a sentence + tip, as
-// train.Service.Answer produces when the tips provider is wired.
-func tipAnswerResult() train.AnswerResult {
-	return train.AnswerResult{
-		Correct: false,
-		Buttons: []train.GradedButton{
-			{Key: "por", Name: "Portuguese", Label: "✅ Portuguese", Mark: train.MarkCorrect},
-			{Key: "spa", Name: "Spanish", Label: "❌ Spanish", Mark: train.MarkWrong},
-		},
-		HasMessage:   true,
-		MessageID:    99,
-		SentenceText: "Não fales com ele.",
-		Tip:          "Portuguese: “não” means “no”",
-	}
-}
-
-func TestHandleCallback_TipEditsMessageInPlace(t *testing.T) {
-	tr := &stubTrainer{
-		answer: tipAnswerResult(),
-		next:   train.NextResult{Kind: train.KindNothingDue},
-	}
-	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(tr, st)
-
-	s := &fakeSession{userID: 1, messageID: 42, data: "ans:" + uuid.NewString() + ":spa"}
-
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-
-	if len(s.editedMsgs) != 1 {
-		t.Fatalf("expected exactly one EditMessage call, got %d", len(s.editedMsgs))
-	}
-	if len(s.edits) != 0 {
-		t.Fatalf("EditKeyboard must not also run when the tip edit succeeded, got %d calls", len(s.edits))
-	}
-	em := s.editedMsgs[0]
-	if em.messageID != 99 {
-		t.Fatalf("expected the tip edit on message 99, got %d", em.messageID)
-	}
-	if !strings.Contains(em.text, "Não fales com ele.") {
-		t.Fatalf("edited text must keep the sentence, got %q", em.text)
-	}
-	if !strings.Contains(em.text, "\n\n<blockquote>💡 Portuguese: “não” means “no”</blockquote>") {
-		t.Fatalf("edited text must append the tip as a blockquote, got %q", em.text)
-	}
-	if len(em.rows) == 0 {
-		t.Fatalf("the tip edit must carry the graded keyboard")
-	}
-
-	// Toast + next exercise still delivered.
-	if len(s.responses) != 1 || s.responses[0] != wrongToast {
-		t.Fatalf("expected toast %q, got %v", wrongToast, s.responses)
-	}
-	if len(s.sent) != 1 {
-		t.Fatalf("expected the next-result message to be sent, got %d sends", len(s.sent))
-	}
-}
-
-func TestHandleCallback_TipEditFailureFallsBackToKeyboard(t *testing.T) {
-	tr := &stubTrainer{
-		answer: tipAnswerResult(),
-		next:   train.NextResult{Kind: train.KindNothingDue},
-	}
-	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(tr, st)
-
-	s := &fakeSession{userID: 1, messageID: 42, data: "ans:" + uuid.NewString() + ":spa", failEditMsg: true}
-
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-
-	if len(s.edits) != 1 {
-		t.Fatalf("expected the keyboard-only fallback edit, got %d EditKeyboard calls", len(s.edits))
-	}
-	if s.edits[0].messageID != 99 {
-		t.Fatalf("fallback edit should target message 99, got %d", s.edits[0].messageID)
-	}
-	// The flow must survive the failure: toast + next exercise.
-	if len(s.responses) != 1 || s.responses[0] != wrongToast {
-		t.Fatalf("expected toast %q, got %v", wrongToast, s.responses)
-	}
-	if len(s.sent) != 1 {
-		t.Fatalf("expected the next-result message to be sent, got %d sends", len(s.sent))
-	}
-}
-
-func TestComposeAnsweredText(t *testing.T) {
-	text, ok := composeAnsweredText("Han er søn af kongen.", `"af" — the classic Danish tell`)
-	if !ok {
-		t.Fatalf("compose should succeed for a short sentence")
-	}
-	want := "Han er søn af kongen.\n\n<blockquote>💡 &#34;af&#34; — the classic Danish tell</blockquote>"
-	if text != want {
-		t.Fatalf("composed = %q, want %q", text, want)
-	}
-
-	// Over the Telegram limit: skip the tip rather than risk a failed edit.
-	if _, ok := composeAnsweredText(strings.Repeat("а", telegramMaxMessageLen), "tip"); ok {
-		t.Fatalf("compose must refuse texts beyond the message limit")
-	}
-}
-
-// TestComposeAnsweredText_EscapesHTML guards against a sentence containing
-// HTML-special characters breaking Telegram's HTML parse mode: both the
-// sentence and the tip must come out escaped, with the only raw angle
-// brackets being the <blockquote> tags this function itself adds.
-func TestComposeAnsweredText_EscapesHTML(t *testing.T) {
-	text, ok := composeAnsweredText("a < b & c", "tip")
-	if !ok {
-		t.Fatalf("compose should succeed for a short sentence")
-	}
-	if !strings.Contains(text, "a &lt; b &amp; c") {
-		t.Fatalf("composed text must escape the sentence, got %q", text)
-	}
-	withoutTags := strings.NewReplacer("<blockquote>", "", "</blockquote>", "").Replace(text)
-	if strings.ContainsAny(withoutTags, "<>") {
-		t.Fatalf("composed text must not contain raw angle brackets outside the blockquote tags, got %q", text)
+		if len(s.edits) != 0 || len(s.editedMsgs) != 0 || len(s.sent) != 0 {
+			t.Fatalf("handleCallback(%q): expected no edits or sends, got edits=%d editedMsgs=%d sent=%d",
+				data, len(s.edits), len(s.editedMsgs), len(s.sent))
+		}
 	}
 }
 
@@ -1113,107 +835,6 @@ func TestFormatStatsV2_SingularStreak(t *testing.T) {
 	out := formatStatsV2(StatsV2{Streak: 1})
 	if !strings.Contains(out, "Streak: 1 day\n") {
 		t.Fatalf("expected singular 'day' for a streak of 1; got:\n%s", out)
-	}
-}
-
-// ── answer-button faces & one-row layout ─────────────────────────────────
-
-func TestAnswerLabel(t *testing.T) {
-	if got := answerLabel("name", "por", "Portuguese"); got != "🇵🇹 Portuguese" {
-		t.Fatalf("style=name mapped key: got %q, want %q", got, "🇵🇹 Portuguese")
-	}
-	if got := answerLabel("code", "por", "Portuguese"); got != "🇵🇹 PT" {
-		t.Fatalf("style=code mapped key: got %q, want %q", got, "🇵🇹 PT")
-	}
-	if got := answerLabel("plain", "por", "Portuguese"); got != "Portuguese" {
-		t.Fatalf("style=plain mapped key: got %q, want %q", got, "Portuguese")
-	}
-
-	for _, style := range []string{"name", "code", "plain"} {
-		if got := answerLabel(style, "xxx", "Fallback"); got != "Fallback" {
-			t.Fatalf("style=%s unknown key should fall back: got %q, want %q", style, got, "Fallback")
-		}
-		if got := answerLabel(style, "", "Fallback"); got != "Fallback" {
-			t.Fatalf("style=%s empty key should fall back: got %q, want %q", style, got, "Fallback")
-		}
-	}
-}
-
-func TestButtonRows_TwoPerRowWithFaces(t *testing.T) {
-	rows := buttonRows("code", []train.Button{
-		{Key: "por", Label: "Portuguese", CallbackData: "ans:1:por"},
-		{Key: "spa", Label: "Spanish", CallbackData: "ans:1:spa"},
-		{Key: "ita", Label: "Italian", CallbackData: "ans:1:ita"},
-	})
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows for 3 buttons (2 then 1), got %d rows", len(rows))
-	}
-	if len(rows[0]) != 2 {
-		t.Fatalf("expected 2 buttons in the first row, got %d", len(rows[0]))
-	}
-	if len(rows[1]) != 1 {
-		t.Fatalf("expected 1 button in the second (trailing) row, got %d", len(rows[1]))
-	}
-
-	var all []Btn
-	for _, row := range rows {
-		all = append(all, row...)
-	}
-	want := []Btn{
-		{Label: "🇵🇹 PT", Data: "ans:1:por"},
-		{Label: "🇪🇸 ES", Data: "ans:1:spa"},
-		{Label: "🇮🇹 IT", Data: "ans:1:ita"},
-	}
-	for i, w := range want {
-		if all[i] != w {
-			t.Fatalf("button %d: got %+v, want %+v", i, all[i], w)
-		}
-	}
-}
-
-func TestGradedButtonRows_FacesDecoratedTwoPerRow(t *testing.T) {
-	rows := gradedButtonRows("code", []train.GradedButton{
-		{Key: "por", Name: "Portuguese", Label: "✅ Portuguese", Mark: train.MarkCorrect},
-		{Key: "spa", Name: "Spanish", Label: "❌ Spanish", Mark: train.MarkWrong},
-		{Key: "ita", Name: "Italian", Label: "Italian", Mark: train.MarkNone},
-	})
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows for 3 graded buttons (2 then 1), got %d rows", len(rows))
-	}
-	if len(rows[0]) != 2 {
-		t.Fatalf("expected 2 buttons in the first row, got %d", len(rows[0]))
-	}
-	if len(rows[1]) != 1 {
-		t.Fatalf("expected 1 button in the second (trailing) row, got %d", len(rows[1]))
-	}
-
-	var all []Btn
-	for _, row := range rows {
-		all = append(all, row...)
-	}
-	want := []Btn{
-		{Label: "✅ 🇵🇹 PT", Data: train.DataNoop},
-		{Label: "❌ 🇪🇸 ES", Data: train.DataNoop},
-		{Label: "🇮🇹 IT", Data: train.DataNoop},
-	}
-	for i, w := range want {
-		if all[i] != w {
-			t.Fatalf("graded button %d: got %+v, want %+v", i, all[i], w)
-		}
-	}
-}
-
-func TestGradedButtonRows_FallbackWhenNoKey(t *testing.T) {
-	// With no raw Name set (e.g. a future/unknown language, or a stale caller),
-	// the pre-decorated label is used verbatim and the callback is still inert.
-	rows := gradedButtonRows("code", []train.GradedButton{
-		{Label: "✅ Portuguese", Mark: train.MarkCorrect},
-	})
-	if len(rows) != 1 || len(rows[0]) != 1 {
-		t.Fatalf("expected one button in one row, got rows=%d", len(rows))
-	}
-	if got := rows[0][0]; got.Label != "✅ Portuguese" || got.Data != train.DataNoop {
-		t.Fatalf("fallback graded button: got %+v", got)
 	}
 }
 

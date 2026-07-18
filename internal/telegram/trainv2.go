@@ -6,7 +6,6 @@ import (
 	"html"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/supercakecrumb/engram/quiz"
@@ -77,37 +76,13 @@ func parseV2IndexCallback(prefix, data string) (exerciseID uuid.UUID, index int,
 	return id, idx, true
 }
 
-// ── /train (V2-preferring) ───────────────────────────────────────────────
+// ── /train ───────────────────────────────────────────────────────────────
 
-// sendNextTrain sends the next thing to study for user: TrainerV2 when
-// wired (Config.TrainerV2 non-nil), otherwise the legacy trainer path. Both
-// /train and the reminder's "▶️ Start reviewing" button go through this so
-// neither has to special-case the v2 preference itself.
+// sendNextTrain sends the next due exercise for user via TrainerV2
+// (Config.TrainerV2 is required from here on — the legacy trainer fallback
+// is gone). Both /train and the reminder's "▶️ Start reviewing" button go
+// through this.
 func (b *Bot) sendNextTrain(ctx context.Context, s Session, user storage.User) error {
-	if b.trainerV2 != nil {
-		return b.sendNextV2(ctx, s, user)
-	}
-	res, err := b.svc.NextExercise(ctx, user, b.now())
-	if err != nil {
-		return err
-	}
-	return b.sendNextResult(ctx, s, user, res)
-}
-
-// dueCount reports how many reviews are due for u: TrainerV2's v2
-// user_items count when wired, otherwise the legacy trainer.DueCount —
-// mirrors sendNextTrain/sendNextPractice's v2 preference, feeding the
-// reminder loop's due-review figure (architecture §5.3).
-func (b *Bot) dueCount(ctx context.Context, u storage.User, now time.Time) (int, error) {
-	if b.trainerV2 != nil {
-		return b.trainerV2.DueCount(ctx, u.ID)
-	}
-	return b.svc.DueCount(ctx, u, now)
-}
-
-// sendNextV2 fetches and renders the next V2 exercise (or a nothing-due/
-// no-content notice) for user.
-func (b *Bot) sendNextV2(ctx context.Context, s Session, user storage.User) error {
 	p, err := b.trainerV2.NextExerciseV2(ctx, user.ID)
 	if err != nil {
 		return err
@@ -115,23 +90,15 @@ func (b *Bot) sendNextV2(ctx context.Context, s Session, user storage.User) erro
 	return b.sendPromptV2(s, user, p)
 }
 
-// sendNextPractice sends the next thing to practice for user: TrainerV2's
-// v2 practice pool (across enabled+tier-unlocked topics) when wired,
-// otherwise the legacy unscheduled-practice path — mirrors sendNextTrain's
-// v2 preference.
+// sendNextPractice sends the next practice exercise for user via
+// TrainerV2's v2 practice pool (across enabled+tier-unlocked topics) — the
+// legacy unscheduled-practice fallback is gone.
 func (b *Bot) sendNextPractice(ctx context.Context, s Session, user storage.User) error {
-	if b.trainerV2 != nil {
-		p, err := b.trainerV2.NextPracticeV2(ctx, user.ID)
-		if err != nil {
-			return err
-		}
-		return b.sendPromptV2(s, user, p)
-	}
-	res, err := b.svc.NextPractice(ctx, user, b.now())
+	p, err := b.trainerV2.NextPracticeV2(ctx, user.ID)
 	if err != nil {
 		return err
 	}
-	return b.sendNextResult(ctx, s, user, res)
+	return b.sendPromptV2(s, user, p)
 }
 
 // sendPromptV2 renders a PromptV2 result, mirroring sendNextResult's
