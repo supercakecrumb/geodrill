@@ -1,0 +1,2023 @@
+countries:
+  - iso_a2: "AD"
+    iso_a3: "AND"
+    numeric: "020"
+    name: "Andorra"
+    official_name: "Principality of Andorra"
+    flag_emoji: "🇦🇩"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AE"
+    iso_a3: "ARE"
+    numeric: "784"
+    name: "United Arab Emirates"
+    official_name: "United Arab Emirates"
+    flag_emoji: "🇦🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AF"
+    iso_a3: "AFG"
+    numeric: "004"
+    name: "Afghanistan"
+    official_name: "Islamic Emirate of Afghanistan"
+    flag_emoji: "🇦🇫"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "AG"
+    iso_a3: "ATG"
+    numeric: "028"
+    name: "Antigua and Barbuda"
+    official_name: "Antigua and Barbuda"
+    flag_emoji: "🇦🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AI"
+    iso_a3: "AIA"
+    numeric: "660"
+    name: "Anguilla"
+    official_name: "Anguilla"
+    flag_emoji: "🇦🇮"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "AL"
+    iso_a3: "ALB"
+    numeric: "008"
+    name: "Albania"
+    official_name: "Republic of Albania"
+    flag_emoji: "🇦🇱"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AM"
+    iso_a3: "ARM"
+    numeric: "051"
+    name: "Armenia"
+    official_name: "Republic of Armenia"
+    flag_emoji: "🇦🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AO"
+    iso_a3: "AGO"
+    numeric: "024"
+    name: "Angola"
+    official_name: "Republic of Angola"
+    flag_emoji: "🇦🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AQ"
+    iso_a3: "ATA"
+    numeric: "010"
+    name: "Antarctica"
+    official_name: "Antarctica"
+    flag_emoji: "🇦🇶"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "AR"
+    iso_a3: "ARG"
+    numeric: "032"
+    name: "Argentina"
+    official_name: "Argentine Republic"
+    flag_emoji: "🇦🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AS"
+    iso_a3: "ASM"
+    numeric: "016"
+    name: "American Samoa"
+    official_name: "American Samoa"
+    flag_emoji: "🇦🇸"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "AT"
+    iso_a3: "AUT"
+    numeric: "040"
+    name: "Austria"
+    official_name: "Republic of Austria"
+    flag_emoji: "🇦🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AU"
+    iso_a3: "AUS"
+    numeric: "036"
+    name: "Australia"
+    official_name: "Commonwealth of Australia"
+    flag_emoji: "🇦🇺"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "AW"
+    iso_a3: "ABW"
+    numeric: "533"
+    name: "Aruba"
+    official_name: "Aruba"
+    flag_emoji: "🇦🇼"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "AX"
+    iso_a3: "ALA"
+    numeric: "248"
+    name: "Åland Islands"
+    official_name: "Åland Islands"
+    flag_emoji: "🇦🇽"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "AZ"
+    iso_a3: "AZE"
+    numeric: "031"
+    name: "Azerbaijan"
+    official_name: "Republic of Azerbaijan"
+    flag_emoji: "🇦🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BA"
+    iso_a3: "BIH"
+    numeric: "070"
+    name: "Bosnia and Herzegovina"
+    official_name: "Bosnia and Herzegovina"
+    flag_emoji: "🇧🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BB"
+    iso_a3: "BRB"
+    numeric: "052"
+    name: "Barbados"
+    official_name: "Barbados"
+    flag_emoji: "🇧🇧"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BD"
+    iso_a3: "BGD"
+    numeric: "050"
+    name: "Bangladesh"
+    official_name: "People's Republic of Bangladesh"
+    flag_emoji: "🇧🇩"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BE"
+    iso_a3: "BEL"
+    numeric: "056"
+    name: "Belgium"
+    official_name: "Kingdom of Belgium"
+    flag_emoji: "🇧🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BF"
+    iso_a3: "BFA"
+    numeric: "854"
+    name: "Burkina Faso"
+    official_name: "Burkina Faso"
+    flag_emoji: "🇧🇫"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BG"
+    iso_a3: "BGR"
+    numeric: "100"
+    name: "Bulgaria"
+    official_name: "Republic of Bulgaria"
+    flag_emoji: "🇧🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BH"
+    iso_a3: "BHR"
+    numeric: "048"
+    name: "Bahrain"
+    official_name: "Kingdom of Bahrain"
+    flag_emoji: "🇧🇭"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BI"
+    iso_a3: "BDI"
+    numeric: "108"
+    name: "Burundi"
+    official_name: "Republic of Burundi"
+    flag_emoji: "🇧🇮"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "BJ"
+    iso_a3: "BEN"
+    numeric: "204"
+    name: "Benin"
+    official_name: "Republic of Benin"
+    flag_emoji: "🇧🇯"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BL"
+    iso_a3: "BLM"
+    numeric: "652"
+    name: "Saint Barthélemy"
+    official_name: "Saint Barthélemy"
+    flag_emoji: "🇧🇱"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "BM"
+    iso_a3: "BMU"
+    numeric: "060"
+    name: "Bermuda"
+    official_name: "Bermuda"
+    flag_emoji: "🇧🇲"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "BN"
+    iso_a3: "BRN"
+    numeric: "096"
+    name: "Brunei"
+    official_name: "Brunei Darussalam"
+    flag_emoji: "🇧🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BO"
+    iso_a3: "BOL"
+    numeric: "068"
+    name: "Bolivia"
+    official_name: "Plurinational State of Bolivia"
+    flag_emoji: "🇧🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BQ"
+    iso_a3: "BES"
+    numeric: "535"
+    name: "Bonaire, Sint Eustatius and Saba"
+    official_name: "Bonaire, Sint Eustatius and Saba"
+    flag_emoji: "🇧🇶"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "BR"
+    iso_a3: "BRA"
+    numeric: "076"
+    name: "Brazil"
+    official_name: "Federative Republic of Brazil"
+    flag_emoji: "🇧🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BS"
+    iso_a3: "BHS"
+    numeric: "044"
+    name: "Bahamas"
+    official_name: "Commonwealth of The Bahamas"
+    flag_emoji: "🇧🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BT"
+    iso_a3: "BTN"
+    numeric: "064"
+    name: "Bhutan"
+    official_name: "Kingdom of Bhutan"
+    flag_emoji: "🇧🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BV"
+    iso_a3: "BVT"
+    numeric: "074"
+    name: "Bouvet Island"
+    official_name: "Bouvet Island"
+    flag_emoji: "🇧🇻"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "BW"
+    iso_a3: "BWA"
+    numeric: "072"
+    name: "Botswana"
+    official_name: "Republic of Botswana"
+    flag_emoji: "🇧🇼"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BY"
+    iso_a3: "BLR"
+    numeric: "112"
+    name: "Belarus"
+    official_name: "Republic of Belarus"
+    flag_emoji: "🇧🇾"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "BZ"
+    iso_a3: "BLZ"
+    numeric: "084"
+    name: "Belize"
+    official_name: "Belize"
+    flag_emoji: "🇧🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CA"
+    iso_a3: "CAN"
+    numeric: "124"
+    name: "Canada"
+    official_name: "Canada"
+    flag_emoji: "🇨🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CC"
+    iso_a3: "CCK"
+    numeric: "166"
+    name: "Cocos (Keeling) Islands"
+    official_name: "Cocos (Keeling) Islands"
+    flag_emoji: "🇨🇨"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "CD"
+    iso_a3: "COD"
+    numeric: "180"
+    name: "Congo"
+    official_name: "Democratic Republic of the Congo"
+    flag_emoji: "🇨🇩"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CF"
+    iso_a3: "CAF"
+    numeric: "140"
+    name: "Central African Republic"
+    official_name: "Central African Republic"
+    flag_emoji: "🇨🇫"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "CG"
+    iso_a3: "COG"
+    numeric: "178"
+    name: "Congo"
+    official_name: "Republic of the Congo"
+    flag_emoji: "🇨🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CH"
+    iso_a3: "CHE"
+    numeric: "756"
+    name: "Switzerland"
+    official_name: "Swiss Confederation"
+    flag_emoji: "🇨🇭"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CI"
+    iso_a3: "CIV"
+    numeric: "384"
+    name: "Côte d'Ivoire"
+    official_name: "Republic of Côte d'Ivoire"
+    flag_emoji: "🇨🇮"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CK"
+    iso_a3: "COK"
+    numeric: "184"
+    name: "Cook Islands"
+    official_name: "Cook Islands"
+    flag_emoji: "🇨🇰"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "CL"
+    iso_a3: "CHL"
+    numeric: "152"
+    name: "Chile"
+    official_name: "Republic of Chile"
+    flag_emoji: "🇨🇱"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CM"
+    iso_a3: "CMR"
+    numeric: "120"
+    name: "Cameroon"
+    official_name: "Republic of Cameroon"
+    flag_emoji: "🇨🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CN"
+    iso_a3: "CHN"
+    numeric: "156"
+    name: "China"
+    official_name: "People's Republic of China"
+    flag_emoji: "🇨🇳"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "CO"
+    iso_a3: "COL"
+    numeric: "170"
+    name: "Colombia"
+    official_name: "Republic of Colombia"
+    flag_emoji: "🇨🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CR"
+    iso_a3: "CRI"
+    numeric: "188"
+    name: "Costa Rica"
+    official_name: "Republic of Costa Rica"
+    flag_emoji: "🇨🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CU"
+    iso_a3: "CUB"
+    numeric: "192"
+    name: "Cuba"
+    official_name: "Republic of Cuba"
+    flag_emoji: "🇨🇺"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "CV"
+    iso_a3: "CPV"
+    numeric: "132"
+    name: "Cape Verde"
+    official_name: "Republic of Cabo Verde"
+    flag_emoji: "🇨🇻"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CW"
+    iso_a3: "CUW"
+    numeric: "531"
+    name: "Curaçao"
+    official_name: "Curaçao"
+    flag_emoji: "🇨🇼"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "CX"
+    iso_a3: "CXR"
+    numeric: "162"
+    name: "Christmas Island"
+    official_name: "Christmas Island"
+    flag_emoji: "🇨🇽"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "CY"
+    iso_a3: "CYP"
+    numeric: "196"
+    name: "Cyprus"
+    official_name: "Republic of Cyprus"
+    flag_emoji: "🇨🇾"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "CZ"
+    iso_a3: "CZE"
+    numeric: "203"
+    name: "Czech Republic"
+    official_name: "Czech Republic"
+    flag_emoji: "🇨🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "DE"
+    iso_a3: "DEU"
+    numeric: "276"
+    name: "Germany"
+    official_name: "Federal Republic of Germany"
+    flag_emoji: "🇩🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "DJ"
+    iso_a3: "DJI"
+    numeric: "262"
+    name: "Djibouti"
+    official_name: "Republic of Djibouti"
+    flag_emoji: "🇩🇯"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "DK"
+    iso_a3: "DNK"
+    numeric: "208"
+    name: "Denmark"
+    official_name: "Kingdom of Denmark"
+    flag_emoji: "🇩🇰"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "DM"
+    iso_a3: "DMA"
+    numeric: "212"
+    name: "Dominica"
+    official_name: "Commonwealth of Dominica"
+    flag_emoji: "🇩🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "DO"
+    iso_a3: "DOM"
+    numeric: "214"
+    name: "Dominican Republic"
+    official_name: "Dominican Republic"
+    flag_emoji: "🇩🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "DZ"
+    iso_a3: "DZA"
+    numeric: "012"
+    name: "Algeria"
+    official_name: "People's Democratic Republic of Algeria"
+    flag_emoji: "🇩🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "EC"
+    iso_a3: "ECU"
+    numeric: "218"
+    name: "Ecuador"
+    official_name: "Republic of Ecuador"
+    flag_emoji: "🇪🇨"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "EE"
+    iso_a3: "EST"
+    numeric: "233"
+    name: "Estonia"
+    official_name: "Republic of Estonia"
+    flag_emoji: "🇪🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "EG"
+    iso_a3: "EGY"
+    numeric: "818"
+    name: "Egypt"
+    official_name: "Arab Republic of Egypt"
+    flag_emoji: "🇪🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "EH"
+    iso_a3: "ESH"
+    numeric: "732"
+    name: "Western Sahara"
+    official_name: "Sahrawi Arab Democratic Republic"
+    flag_emoji: "🇪🇭"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "ER"
+    iso_a3: "ERI"
+    numeric: "232"
+    name: "Eritrea"
+    official_name: "State of Eritrea"
+    flag_emoji: "🇪🇷"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "ES"
+    iso_a3: "ESP"
+    numeric: "724"
+    name: "Spain"
+    official_name: "Kingdom of Spain"
+    flag_emoji: "🇪🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "ET"
+    iso_a3: "ETH"
+    numeric: "231"
+    name: "Ethiopia"
+    official_name: "Federal Democratic Republic of Ethiopia"
+    flag_emoji: "🇪🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "FI"
+    iso_a3: "FIN"
+    numeric: "246"
+    name: "Finland"
+    official_name: "Republic of Finland"
+    flag_emoji: "🇫🇮"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "FJ"
+    iso_a3: "FJI"
+    numeric: "242"
+    name: "Fiji"
+    official_name: "Republic of Fiji"
+    flag_emoji: "🇫🇯"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "FK"
+    iso_a3: "FLK"
+    numeric: "238"
+    name: "Falkland Islands"
+    official_name: "Falkland Islands"
+    flag_emoji: "🇫🇰"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "FM"
+    iso_a3: "FSM"
+    numeric: "583"
+    name: "Micronesia"
+    official_name: "Federated States of Micronesia"
+    flag_emoji: "🇫🇲"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "FO"
+    iso_a3: "FRO"
+    numeric: "234"
+    name: "Faroe Islands"
+    official_name: "Faroe Islands"
+    flag_emoji: "🇫🇴"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "FR"
+    iso_a3: "FRA"
+    numeric: "250"
+    name: "France"
+    official_name: "French Republic"
+    flag_emoji: "🇫🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GA"
+    iso_a3: "GAB"
+    numeric: "266"
+    name: "Gabon"
+    official_name: "Gabonese Republic"
+    flag_emoji: "🇬🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GB"
+    iso_a3: "GBR"
+    numeric: "826"
+    name: "United Kingdom"
+    official_name: "United Kingdom of Great Britain and Northern Ireland"
+    flag_emoji: "🇬🇧"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GB-ENG"
+    iso_a3: null
+    numeric: null
+    name: "England"
+    official_name: null
+    flag_emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+    parent: "GB"
+    subdivision: true
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GB-SCT"
+    iso_a3: null
+    numeric: null
+    name: "Scotland"
+    official_name: null
+    flag_emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿"
+    parent: "GB"
+    subdivision: true
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GB-WLS"
+    iso_a3: null
+    numeric: null
+    name: "Wales"
+    official_name: null
+    flag_emoji: "🏴󠁧󠁢󠁷󠁬󠁳󠁿"
+    parent: "GB"
+    subdivision: true
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GD"
+    iso_a3: "GRD"
+    numeric: "308"
+    name: "Grenada"
+    official_name: "Grenada"
+    flag_emoji: "🇬🇩"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GE"
+    iso_a3: "GEO"
+    numeric: "268"
+    name: "Georgia"
+    official_name: "Georgia"
+    flag_emoji: "🇬🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GF"
+    iso_a3: "GUF"
+    numeric: "254"
+    name: "French Guiana"
+    official_name: "French Guiana"
+    flag_emoji: "🇬🇫"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GG"
+    iso_a3: "GGY"
+    numeric: "831"
+    name: "Guernsey"
+    official_name: "Guernsey"
+    flag_emoji: "🇬🇬"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GH"
+    iso_a3: "GHA"
+    numeric: "288"
+    name: "Ghana"
+    official_name: "Republic of Ghana"
+    flag_emoji: "🇬🇭"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GI"
+    iso_a3: "GIB"
+    numeric: "292"
+    name: "Gibraltar"
+    official_name: "Gibraltar"
+    flag_emoji: "🇬🇮"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GL"
+    iso_a3: "GRL"
+    numeric: "304"
+    name: "Greenland"
+    official_name: "Greenland"
+    flag_emoji: "🇬🇱"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GM"
+    iso_a3: "GMB"
+    numeric: "270"
+    name: "Gambia"
+    official_name: "Republic of The Gambia"
+    flag_emoji: "🇬🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GN"
+    iso_a3: "GIN"
+    numeric: "324"
+    name: "Guinea"
+    official_name: "Republic of Guinea"
+    flag_emoji: "🇬🇳"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "GP"
+    iso_a3: "GLP"
+    numeric: "312"
+    name: "Guadeloupe"
+    official_name: "Guadeloupe"
+    flag_emoji: "🇬🇵"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GQ"
+    iso_a3: "GNQ"
+    numeric: "226"
+    name: "Equatorial Guinea"
+    official_name: "Republic of Equatorial Guinea"
+    flag_emoji: "🇬🇶"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "GR"
+    iso_a3: "GRC"
+    numeric: "300"
+    name: "Greece"
+    official_name: "Hellenic Republic"
+    flag_emoji: "🇬🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GS"
+    iso_a3: "SGS"
+    numeric: "239"
+    name: "South Georgia and the South Sandwich Islands"
+    official_name: "South Georgia and the South Sandwich Islands"
+    flag_emoji: "🇬🇸"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "GT"
+    iso_a3: "GTM"
+    numeric: "320"
+    name: "Guatemala"
+    official_name: "Republic of Guatemala"
+    flag_emoji: "🇬🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "GU"
+    iso_a3: "GUM"
+    numeric: "316"
+    name: "Guam"
+    official_name: "Guam"
+    flag_emoji: "🇬🇺"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "GW"
+    iso_a3: "GNB"
+    numeric: "624"
+    name: "Guinea-Bissau"
+    official_name: "Republic of Guinea-Bissau"
+    flag_emoji: "🇬🇼"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "GY"
+    iso_a3: "GUY"
+    numeric: "328"
+    name: "Guyana"
+    official_name: "Co-operative Republic of Guyana"
+    flag_emoji: "🇬🇾"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "HK"
+    iso_a3: "HKG"
+    numeric: "344"
+    name: "Hong Kong"
+    official_name: "Hong Kong"
+    flag_emoji: "🇭🇰"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "HM"
+    iso_a3: "HMD"
+    numeric: "334"
+    name: "Heard Island and McDonald Islands"
+    official_name: "Heard Island and McDonald Islands"
+    flag_emoji: "🇭🇲"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "HN"
+    iso_a3: "HND"
+    numeric: "340"
+    name: "Honduras"
+    official_name: "Republic of Honduras"
+    flag_emoji: "🇭🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "HR"
+    iso_a3: "HRV"
+    numeric: "191"
+    name: "Croatia"
+    official_name: "Republic of Croatia"
+    flag_emoji: "🇭🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "HT"
+    iso_a3: "HTI"
+    numeric: "332"
+    name: "Haiti"
+    official_name: "Republic of Haiti"
+    flag_emoji: "🇭🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "HU"
+    iso_a3: "HUN"
+    numeric: "348"
+    name: "Hungary"
+    official_name: "Hungary"
+    flag_emoji: "🇭🇺"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "ID"
+    iso_a3: "IDN"
+    numeric: "360"
+    name: "Indonesia"
+    official_name: "Republic of Indonesia"
+    flag_emoji: "🇮🇩"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "IE"
+    iso_a3: "IRL"
+    numeric: "372"
+    name: "Ireland"
+    official_name: "Republic of Ireland"
+    flag_emoji: "🇮🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "IL"
+    iso_a3: "ISR"
+    numeric: "376"
+    name: "Israel"
+    official_name: "State of Israel"
+    flag_emoji: "🇮🇱"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "IM"
+    iso_a3: "IMN"
+    numeric: "833"
+    name: "Isle of Man"
+    official_name: "Isle of Man"
+    flag_emoji: "🇮🇲"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "IN"
+    iso_a3: "IND"
+    numeric: "356"
+    name: "India"
+    official_name: "Republic of India"
+    flag_emoji: "🇮🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "IO"
+    iso_a3: "IOT"
+    numeric: "086"
+    name: "British Indian Ocean Territory"
+    official_name: "British Indian Ocean Territory"
+    flag_emoji: "🇮🇴"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "IQ"
+    iso_a3: "IRQ"
+    numeric: "368"
+    name: "Iraq"
+    official_name: "Republic of Iraq"
+    flag_emoji: "🇮🇶"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "IR"
+    iso_a3: "IRN"
+    numeric: "364"
+    name: "Iran"
+    official_name: "Islamic Republic of Iran"
+    flag_emoji: "🇮🇷"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "IS"
+    iso_a3: "ISL"
+    numeric: "354"
+    name: "Iceland"
+    official_name: "Republic of Iceland"
+    flag_emoji: "🇮🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "IT"
+    iso_a3: "ITA"
+    numeric: "380"
+    name: "Italy"
+    official_name: "Italian Republic"
+    flag_emoji: "🇮🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "JE"
+    iso_a3: "JEY"
+    numeric: "832"
+    name: "Jersey"
+    official_name: "Jersey"
+    flag_emoji: "🇯🇪"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "JM"
+    iso_a3: "JAM"
+    numeric: "388"
+    name: "Jamaica"
+    official_name: "Jamaica"
+    flag_emoji: "🇯🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "JO"
+    iso_a3: "JOR"
+    numeric: "400"
+    name: "Jordan"
+    official_name: "Hashemite Kingdom of Jordan"
+    flag_emoji: "🇯🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "JP"
+    iso_a3: "JPN"
+    numeric: "392"
+    name: "Japan"
+    official_name: "Japan"
+    flag_emoji: "🇯🇵"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KE"
+    iso_a3: "KEN"
+    numeric: "404"
+    name: "Kenya"
+    official_name: "Republic of Kenya"
+    flag_emoji: "🇰🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KG"
+    iso_a3: "KGZ"
+    numeric: "417"
+    name: "Kyrgyzstan"
+    official_name: "Kyrgyz Republic"
+    flag_emoji: "🇰🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KH"
+    iso_a3: "KHM"
+    numeric: "116"
+    name: "Cambodia"
+    official_name: "Kingdom of Cambodia"
+    flag_emoji: "🇰🇭"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KI"
+    iso_a3: "KIR"
+    numeric: "296"
+    name: "Kiribati"
+    official_name: "Republic of Kiribati"
+    flag_emoji: "🇰🇮"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "KM"
+    iso_a3: "COM"
+    numeric: "174"
+    name: "Comoros"
+    official_name: "Union of the Comoros"
+    flag_emoji: "🇰🇲"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "KN"
+    iso_a3: "KNA"
+    numeric: "659"
+    name: "Saint Kitts and Nevis"
+    official_name: "Federation of Saint Kitts and Nevis"
+    flag_emoji: "🇰🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KP"
+    iso_a3: "PRK"
+    numeric: "408"
+    name: "North Korea"
+    official_name: "Democratic People's Republic of Korea"
+    flag_emoji: "🇰🇵"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "KR"
+    iso_a3: "KOR"
+    numeric: "410"
+    name: "South Korea"
+    official_name: "Republic of Korea"
+    flag_emoji: "🇰🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KW"
+    iso_a3: "KWT"
+    numeric: "414"
+    name: "Kuwait"
+    official_name: "State of Kuwait"
+    flag_emoji: "🇰🇼"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "KY"
+    iso_a3: "CYM"
+    numeric: "136"
+    name: "Cayman Islands"
+    official_name: "Cayman Islands"
+    flag_emoji: "🇰🇾"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "KZ"
+    iso_a3: "KAZ"
+    numeric: "398"
+    name: "Kazakhstan"
+    official_name: "Republic of Kazakhstan"
+    flag_emoji: "🇰🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LA"
+    iso_a3: "LAO"
+    numeric: "418"
+    name: "Laos"
+    official_name: "Lao People's Democratic Republic"
+    flag_emoji: "🇱🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LB"
+    iso_a3: "LBN"
+    numeric: "422"
+    name: "Lebanon"
+    official_name: "Lebanese Republic"
+    flag_emoji: "🇱🇧"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LC"
+    iso_a3: "LCA"
+    numeric: "662"
+    name: "Saint Lucia"
+    official_name: "Saint Lucia"
+    flag_emoji: "🇱🇨"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LI"
+    iso_a3: "LIE"
+    numeric: "438"
+    name: "Liechtenstein"
+    official_name: "Principality of Liechtenstein"
+    flag_emoji: "🇱🇮"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LK"
+    iso_a3: "LKA"
+    numeric: "144"
+    name: "Sri Lanka"
+    official_name: "Democratic Socialist Republic of Sri Lanka"
+    flag_emoji: "🇱🇰"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LR"
+    iso_a3: "LBR"
+    numeric: "430"
+    name: "Liberia"
+    official_name: "Republic of Liberia"
+    flag_emoji: "🇱🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LS"
+    iso_a3: "LSO"
+    numeric: "426"
+    name: "Lesotho"
+    official_name: "Kingdom of Lesotho"
+    flag_emoji: "🇱🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LT"
+    iso_a3: "LTU"
+    numeric: "440"
+    name: "Lithuania"
+    official_name: "Republic of Lithuania"
+    flag_emoji: "🇱🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LU"
+    iso_a3: "LUX"
+    numeric: "442"
+    name: "Luxembourg"
+    official_name: "Grand Duchy of Luxembourg"
+    flag_emoji: "🇱🇺"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LV"
+    iso_a3: "LVA"
+    numeric: "428"
+    name: "Latvia"
+    official_name: "Republic of Latvia"
+    flag_emoji: "🇱🇻"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "LY"
+    iso_a3: "LBY"
+    numeric: "434"
+    name: "Libya"
+    official_name: "State of Libya"
+    flag_emoji: "🇱🇾"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "MA"
+    iso_a3: "MAR"
+    numeric: "504"
+    name: "Morocco"
+    official_name: "Kingdom of Morocco"
+    flag_emoji: "🇲🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MC"
+    iso_a3: "MCO"
+    numeric: "492"
+    name: "Monaco"
+    official_name: "Principality of Monaco"
+    flag_emoji: "🇲🇨"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MD"
+    iso_a3: "MDA"
+    numeric: "498"
+    name: "Moldova"
+    official_name: "Republic of Moldova"
+    flag_emoji: "🇲🇩"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "ME"
+    iso_a3: "MNE"
+    numeric: "499"
+    name: "Montenegro"
+    official_name: "Montenegro"
+    flag_emoji: "🇲🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MF"
+    iso_a3: "MAF"
+    numeric: "663"
+    name: "Saint Martin"
+    official_name: "Saint Martin"
+    flag_emoji: "🇲🇫"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "MG"
+    iso_a3: "MDG"
+    numeric: "450"
+    name: "Madagascar"
+    official_name: "Republic of Madagascar"
+    flag_emoji: "🇲🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MH"
+    iso_a3: "MHL"
+    numeric: "584"
+    name: "Marshall Islands"
+    official_name: "Republic of the Marshall Islands"
+    flag_emoji: "🇲🇭"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "MK"
+    iso_a3: "MKD"
+    numeric: "807"
+    name: "North Macedonia"
+    official_name: "Republic of North Macedonia"
+    flag_emoji: "🇲🇰"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "ML"
+    iso_a3: "MLI"
+    numeric: "466"
+    name: "Mali"
+    official_name: "Republic of Mali"
+    flag_emoji: "🇲🇱"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "MM"
+    iso_a3: "MMR"
+    numeric: "104"
+    name: "Myanmar"
+    official_name: "Republic of the Union of Myanmar"
+    flag_emoji: "🇲🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MN"
+    iso_a3: "MNG"
+    numeric: "496"
+    name: "Mongolia"
+    official_name: "Mongolia"
+    flag_emoji: "🇲🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MO"
+    iso_a3: "MAC"
+    numeric: "446"
+    name: "Macao"
+    official_name: "Macao"
+    flag_emoji: "🇲🇴"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "MP"
+    iso_a3: "MNP"
+    numeric: "580"
+    name: "Northern Mariana Islands"
+    official_name: "Northern Mariana Islands"
+    flag_emoji: "🇲🇵"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "MQ"
+    iso_a3: "MTQ"
+    numeric: "474"
+    name: "Martinique"
+    official_name: "Martinique"
+    flag_emoji: "🇲🇶"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "MR"
+    iso_a3: "MRT"
+    numeric: "478"
+    name: "Mauritania"
+    official_name: "Islamic Republic of Mauritania"
+    flag_emoji: "🇲🇷"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "MS"
+    iso_a3: "MSR"
+    numeric: "500"
+    name: "Montserrat"
+    official_name: "Montserrat"
+    flag_emoji: "🇲🇸"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "MT"
+    iso_a3: "MLT"
+    numeric: "470"
+    name: "Malta"
+    official_name: "Republic of Malta"
+    flag_emoji: "🇲🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MU"
+    iso_a3: "MUS"
+    numeric: "480"
+    name: "Mauritius"
+    official_name: "Republic of Mauritius"
+    flag_emoji: "🇲🇺"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MV"
+    iso_a3: "MDV"
+    numeric: "462"
+    name: "Maldives"
+    official_name: "Republic of Maldives"
+    flag_emoji: "🇲🇻"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MW"
+    iso_a3: "MWI"
+    numeric: "454"
+    name: "Malawi"
+    official_name: "Republic of Malawi"
+    flag_emoji: "🇲🇼"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MX"
+    iso_a3: "MEX"
+    numeric: "484"
+    name: "Mexico"
+    official_name: "United Mexican States"
+    flag_emoji: "🇲🇽"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MY"
+    iso_a3: "MYS"
+    numeric: "458"
+    name: "Malaysia"
+    official_name: "Malaysia"
+    flag_emoji: "🇲🇾"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "MZ"
+    iso_a3: "MOZ"
+    numeric: "508"
+    name: "Mozambique"
+    official_name: "Republic of Mozambique"
+    flag_emoji: "🇲🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NA"
+    iso_a3: "NAM"
+    numeric: "516"
+    name: "Namibia"
+    official_name: "Republic of Namibia"
+    flag_emoji: "🇳🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NC"
+    iso_a3: "NCL"
+    numeric: "540"
+    name: "New Caledonia"
+    official_name: "New Caledonia"
+    flag_emoji: "🇳🇨"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "NE"
+    iso_a3: "NER"
+    numeric: "562"
+    name: "Niger"
+    official_name: "Republic of the Niger"
+    flag_emoji: "🇳🇪"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "NF"
+    iso_a3: "NFK"
+    numeric: "574"
+    name: "Norfolk Island"
+    official_name: "Norfolk Island"
+    flag_emoji: "🇳🇫"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "NG"
+    iso_a3: "NGA"
+    numeric: "566"
+    name: "Nigeria"
+    official_name: "Federal Republic of Nigeria"
+    flag_emoji: "🇳🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NI"
+    iso_a3: "NIC"
+    numeric: "558"
+    name: "Nicaragua"
+    official_name: "Republic of Nicaragua"
+    flag_emoji: "🇳🇮"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NL"
+    iso_a3: "NLD"
+    numeric: "528"
+    name: "Netherlands"
+    official_name: "Kingdom of the Netherlands"
+    flag_emoji: "🇳🇱"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NO"
+    iso_a3: "NOR"
+    numeric: "578"
+    name: "Norway"
+    official_name: "Kingdom of Norway"
+    flag_emoji: "🇳🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NP"
+    iso_a3: "NPL"
+    numeric: "524"
+    name: "Nepal"
+    official_name: "Federal Democratic Republic of Nepal"
+    flag_emoji: "🇳🇵"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "NR"
+    iso_a3: "NRU"
+    numeric: "520"
+    name: "Nauru"
+    official_name: "Republic of Nauru"
+    flag_emoji: "🇳🇷"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "NU"
+    iso_a3: "NIU"
+    numeric: "570"
+    name: "Niue"
+    official_name: "Niue"
+    flag_emoji: "🇳🇺"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "NZ"
+    iso_a3: "NZL"
+    numeric: "554"
+    name: "New Zealand"
+    official_name: "New Zealand"
+    flag_emoji: "🇳🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "OM"
+    iso_a3: "OMN"
+    numeric: "512"
+    name: "Oman"
+    official_name: "Sultanate of Oman"
+    flag_emoji: "🇴🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PA"
+    iso_a3: "PAN"
+    numeric: "591"
+    name: "Panama"
+    official_name: "Republic of Panama"
+    flag_emoji: "🇵🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PE"
+    iso_a3: "PER"
+    numeric: "604"
+    name: "Peru"
+    official_name: "Republic of Peru"
+    flag_emoji: "🇵🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PF"
+    iso_a3: "PYF"
+    numeric: "258"
+    name: "French Polynesia"
+    official_name: "French Polynesia"
+    flag_emoji: "🇵🇫"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "PG"
+    iso_a3: "PNG"
+    numeric: "598"
+    name: "Papua New Guinea"
+    official_name: "Independent State of Papua New Guinea"
+    flag_emoji: "🇵🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PH"
+    iso_a3: "PHL"
+    numeric: "608"
+    name: "Philippines"
+    official_name: "Republic of the Philippines"
+    flag_emoji: "🇵🇭"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PK"
+    iso_a3: "PAK"
+    numeric: "586"
+    name: "Pakistan"
+    official_name: "Islamic Republic of Pakistan"
+    flag_emoji: "🇵🇰"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PL"
+    iso_a3: "POL"
+    numeric: "616"
+    name: "Poland"
+    official_name: "Republic of Poland"
+    flag_emoji: "🇵🇱"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PM"
+    iso_a3: "SPM"
+    numeric: "666"
+    name: "Saint Pierre and Miquelon"
+    official_name: "Saint Pierre and Miquelon"
+    flag_emoji: "🇵🇲"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "PN"
+    iso_a3: "PCN"
+    numeric: "612"
+    name: "Pitcairn Islands"
+    official_name: "Pitcairn Islands"
+    flag_emoji: "🇵🇳"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "PR"
+    iso_a3: "PRI"
+    numeric: "630"
+    name: "Puerto Rico"
+    official_name: "Puerto Rico"
+    flag_emoji: "🇵🇷"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "PS"
+    iso_a3: "PSE"
+    numeric: "275"
+    name: "Palestine"
+    official_name: "State of Palestine"
+    flag_emoji: "🇵🇸"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "PT"
+    iso_a3: "PRT"
+    numeric: "620"
+    name: "Portugal"
+    official_name: "Portuguese Republic"
+    flag_emoji: "🇵🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "PW"
+    iso_a3: "PLW"
+    numeric: "585"
+    name: "Palau"
+    official_name: "Republic of Palau"
+    flag_emoji: "🇵🇼"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "PY"
+    iso_a3: "PRY"
+    numeric: "600"
+    name: "Paraguay"
+    official_name: "Republic of Paraguay"
+    flag_emoji: "🇵🇾"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "QA"
+    iso_a3: "QAT"
+    numeric: "634"
+    name: "Qatar"
+    official_name: "State of Qatar"
+    flag_emoji: "🇶🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "RE"
+    iso_a3: "REU"
+    numeric: "638"
+    name: "Réunion"
+    official_name: "Réunion"
+    flag_emoji: "🇷🇪"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "RO"
+    iso_a3: "ROU"
+    numeric: "642"
+    name: "Romania"
+    official_name: "Romania"
+    flag_emoji: "🇷🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "RS"
+    iso_a3: "SRB"
+    numeric: "688"
+    name: "Serbia"
+    official_name: "Republic of Serbia"
+    flag_emoji: "🇷🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "RU"
+    iso_a3: "RUS"
+    numeric: "643"
+    name: "Russia"
+    official_name: "Russian Federation"
+    flag_emoji: "🇷🇺"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "RW"
+    iso_a3: "RWA"
+    numeric: "646"
+    name: "Rwanda"
+    official_name: "Republic of Rwanda"
+    flag_emoji: "🇷🇼"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SA"
+    iso_a3: "SAU"
+    numeric: "682"
+    name: "Saudi Arabia"
+    official_name: "Kingdom of Saudi Arabia"
+    flag_emoji: "🇸🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SB"
+    iso_a3: "SLB"
+    numeric: "090"
+    name: "Solomon Islands"
+    official_name: "Solomon Islands"
+    flag_emoji: "🇸🇧"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SC"
+    iso_a3: "SYC"
+    numeric: "690"
+    name: "Seychelles"
+    official_name: "Republic of Seychelles"
+    flag_emoji: "🇸🇨"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SD"
+    iso_a3: "SDN"
+    numeric: "729"
+    name: "Sudan"
+    official_name: "Republic of the Sudan"
+    flag_emoji: "🇸🇩"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "SE"
+    iso_a3: "SWE"
+    numeric: "752"
+    name: "Sweden"
+    official_name: "Kingdom of Sweden"
+    flag_emoji: "🇸🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SG"
+    iso_a3: "SGP"
+    numeric: "702"
+    name: "Singapore"
+    official_name: "Republic of Singapore"
+    flag_emoji: "🇸🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SH"
+    iso_a3: "SHN"
+    numeric: "654"
+    name: "Saint Helena"
+    official_name: "Saint Helena, Ascension and Tristan da Cunha"
+    flag_emoji: "🇸🇭"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "SI"
+    iso_a3: "SVN"
+    numeric: "705"
+    name: "Slovenia"
+    official_name: "Republic of Slovenia"
+    flag_emoji: "🇸🇮"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SJ"
+    iso_a3: "SJM"
+    numeric: "744"
+    name: "Svalbard and Jan Mayen"
+    official_name: "Svalbard and Jan Mayen"
+    flag_emoji: "🇸🇯"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "SK"
+    iso_a3: "SVK"
+    numeric: "703"
+    name: "Slovakia"
+    official_name: "Slovak Republic"
+    flag_emoji: "🇸🇰"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SL"
+    iso_a3: "SLE"
+    numeric: "694"
+    name: "Sierra Leone"
+    official_name: "Republic of Sierra Leone"
+    flag_emoji: "🇸🇱"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "SM"
+    iso_a3: "SMR"
+    numeric: "674"
+    name: "San Marino"
+    official_name: "Republic of San Marino"
+    flag_emoji: "🇸🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SN"
+    iso_a3: "SEN"
+    numeric: "686"
+    name: "Senegal"
+    official_name: "Republic of Senegal"
+    flag_emoji: "🇸🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SO"
+    iso_a3: "SOM"
+    numeric: "706"
+    name: "Somalia"
+    official_name: "Federal Republic of Somalia"
+    flag_emoji: "🇸🇴"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "SR"
+    iso_a3: "SUR"
+    numeric: "740"
+    name: "Suriname"
+    official_name: "Republic of Suriname"
+    flag_emoji: "🇸🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SS"
+    iso_a3: "SSD"
+    numeric: "728"
+    name: "South Sudan"
+    official_name: "Republic of South Sudan"
+    flag_emoji: "🇸🇸"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "ST"
+    iso_a3: "STP"
+    numeric: "678"
+    name: "São Tomé and Príncipe"
+    official_name: "Democratic Republic of São Tomé and Príncipe"
+    flag_emoji: "🇸🇹"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "SV"
+    iso_a3: "SLV"
+    numeric: "222"
+    name: "El Salvador"
+    official_name: "Republic of El Salvador"
+    flag_emoji: "🇸🇻"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "SX"
+    iso_a3: "SXM"
+    numeric: "534"
+    name: "Sint Maarten"
+    official_name: "Sint Maarten"
+    flag_emoji: "🇸🇽"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "SY"
+    iso_a3: "SYR"
+    numeric: "760"
+    name: "Syria"
+    official_name: "Syrian Arab Republic"
+    flag_emoji: "🇸🇾"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "SZ"
+    iso_a3: "SWZ"
+    numeric: "748"
+    name: "Eswatini"
+    official_name: "Kingdom of Eswatini"
+    flag_emoji: "🇸🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TC"
+    iso_a3: "TCA"
+    numeric: "796"
+    name: "Turks and Caicos Islands"
+    official_name: "Turks and Caicos Islands"
+    flag_emoji: "🇹🇨"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "TD"
+    iso_a3: "TCD"
+    numeric: "148"
+    name: "Chad"
+    official_name: "Republic of Chad"
+    flag_emoji: "🇹🇩"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "TF"
+    iso_a3: "ATF"
+    numeric: "260"
+    name: "French Southern Territories"
+    official_name: "French Southern Territories"
+    flag_emoji: "🇹🇫"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "TG"
+    iso_a3: "TGO"
+    numeric: "768"
+    name: "Togo"
+    official_name: "Togolese Republic"
+    flag_emoji: "🇹🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TH"
+    iso_a3: "THA"
+    numeric: "764"
+    name: "Thailand"
+    official_name: "Kingdom of Thailand"
+    flag_emoji: "🇹🇭"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TJ"
+    iso_a3: "TJK"
+    numeric: "762"
+    name: "Tajikistan"
+    official_name: "Republic of Tajikistan"
+    flag_emoji: "🇹🇯"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TK"
+    iso_a3: "TKL"
+    numeric: "772"
+    name: "Tokelau"
+    official_name: "Tokelau"
+    flag_emoji: "🇹🇰"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "TL"
+    iso_a3: "TLS"
+    numeric: "626"
+    name: "Timor-Leste"
+    official_name: "Democratic Republic of Timor-Leste"
+    flag_emoji: "🇹🇱"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TM"
+    iso_a3: "TKM"
+    numeric: "795"
+    name: "Turkmenistan"
+    official_name: "Turkmenistan"
+    flag_emoji: "🇹🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TN"
+    iso_a3: "TUN"
+    numeric: "788"
+    name: "Tunisia"
+    official_name: "Republic of Tunisia"
+    flag_emoji: "🇹🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TO"
+    iso_a3: "TON"
+    numeric: "776"
+    name: "Tonga"
+    official_name: "Kingdom of Tonga"
+    flag_emoji: "🇹🇴"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TR"
+    iso_a3: "TUR"
+    numeric: "792"
+    name: "Turkey"
+    official_name: "Republic of Turkey"
+    flag_emoji: "🇹🇷"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TT"
+    iso_a3: "TTO"
+    numeric: "780"
+    name: "Trinidad and Tobago"
+    official_name: "Republic of Trinidad and Tobago"
+    flag_emoji: "🇹🇹"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "TV"
+    iso_a3: "TUV"
+    numeric: "798"
+    name: "Tuvalu"
+    official_name: "Tuvalu"
+    flag_emoji: "🇹🇻"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "TW"
+    iso_a3: "TWN"
+    numeric: "158"
+    name: "Taiwan"
+    official_name: "Republic of China (Taiwan)"
+    flag_emoji: "🇹🇼"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "TZ"
+    iso_a3: "TZA"
+    numeric: "834"
+    name: "Tanzania"
+    official_name: "United Republic of Tanzania"
+    flag_emoji: "🇹🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "UA"
+    iso_a3: "UKR"
+    numeric: "804"
+    name: "Ukraine"
+    official_name: "Ukraine"
+    flag_emoji: "🇺🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "UG"
+    iso_a3: "UGA"
+    numeric: "800"
+    name: "Uganda"
+    official_name: "Republic of Uganda"
+    flag_emoji: "🇺🇬"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "UM"
+    iso_a3: "UMI"
+    numeric: "581"
+    name: "United States Minor Outlying Islands"
+    official_name: "United States Minor Outlying Islands"
+    flag_emoji: "🇺🇲"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "US"
+    iso_a3: "USA"
+    numeric: "840"
+    name: "United States"
+    official_name: "United States of America"
+    flag_emoji: "🇺🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "UY"
+    iso_a3: "URY"
+    numeric: "858"
+    name: "Uruguay"
+    official_name: "Oriental Republic of Uruguay"
+    flag_emoji: "🇺🇾"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "UZ"
+    iso_a3: "UZB"
+    numeric: "860"
+    name: "Uzbekistan"
+    official_name: "Republic of Uzbekistan"
+    flag_emoji: "🇺🇿"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "VA"
+    iso_a3: "VAT"
+    numeric: "336"
+    name: "Vatican City"
+    official_name: "Holy See"
+    flag_emoji: "🇻🇦"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "VC"
+    iso_a3: "VCT"
+    numeric: "670"
+    name: "Saint Vincent and the Grenadines"
+    official_name: "Saint Vincent and the Grenadines"
+    flag_emoji: "🇻🇨"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "VE"
+    iso_a3: "VEN"
+    numeric: "862"
+    name: "Venezuela"
+    official_name: "Bolivarian Republic of Venezuela"
+    flag_emoji: "🇻🇪"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "VG"
+    iso_a3: "VGB"
+    numeric: "092"
+    name: "Virgin Islands (British)"
+    official_name: "British Virgin Islands"
+    flag_emoji: "🇻🇬"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "VI"
+    iso_a3: "VIR"
+    numeric: "850"
+    name: "Virgin Islands (U.S.)"
+    official_name: "United States Virgin Islands"
+    flag_emoji: "🇻🇮"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "VN"
+    iso_a3: "VNM"
+    numeric: "704"
+    name: "Vietnam"
+    official_name: "Socialist Republic of Vietnam"
+    flag_emoji: "🇻🇳"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "VU"
+    iso_a3: "VUT"
+    numeric: "548"
+    name: "Vanuatu"
+    official_name: "Republic of Vanuatu"
+    flag_emoji: "🇻🇺"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "WF"
+    iso_a3: "WLF"
+    numeric: "876"
+    name: "Wallis and Futuna"
+    official_name: "Wallis and Futuna"
+    flag_emoji: "🇼🇫"
+    un_member: false
+    gg_coverage: false
+  - iso_a2: "WS"
+    iso_a3: "WSM"
+    numeric: "882"
+    name: "Samoa"
+    official_name: "Independent State of Samoa"
+    flag_emoji: "🇼🇸"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "YE"
+    iso_a3: "YEM"
+    numeric: "887"
+    name: "Yemen"
+    official_name: "Republic of Yemen"
+    flag_emoji: "🇾🇪"
+    un_member: true
+    gg_coverage: false
+  - iso_a2: "YT"
+    iso_a3: "MYT"
+    numeric: "961"
+    name: "Mayotte"
+    official_name: "Mayotte"
+    flag_emoji: "🇾🇹"
+    un_member: false
+    gg_coverage: true
+  - iso_a2: "ZA"
+    iso_a3: "ZAF"
+    numeric: "710"
+    name: "South Africa"
+    official_name: "Republic of South Africa"
+    flag_emoji: "🇿🇦"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "ZM"
+    iso_a3: "ZMB"
+    numeric: "894"
+    name: "Zambia"
+    official_name: "Republic of Zambia"
+    flag_emoji: "🇿🇲"
+    un_member: true
+    gg_coverage: true
+  - iso_a2: "ZW"
+    iso_a3: "ZWE"
+    numeric: "716"
+    name: "Zimbabwe"
+    official_name: "Republic of Zimbabwe"
+    flag_emoji: "🇿🇼"
+    un_member: true
+    gg_coverage: true
