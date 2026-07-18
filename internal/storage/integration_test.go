@@ -14,14 +14,18 @@ package storage_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/storage/db"
 	"github.com/supercakecrumb/geodrill/internal/storage/engramstore"
 )
 
@@ -947,5 +951,79 @@ func TestV2TierProgress(t *testing.T) {
 	}
 	if cached[0].Complete {
 		t.Fatalf("tier1 should not be complete (only 3/4 introduced)")
+	}
+}
+
+func TestV2WithTxCommitAndRollback(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 901, "tx-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	topic, err := st.UpsertTopic(ctx, nil, "tx-topic", "Tx Topic", 0, 0, "container", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+	item, err := st.UpsertItem(ctx, topic.ID, "k", "K", nil, []byte(`{}`), nil, 0, true)
+	if err != nil {
+		t.Fatalf("upsert item: %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	putParams := func(lifecycle int16) db.PutUserItemParams {
+		return db.PutUserItemParams{
+			UserID:       u.ID,
+			ItemID:       item.ID,
+			Lifecycle:    lifecycle,
+			Due:          pgtype.Timestamptz{Time: now, Valid: true},
+			IntroducedAt: pgtype.Timestamptz{Time: now, Valid: true},
+		}
+	}
+
+	// commit path: two writes inside one tx both land together (architecture
+	// §5.5: user_items upsert + introductions insert in the same transaction).
+	if err := st.WithTx(ctx, func(q *db.Queries) error {
+		if err := q.PutUserItem(ctx, putParams(1)); err != nil {
+			return err
+		}
+		_, err := q.InsertIntroduction(ctx, db.InsertIntroductionParams{
+			UserID:  u.ID,
+			ItemID:  item.ID,
+			Seq:     1,
+			ShownAt: pgtype.Timestamptz{Time: now, Valid: true},
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("WithTx commit path: %v", err)
+	}
+	ui, found, err := st.GetUserItem(ctx, u.ID, item.ID)
+	if err != nil || !found || ui.Lifecycle != 1 {
+		t.Fatalf("commit path did not persist: found=%v err=%v ui=%+v", found, err, ui)
+	}
+
+	// rollback path: the second write fails deliberately (sentinel error) — the
+	// first write inside the SAME transaction must not be visible afterward.
+	sentinel := errors.New("boom")
+	txErr := st.WithTx(ctx, func(q *db.Queries) error {
+		if err := q.PutUserItem(ctx, putParams(3)); err != nil {
+			return err
+		}
+		return sentinel
+	})
+	if !errors.Is(txErr, sentinel) {
+		t.Fatalf("expected sentinel error from WithTx, got %v", txErr)
+	}
+	uiAfter, found, err := st.GetUserItem(ctx, u.ID, item.ID)
+	if err != nil || !found || uiAfter.Lifecycle != 1 {
+		t.Fatalf("rollback did not revert: found=%v err=%v ui=%+v (want lifecycle still 1)", found, err, uiAfter)
 	}
 }
