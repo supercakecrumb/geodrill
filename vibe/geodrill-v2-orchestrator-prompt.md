@@ -71,10 +71,26 @@ Each of these gets a short design doc in geodrill's `vibe/` with step-by-step im
 - Tag engram **v0.3.0** after green and push the tag to `origin` (a changie release commit accompanies the bump).
 - **Final wave: update the Obsidian vault** — `hot.md`, the geodrill page, the engram page, and a new top entry in `log.md` telling the true story, including anything scrapped along the way.
 
+## Progress pings to Aurora (non-blocking)
+
+After **every wave completes** (and after any standalone milestone worth seeing — e.g. a topic worker finishing, a live smoke test passing), the orchestrator sends Aurora a short Telegram message via `curl` and then **immediately continues to the next wave — this is a status ping, not an approval gate. Do not wait for a reply.** (The one real blocking gate is the plan-mode approval in wave 1; everything after that is fire-and-forget notifications.)
+
+- Chat ID: `371532208`.
+- Token: **read `TELEGRAM_TOKEN` out of `.env` at send time — never print it, log it, or write it into any file** (this repo is public; `vibe/` gets committed).
+- Send pattern (bash):
+  ```bash
+  set -a; source .env; set +a
+  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=371532208" \
+    --data-urlencode "text=✅ <what just finished — 1-3 sentences>. Bot is running locally at ./bin/geodrill-bot — go ahead and check it out. Continuing to <next stage>."
+  ```
+- Keep messages short and concrete: what shipped, that it's runnable locally right now, and what's next. A failed `curl` (network hiccup, bad token) must never block or fail the build — log it and move on.
+- **Only send a ping once the bot is actually runnable in that state** — rebuild `./bin/geodrill-bot`, restart it, confirm exactly one process (`pgrep -fl geodrill-bot`) and a clean startup log, *then* notify. Don't claim something is checkable if it isn't running.
+
 ## Suggested wave shape (adapt, but keep the conflict-free property)
 
 0. **Exploration** (parallel Explore agents): geodrill code map; engram API surface; current schema; current Telegram flow. Reports only.
-1. **Architecture** (opus): schema, engram v0.3.0 contract, topic-tree model, tier rubric, migration strategy → assemble the plan → Aurora approves → exit plan mode → `changie init` in each repo (if absent) + pg_dump backup of the dev DB before any destructive schema work. (The pre-restructure state is already committed and pushed to `origin/master` in both repos.)
+1. **Architecture** (opus): schema, engram v0.3.0 contract, topic-tree model, tier rubric, migration strategy → assemble the plan → Aurora approves → exit plan mode → confirm no `geodrill-bot` process is running (`pgrep -fl geodrill-bot`; stop it if so — it must not be serving live traffic against a DB about to be migrated) → `changie init` in each repo (if absent) + pg_dump backup of the dev DB before any destructive schema work. (The pre-restructure state is already committed and pushed to `origin/master` in both repos.)
 2. **Foundations** (serialized — shared surfaces): engram v0.3.0 → schema + sqlc + migrations → topic framework skeleton. In parallel (disjoint files): **CI bootstrap worker** — lint/test/build workflows in both repos, `act`-validated, so every subsequent push is checked.
 3. **Parallel topic workers** (sonnet; disjoint directories): special characters; road sides + countries dataset (haiku compiles data); words; Telegram UI/commands.
 4. **Integration** (serialized): old-quiz migration, wiring, end-to-end pass.
