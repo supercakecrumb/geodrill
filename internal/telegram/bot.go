@@ -274,7 +274,7 @@ func (b *Bot) sendReminders(ctx context.Context) {
 		day := local.Format("2006-01-02")
 		st := b.getReminderState(u.ID)
 
-		due, err := b.svc.DueCount(ctx, u, now)
+		due, err := b.dueCount(ctx, u, now)
 		if err != nil {
 			b.logger.Error("telegram: reminders: due count", "user", u.ID, "error", err)
 			continue

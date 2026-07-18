@@ -1,0 +1,2 @@
+kind: Changed
+body: 'The daily reminder loop''s due-review count now comes from v2 user_items (study.Service.DueCount) instead of the legacy user_skills table when TrainerV2 is wired, falling back to the legacy count otherwise -- the reminder text, timing, and follow-up behavior are unchanged. The reviewed-since/engagement check (CountReviewsSince) already read the shared reviews table both legacy and v2 writes share, so it needed no change'

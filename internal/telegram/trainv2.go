@@ -6,6 +6,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/supercakecrumb/engram/quiz"
@@ -91,6 +92,17 @@ func (b *Bot) sendNextTrain(ctx context.Context, s Session, user storage.User) e
 		return err
 	}
 	return b.sendNextResult(ctx, s, user, res)
+}
+
+// dueCount reports how many reviews are due for u: TrainerV2's v2
+// user_items count when wired, otherwise the legacy trainer.DueCount —
+// mirrors sendNextTrain/sendNextPractice's v2 preference, feeding the
+// reminder loop's due-review figure (architecture §5.3).
+func (b *Bot) dueCount(ctx context.Context, u storage.User, now time.Time) (int, error) {
+	if b.trainerV2 != nil {
+		return b.trainerV2.DueCount(ctx, u.ID)
+	}
+	return b.svc.DueCount(ctx, u, now)
 }
 
 // sendNextV2 fetches and renders the next V2 exercise (or a nothing-due/

@@ -133,6 +133,14 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.StatsV2
 	}, nil
 }
 
+// DueCount implements telegram.TrainerV2: how many of userID's v2 cards
+// (user_items in lifecycle Introduced/Reviewing) are due right now — the v2
+// counterpart of the legacy internal/train.Service.DueCount, feeding the
+// reminder loop's due-review count (architecture §5.3).
+func (s *Service) DueCount(ctx context.Context, userID uuid.UUID) (int, error) {
+	return s.store.CountDueUserItems(ctx, userID, s.now())
+}
+
 // labelOrKey returns labels[key], falling back to key itself when absent
 // (mirrors internal/train's labelOr).
 func labelOrKey(labels map[string]string, key string) string {

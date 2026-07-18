@@ -387,6 +387,10 @@ func TestV2FullLoop(t *testing.T) {
 	seedDueItem(t, ctx, store, gradeUser.ID, itemA.ID, now.Add(-2*time.Minute), 0)
 	seedDueItem(t, ctx, store, gradeUser.ID, itemB.ID, now.Add(-1*time.Minute), 0)
 
+	if due, err := svc.DueCount(ctx, gradeUser.ID); err != nil || due != 2 {
+		t.Fatalf("DueCount before answering = %d, want 2 (err=%v)", due, err)
+	}
+
 	promptA, err := svc.NextExerciseV2(ctx, gradeUser.ID)
 	if err != nil {
 		t.Fatalf("NextExerciseV2 (A): %v", err)

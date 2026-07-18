@@ -23,6 +23,8 @@ type stubTrainerV2 struct {
 	answer   AnswerResultV2
 	stats    StatsV2
 	statsErr error
+	due      int
+	dueErr   error
 	textOK   bool
 	textErr  error
 	textCall struct {
@@ -59,6 +61,10 @@ func (s *stubTrainerV2) AnswerText(ctx context.Context, userID uuid.UUID, typed 
 
 func (s *stubTrainerV2) Stats(ctx context.Context, userID uuid.UUID) (StatsV2, error) {
 	return s.stats, s.statsErr
+}
+
+func (s *stubTrainerV2) DueCount(ctx context.Context, userID uuid.UUID) (int, error) {
+	return s.due, s.dueErr
 }
 
 // ── v2a: callback parsing ────────────────────────────────────────────────
@@ -218,6 +224,31 @@ func TestSendPromptV2_NoTopics(t *testing.T) {
 }
 
 // ── sendPromptV2 / sendExerciseV2 ────────────────────────────────────────
+
+// ── dueCount V2 preference ───────────────────────────────────────────────
+
+func TestDueCount_PrefersV2WhenWired(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{})
+	b.trainerV2 = &stubTrainerV2{due: 7}
+	got, err := b.dueCount(context.Background(), newTestUser(), time.Now())
+	if err != nil {
+		t.Fatalf("dueCount: %v", err)
+	}
+	if got != 7 {
+		t.Fatalf("expected the v2 due count (7), got %d", got)
+	}
+}
+
+func TestDueCount_LegacyWhenV2Nil(t *testing.T) {
+	b := newTestBot(&stubTrainer{}, &stubStore{})
+	got, err := b.dueCount(context.Background(), newTestUser(), time.Now())
+	if err != nil {
+		t.Fatalf("dueCount: %v", err)
+	}
+	if got != 0 { // stubTrainer.DueCount always returns 0
+		t.Fatalf("expected the legacy due count (0), got %d", got)
+	}
+}
 
 // ── /stats V2 ────────────────────────────────────────────────────────────
 

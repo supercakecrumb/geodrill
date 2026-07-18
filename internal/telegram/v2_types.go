@@ -269,6 +269,11 @@ type TrainerV2 interface {
 	// Stats builds the /stats view model over v2 reviews/user_items — the
 	// v2 counterpart of the legacy trainer.Stats.
 	Stats(ctx context.Context, userID uuid.UUID) (StatsV2, error)
+	// DueCount reports how many of the user's v2 cards (user_items in
+	// lifecycle Introduced/Reviewing) are due right now — the v2
+	// counterpart of the legacy trainer.DueCount, feeding the reminder
+	// loop's due-review count (architecture §5.3).
+	DueCount(ctx context.Context, userID uuid.UUID) (int, error)
 }
 
 // ── /stats — v2 view model ──────────────────────────────────────────────
