@@ -120,24 +120,41 @@ const settingsText = "⚙️ Settings — daily new-skill cap, button style, and
 // with the decks/user_decks tables, so there's no fallback left to render.
 const decksUnavailableText = "Topic browser is unavailable right now."
 
-const helpText = "🌍 geodrill — train the languages you keep confusing in GeoGuessr.\n\n" +
-	"I show you a short real sentence; you tap the flag of the language it's in. " +
-	"I space out repeats (FSRS, like Anki), so you drill exactly the ones you miss.\n\n" +
-	"Commands:\n" +
-	"/train — next due exercise; answering marks the keyboard (✅/❌) and sends the next\n" +
-	"/practice — endless practice that does NOT touch your schedule\n" +
-	"/decks — turn confusion groups on/off\n" +
-	"/settings — daily new-skill cap, button style, and reminders (hour + follow-up)\n" +
-	"/stats — reviews, accuracy, streak, due forecast, and your top mix-ups\n" +
-	"/start — register and open the deck picker\n" +
-	"/help — this message\n\n" +
-	"Buttons show a flag + language name by default (🇵🇹 Portuguese); tap the 🔤 " +
-	"control in /decks to switch to flag + code or name only. The flag is a memory " +
-	"hook for the language, not a claim it's spoken only there.\n\n" +
-	"Decks marked 💡 show a one-line tip after each answer, pointing at the giveaway " +
-	"in that exact sentence (currently: Romance languages). Other decks don't have " +
-	"tips yet.\n\n" +
-	"Sentences: Tatoeba (tatoeba.org), CC-BY."
+// help:* callback payloads: one per root-menu button (tapped from the
+// /help message), plus help:root to return to that menu from any section.
+const (
+	dataHelpFSRS  = "help:fsrs"
+	dataHelpIntro = "help:intro"
+	dataHelpTiers = "help:tiers"
+	dataHelpCmds  = "help:cmds"
+	dataHelpRoot  = "help:root"
+)
+
+// helpRootText is the 2-3 line /help overview shown above the subtopic menu.
+const helpRootText = "🌍 geodrill trains GeoGuessr-relevant knowledge — special characters, " +
+	"road sides, words, and more — with spaced repetition. Pick a topic below:"
+
+const helpFSRSText = "📚 How spaced repetition works\n\n" +
+	"New items are first introduced — teaching cards you see via /study, limited by a " +
+	"daily intro cap. Once introduced, an item enters the review queue and comes up in " +
+	"/train on a schedule set by the FSRS algorithm.\n\n" +
+	"Answer wrong (\"Again\") and it comes back sooner. Answer right (\"Good\") and it's " +
+	"pushed further out — intervals grow as an item stabilizes. The daily cap in " +
+	"/settings bounds how many reviews you get shown in total per day."
+
+const helpIntroButtonsText = "🎓 The intro buttons explained\n\n" +
+	"«Got it» — the item is introduced and will come up for review soon.\n\n" +
+	"«I know this» — the item is marked known immediately, scheduled far out (~2 weeks) " +
+	"to verify later, and does NOT consume the daily intro budget.\n\n" +
+	"«Know it, but test me» — introduced like «Got it», so it shows up in reviews for " +
+	"you to prove it."
+
+const helpTiersText = "🗺 Topics and tiers\n\n" +
+	"Topics form a tree you browse in /topics, where you toggle what you study.\n\n" +
+	"Items have tiers 0–5: 0 is universally known, up through 4 (advanced/rare) and 5 " +
+	"(expert meta). Tiers 0–1 are open from the start. Finishing a tier in good shape " +
+	"(about 80% of its items solidly learned or known) unlocks the tier two levels up. " +
+	"Locked tiers show a lock in /topics."
 
 // ── /start ───────────────────────────────────────────────────────────────
 
@@ -317,26 +334,77 @@ func (b *Bot) handleFollowUpDelayCycle(ctx context.Context, s Session) error {
 // ── /help ────────────────────────────────────────────────────────────────
 
 func (b *Bot) handleHelp(ctx context.Context, s Session) error {
-	return s.Send(helpTextFor(b.study != nil, b.topics != nil))
+	_, err := s.SendKeyboard(helpRootText, helpRootRows())
+	return err
 }
 
-// helpTextFor appends a mention of /study and/or /topics to the base
-// helpText when the corresponding service is wired, so /help never
-// advertises a command that would just reply "🚧 coming soon".
-// Returns helpText verbatim when both are nil (today's exact message).
-func helpTextFor(hasStudy, hasTopics bool) string {
-	if !hasStudy && !hasTopics {
-		return helpText
+// handleHelpCallback renders the tapped /help subtopic (or, for help:root,
+// the root menu) by editing the existing message's text and keyboard in
+// place — the same in-place-edit convention rerenderSettings uses for
+// /settings.
+func (b *Bot) handleHelpCallback(ctx context.Context, s Session, data string) error {
+	text, rows := helpSection(data, b.study != nil, b.topics != nil)
+	if err := s.EditMessage(s.MessageID(), text, rows); err != nil {
+		return err
 	}
+	return s.Respond("")
+}
+
+// helpSection resolves a help:* payload to the section text + keyboard to
+// render. Any payload other than the three subtopic sections and
+// help:cmds — including help:root and any unrecognized value — renders the
+// root menu, so a stale or malformed tap always falls back to something
+// sensible instead of erroring.
+func helpSection(data string, hasStudy, hasTopics bool) (string, [][]Btn) {
+	switch data {
+	case dataHelpFSRS:
+		return helpFSRSText, helpBackRow()
+	case dataHelpIntro:
+		return helpIntroButtonsText, helpBackRow()
+	case dataHelpTiers:
+		return helpTiersText, helpBackRow()
+	case dataHelpCmds:
+		return helpCommandsText(hasStudy, hasTopics), helpBackRow()
+	default:
+		return helpRootText, helpRootRows()
+	}
+}
+
+// helpRootRows is the /help root menu: one button per subtopic, one per row.
+func helpRootRows() [][]Btn {
+	return [][]Btn{
+		{{Label: "📚 How spaced repetition works", Data: dataHelpFSRS}},
+		{{Label: "🎓 The intro buttons explained", Data: dataHelpIntro}},
+		{{Label: "🗺 Topics & tiers", Data: dataHelpTiers}},
+		{{Label: "🧭 Commands", Data: dataHelpCmds}},
+	}
+}
+
+// helpBackRow is the single «⬅️ Back» button shown under every subtopic
+// section, returning to the root menu.
+func helpBackRow() [][]Btn {
+	return [][]Btn{{{Label: "⬅️ Back", Data: dataHelpRoot}}}
+}
+
+// helpCommandsText renders the "🧭 Commands" section: the always-available
+// commands, plus /study and /topics only when their services are wired
+// (mirroring the retired helpTextFor's hasStudy/hasTopics gating, so /help
+// never advertises a command that would just reply "🚧 coming soon").
+func helpCommandsText(hasStudy, hasTopics bool) string {
 	var b strings.Builder
-	b.WriteString(helpText)
-	b.WriteString("\n\nAlso available:\n")
+	b.WriteString("🧭 Commands\n\n")
+	b.WriteString("/train — next due review, scheduled by FSRS\n")
+	b.WriteString("/practice — endless practice that does NOT touch your schedule\n")
 	if hasStudy {
 		b.WriteString("/study — teaching cards for new items (✅ Got it / 🧠 I know this / 🎯 Test me); /introduce fetches more on demand\n")
 	}
 	if hasTopics {
-		b.WriteString("/topics — browse topics, tiers, and your progress\n")
+		b.WriteString("/topics — browse topics, tiers, and your progress; toggle what you study\n")
 	}
+	b.WriteString("/stats — reviews, accuracy, streak, due forecast, and your top mix-ups\n")
+	b.WriteString("/settings — daily new-item cap, button style, and reminders\n")
+	b.WriteString("/start — register with geodrill\n")
+	b.WriteString("/help — this menu\n")
 	return b.String()
 }
 
@@ -413,6 +481,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleStopPractice(ctx, s)
 	case data == dataStartTrain:
 		return b.handleStartTrainCallback(ctx, s)
+	case strings.HasPrefix(data, "help:"):
+		return b.handleHelpCallback(ctx, s, data)
 	default: // includes DataNoop and any unrecognized payload
 		return s.Respond("")
 	}

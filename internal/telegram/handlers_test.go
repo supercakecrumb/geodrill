@@ -520,20 +520,6 @@ func TestHandleIntroCapChange_NilStoreIsInert(t *testing.T) {
 	}
 }
 
-func TestHelpTextFor(t *testing.T) {
-	if got := helpTextFor(false, false); got != helpText {
-		t.Fatalf("helpTextFor(false, false) must return helpText verbatim")
-	}
-	studyOnly := helpTextFor(true, false)
-	if !strings.Contains(studyOnly, "/study") || strings.Contains(studyOnly, "/topics") {
-		t.Fatalf("helpTextFor(true, false) = %q, expected /study but not /topics", studyOnly)
-	}
-	topicsOnly := helpTextFor(false, true)
-	if !strings.Contains(topicsOnly, "/topics") || strings.Contains(topicsOnly, "/study") {
-		t.Fatalf("helpTextFor(false, true) = %q, expected /topics but not /study", topicsOnly)
-	}
-}
-
 func assertHasBtn(t *testing.T, btns []Btn, want Btn) {
 	t.Helper()
 	for _, b := range btns {
@@ -815,38 +801,128 @@ func TestFormatStats_SingularStreak(t *testing.T) {
 
 // ── /help ────────────────────────────────────────────────────────────────
 
-func TestHandleHelp(t *testing.T) {
+// TestHandleHelp_RootMenu covers the initial /help message: the overview
+// text plus one button per subtopic, each on its own row.
+func TestHandleHelp_RootMenu(t *testing.T) {
 	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
 	s := &fakeSession{userID: 1}
 
 	if err := b.handleHelp(context.Background(), s); err != nil {
 		t.Fatalf("handleHelp: %v", err)
 	}
-	if len(s.sent) != 1 {
-		t.Fatalf("expected one help message, got %d", len(s.sent))
+	if len(s.keyboards) != 1 {
+		t.Fatalf("expected one help menu message, got %d", len(s.keyboards))
 	}
-	for _, want := range []string{"/train", "/practice", "/decks", "/stats", "/help"} {
-		if !strings.Contains(s.sent[0], want) {
-			t.Fatalf("expected help text to mention %q; got:\n%s", want, s.sent[0])
+	kb := s.keyboards[0]
+	if kb.text != helpRootText {
+		t.Fatalf("expected the root overview text, got %q", kb.text)
+	}
+	wantLabels := []string{
+		"📚 How spaced repetition works",
+		"🎓 The intro buttons explained",
+		"🗺 Topics & tiers",
+		"🧭 Commands",
+	}
+	if len(kb.rows) != len(wantLabels) {
+		t.Fatalf("expected %d rows (one button each), got %d", len(wantLabels), len(kb.rows))
+	}
+	for i, want := range wantLabels {
+		if len(kb.rows[i]) != 1 || kb.rows[i][0].Label != want {
+			t.Fatalf("row %d: expected single button %q, got %+v", i, want, kb.rows[i])
 		}
-	}
-	if !strings.Contains(s.sent[0], "Sentences: Tatoeba (tatoeba.org), CC-BY.") {
-		t.Fatalf("expected help text to carry the Tatoeba CC-BY credit line; got:\n%s", s.sent[0])
 	}
 }
 
-func TestHandleHelp_MentionsStudyAndTopicsWhenWired(t *testing.T) {
+// TestHandleCallback_HelpSections covers each help:* subtopic tap: it must
+// edit the tapped message in place with the section's own copy plus a
+// single Back button.
+func TestHandleCallback_HelpSections(t *testing.T) {
+	cases := []struct {
+		data       string
+		wantPhrase string
+	}{
+		{dataHelpFSRS, "FSRS algorithm"},
+		{dataHelpIntro, "does NOT consume the daily intro budget"},
+		{dataHelpTiers, "unlocks the tier two levels up"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.data, func(t *testing.T) {
+			b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+			s := &fakeSession{userID: 1, messageID: 42, data: tc.data}
+
+			if err := b.handleCallback(context.Background(), s); err != nil {
+				t.Fatalf("handleCallback: %v", err)
+			}
+			if len(s.editedMsgs) != 1 {
+				t.Fatalf("expected the help message edited in place, got %d edits", len(s.editedMsgs))
+			}
+			edit := s.editedMsgs[0]
+			if edit.messageID != 42 {
+				t.Fatalf("expected the edit on message 42, got %d", edit.messageID)
+			}
+			if !strings.Contains(edit.text, tc.wantPhrase) {
+				t.Fatalf("expected section text to contain %q; got:\n%s", tc.wantPhrase, edit.text)
+			}
+			if len(edit.rows) != 1 || len(edit.rows[0]) != 1 ||
+				edit.rows[0][0].Label != "⬅️ Back" || edit.rows[0][0].Data != dataHelpRoot {
+				t.Fatalf("expected a single Back button, got %+v", edit.rows)
+			}
+		})
+	}
+}
+
+// TestHandleCallback_HelpCmds_GatedByWiredServices covers help:cmds: it must
+// only mention /study and /topics when their services are wired, matching
+// the retired helpTextFor's gating so /help never advertises a command that
+// would just reply "🚧 coming soon".
+func TestHandleCallback_HelpCmds_GatedByWiredServices(t *testing.T) {
 	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+	s := &fakeSession{userID: 1, messageID: 42, data: dataHelpCmds}
+
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	text := s.editedMsgs[0].text
+	for _, want := range []string{"/train", "/practice", "/stats", "/settings", "/help"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("expected commands section to mention %q; got:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "/study") || strings.Contains(text, "/topics") {
+		t.Fatalf("expected /study and /topics omitted when their services are nil; got:\n%s", text)
+	}
+
 	b.study = &stubStudyService{}
 	b.topics = &stubTopicService{}
-	s := &fakeSession{userID: 1}
-
-	if err := b.handleHelp(context.Background(), s); err != nil {
-		t.Fatalf("handleHelp: %v", err)
+	s2 := &fakeSession{userID: 1, messageID: 42, data: dataHelpCmds}
+	if err := b.handleCallback(context.Background(), s2); err != nil {
+		t.Fatalf("handleCallback: %v", err)
 	}
+	text2 := s2.editedMsgs[0].text
 	for _, want := range []string{"/study", "/introduce", "/topics"} {
-		if !strings.Contains(s.sent[0], want) {
-			t.Fatalf("expected help text to mention %q when wired; got:\n%s", want, s.sent[0])
+		if !strings.Contains(text2, want) {
+			t.Fatalf("expected commands section to mention %q when wired; got:\n%s", want, text2)
 		}
+	}
+}
+
+// TestHandleCallback_HelpRoot_RestoresMenu covers the Back button: tapping
+// help:root must restore the exact root menu (overview text + 4 buttons).
+func TestHandleCallback_HelpRoot_RestoresMenu(t *testing.T) {
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+	s := &fakeSession{userID: 1, messageID: 42, data: dataHelpRoot}
+
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if len(s.editedMsgs) != 1 {
+		t.Fatalf("expected the message edited back to the root menu, got %d edits", len(s.editedMsgs))
+	}
+	edit := s.editedMsgs[0]
+	if edit.text != helpRootText {
+		t.Fatalf("expected the root overview text restored, got %q", edit.text)
+	}
+	if len(edit.rows) != 4 {
+		t.Fatalf("expected the 4-button root menu restored, got %d rows", len(edit.rows))
 	}
 }
