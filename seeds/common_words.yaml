@@ -1,9 +1,22 @@
-# Common GeoGuessr words per language. Audited against the Tatoeba corpus later.
-# Note on omitted exact duplicates (prefer omit rule): "ulica" (Polish/Slovak/Croatian/Slovenian)
-# kept for Polish only; "cesta" (Czech/Slovak/Croatian/Slovenian) kept for Czech only;
-# "gata" (Icelandic/Swedish) kept for Swedish only; "mest" class (Slovak/Slovenian) kept
-# for Slovak only. Cyrillic cognates (дорога, проспект, булевард, затворено) kept across
-# Russian/Ukrainian/Bulgarian/Serbian/Macedonian as high-value core vocabulary for corpus audit.
+# Common GeoGuessr words per language. Audited against the ingested Tatoeba
+# corpus (internal/topics/words/audit_test.go, TestAuditWordsAgainstCorpus,
+# WORDS_AUDIT_DATABASE_URL) — 136 -> 79 entries after pruning. See that test's
+# doc comment for the frequency-floor/collision methodology, and the
+# corresponding "Add corpus audit + prune common-words seed" commit message
+# for the full per-duplicate resolution report.
+#
+# The 9 exact-spelling cross-language duplicates flagged for resolution were
+# each checked against real corpus frequency in both claimed languages:
+#   - avenida (spa/por), булевард (bul/mkd), проспект (rus/ukr), nord
+#     (fra/ron), ulica (pol/slk), дорога (rus/ukr), mesto (slk/slv): neither
+#     side's corpus frequency was >=10x the other's (or both were
+#     unattested) -> dropped from BOTH languages (ambiguous either way).
+#   - gata (isl/swe): attested in Icelandic (swe unattested) -> kept isl only.
+#   - затворено (bul/srp): attested in Serbian (bul unattested) -> kept srp only.
+# Two further collisions turned up by the automated 10x check (not on the
+# original list of 9): spa "sur" (collides with a very common French
+# preposition) and slv "pot" (collides with unrelated common verb forms in
+# Catalan/Romanian) — both dropped.
 topic: languages/common-words
 words:
   - word: "avinguda"
@@ -38,25 +51,13 @@ words:
     language: ces
     meaning: "closed"
     tier: 2
-  - word: "výstup"
-    language: ces
-    meaning: "exit"
-    tier: 2
   - word: "gade"
     language: dan
     meaning: "street"
     tier: 1
-  - word: "indgang"
-    language: dan
-    meaning: "entrance"
-    tier: 2
   - word: "lukket"
     language: dan
     meaning: "closed"
-    tier: 2
-  - word: "udgang"
-    language: dan
-    meaning: "exit"
     tier: 2
   - word: "vej"
     language: dan
@@ -70,33 +71,13 @@ words:
     language: fin
     meaning: "city"
     tier: 2
-  - word: "katu"
-    language: fin
-    meaning: "street"
-    tier: 1
-  - word: "suljettu"
-    language: fin
-    meaning: "closed"
-    tier: 2
   - word: "tie"
     language: fin
     meaning: "road"
     tier: 1
-  - word: "uloskäynti"
-    language: fin
-    meaning: "exit"
-    tier: 2
-  - word: "avenue"
-    language: fra
-    meaning: "avenue"
-    tier: 1
   - word: "fermé"
     language: fra
     meaning: "closed"
-    tier: 2
-  - word: "nord"
-    language: fra
-    meaning: "north"
     tier: 2
   - word: "route"
     language: fra
@@ -150,34 +131,14 @@ words:
     language: isl
     meaning: "street"
     tier: 1
-  - word: "inngangur"
-    language: isl
-    meaning: "entrance"
-    tier: 2
   - word: "lokað"
     language: isl
     meaning: "closed"
-    tier: 2
-  - word: "útkoma"
-    language: isl
-    meaning: "exit"
     tier: 2
   - word: "vegur"
     language: isl
     meaning: "road"
     tier: 1
-  - word: "булевард"
-    language: bul
-    meaning: "avenue"
-    tier: 1
-  - word: "затворено"
-    language: bul
-    meaning: "closed"
-    tier: 2
-  - word: "изход"
-    language: bul
-    meaning: "exit"
-    tier: 2
   - word: "път"
     language: bul
     meaning: "road"
@@ -186,41 +147,17 @@ words:
     language: bul
     meaning: "stop"
     tier: 2
-  - word: "булевард"
-    language: mkd
-    meaning: "avenue"
-    tier: 1
-  - word: "излез"
-    language: mkd
-    meaning: "exit"
-    tier: 2
   - word: "пат"
     language: mkd
     meaning: "road"
     tier: 1
-  - word: "преслав"
-    language: mkd
-    meaning: "center"
-    tier: 2
   - word: "gate"
     language: nor
     meaning: "street"
     tier: 1
-  - word: "inngang"
-    language: nor
-    meaning: "entrance"
-    tier: 2
   - word: "stengt"
     language: nor
     meaning: "closed"
-    tier: 2
-  - word: "stoppested"
-    language: nor
-    meaning: "stop"
-    tier: 2
-  - word: "utgang"
-    language: nor
-    meaning: "exit"
     tier: 2
   - word: "vei"
     language: nor
@@ -238,18 +175,6 @@ words:
     language: pol
     meaning: "open"
     tier: 2
-  - word: "północ"
-    language: pol
-    meaning: "north"
-    tier: 2
-  - word: "ulica"
-    language: pol
-    meaning: "street"
-    tier: 1
-  - word: "wejście"
-    language: pol
-    meaning: "entrance"
-    tier: 2
   - word: "wyjście"
     language: pol
     meaning: "exit"
@@ -258,10 +183,6 @@ words:
     language: pol
     meaning: "closed"
     tier: 2
-  - word: "avenida"
-    language: por
-    meaning: "avenue"
-    tier: 1
   - word: "cidade"
     language: por
     meaning: "city"
@@ -278,29 +199,13 @@ words:
     language: por
     meaning: "street"
     tier: 1
-  - word: "saída"
-    language: por
-    meaning: "exit"
-    tier: 2
   - word: "sul"
     language: por
     meaning: "south"
     tier: 2
-  - word: "ieșire"
-    language: ron
-    meaning: "exit"
-    tier: 2
   - word: "închis"
     language: ron
     meaning: "closed"
-    tier: 2
-  - word: "intrare"
-    language: ron
-    meaning: "entrance"
-    tier: 2
-  - word: "nord"
-    language: ron
-    meaning: "north"
     tier: 2
   - word: "oraș"
     language: ron
@@ -310,37 +215,13 @@ words:
     language: ron
     meaning: "street"
     tier: 1
-  - word: "закрыто"
-    language: rus
-    meaning: "closed"
-    tier: 2
   - word: "город"
     language: rus
     meaning: "city"
     tier: 1
-  - word: "выход"
-    language: rus
-    meaning: "exit"
-    tier: 2
-  - word: "вход"
-    language: rus
-    meaning: "entrance"
-    tier: 2
-  - word: "дорога"
-    language: rus
-    meaning: "road"
-    tier: 1
   - word: "остановка"
     language: rus
     meaning: "stop"
-    tier: 2
-  - word: "проспект"
-    language: rus
-    meaning: "avenue"
-    tier: 1
-  - word: "север"
-    language: rus
-    meaning: "north"
     tier: 2
   - word: "станция"
     language: rus
@@ -349,14 +230,6 @@ words:
   - word: "улица"
     language: rus
     meaning: "street"
-    tier: 1
-  - word: "юг"
-    language: rus
-    meaning: "south"
-    tier: 2
-  - word: "булевар"
-    language: srp
-    meaning: "avenue"
     tier: 1
   - word: "град"
     language: srp
@@ -373,14 +246,6 @@ words:
   - word: "пут"
     language: srp
     meaning: "road"
-    tier: 1
-  - word: "станица"
-    language: srp
-    meaning: "station"
-    tier: 2
-  - word: "avenida"
-    language: spa
-    meaning: "avenue"
     tier: 1
   - word: "calle"
     language: spa
@@ -410,76 +275,20 @@ words:
     language: spa
     meaning: "exit"
     tier: 2
-  - word: "sur"
-    language: spa
-    meaning: "south"
-    tier: 2
-  - word: "gata"
-    language: swe
-    meaning: "street"
-    tier: 1
-  - word: "ingång"
-    language: swe
-    meaning: "entrance"
-    tier: 2
   - word: "stängd"
     language: swe
     meaning: "closed"
-    tier: 2
-  - word: "utgång"
-    language: swe
-    meaning: "exit"
     tier: 2
   - word: "väg"
     language: swe
     meaning: "road"
     tier: 1
-  - word: "izlaz"
-    language: hrv
-    meaning: "exit"
-    tier: 2
   - word: "grad"
     language: hrv
     meaning: "city"
     tier: 1
-  - word: "zatvoreno"
-    language: hrv
-    meaning: "closed"
-    tier: 2
-  - word: "željeznicka-stanica"
-    language: hrv
-    meaning: "railway station"
-    tier: 2
   - word: "izhod"
     language: slv
-    meaning: "exit"
-    tier: 2
-  - word: "mesto"
-    language: slv
-    meaning: "city"
-    tier: 1
-  - word: "pot"
-    language: slv
-    meaning: "road"
-    tier: 1
-  - word: "zaprto"
-    language: slv
-    meaning: "closed"
-    tier: 2
-  - word: "да"
-    language: slk
-    meaning: "yes"
-    tier: 2
-  - word: "mesto"
-    language: slk
-    meaning: "city"
-    tier: 1
-  - word: "ulica"
-    language: slk
-    meaning: "street"
-    tier: 1
-  - word: "výjazd"
-    language: slk
     meaning: "exit"
     tier: 2
   - word: "zavreté"
@@ -506,10 +315,6 @@ words:
     language: vie
     meaning: "station"
     tier: 2
-  - word: "закрито"
-    language: ukr
-    meaning: "closed"
-    tier: 2
   - word: "вихід"
     language: ukr
     meaning: "exit"
@@ -518,26 +323,10 @@ words:
     language: ukr
     meaning: "entrance"
     tier: 2
-  - word: "дорога"
-    language: ukr
-    meaning: "road"
-    tier: 1
   - word: "місто"
     language: ukr
     meaning: "city"
     tier: 1
-  - word: "північний"
-    language: ukr
-    meaning: "north"
-    tier: 2
-  - word: "проспект"
-    language: ukr
-    meaning: "avenue"
-    tier: 1
-  - word: "південний"
-    language: ukr
-    meaning: "south"
-    tier: 2
   - word: "вулиця"
     language: ukr
     meaning: "street"
@@ -545,8 +334,4 @@ words:
   - word: "зупинка"
     language: ukr
     meaning: "stop"
-    tier: 2
-  - word: "станція"
-    language: ukr
-    meaning: "station"
     tier: 2
