@@ -1,0 +1,1273 @@
+# Country capitals: primary capital(s) per country.
+# capitals: list of {name: <city>, role: <role>}, primary first
+# role: one of official, seat-of-government, legislative, judicial, executive, de-facto
+# note: optional, for quirks (one line)
+
+entries:
+
+  - country: "AD"
+    capitals:
+      - name: "Andorra la Vella"
+        role: "official"
+
+  - country: "AE"
+    capitals:
+      - name: "Abu Dhabi"
+        role: "official"
+
+  - country: "AF"
+    capitals:
+      - name: "Kabul"
+        role: "official"
+
+  - country: "AG"
+    capitals:
+      - name: "Saint John's"
+        role: "official"
+
+  - country: "AI"
+    capitals:
+      - name: "The Valley"
+        role: "official"
+
+  - country: "AL"
+    capitals:
+      - name: "Tirana"
+        role: "official"
+
+  - country: "AM"
+    capitals:
+      - name: "Yerevan"
+        role: "official"
+
+  - country: "AO"
+    capitals:
+      - name: "Luanda"
+        role: "official"
+
+  - country: "AQ"
+    note: "No sovereign capital; research stations only"
+
+  - country: "AR"
+    capitals:
+      - name: "Buenos Aires"
+        role: "official"
+
+  - country: "AS"
+    capitals:
+      - name: "Pago Pago"
+        role: "official"
+
+  - country: "AT"
+    capitals:
+      - name: "Vienna"
+        role: "official"
+
+  - country: "AU"
+    capitals:
+      - name: "Canberra"
+        role: "official"
+
+  - country: "AW"
+    capitals:
+      - name: "Oranjestad"
+        role: "official"
+
+  - country: "AX"
+    capitals:
+      - name: "Mariehamn"
+        role: "official"
+
+  - country: "AZ"
+    capitals:
+      - name: "Baku"
+        role: "official"
+
+  - country: "BA"
+    capitals:
+      - name: "Sarajevo"
+        role: "official"
+
+  - country: "BB"
+    capitals:
+      - name: "Bridgetown"
+        role: "official"
+
+  - country: "BD"
+    capitals:
+      - name: "Dhaka"
+        role: "official"
+
+  - country: "BE"
+    capitals:
+      - name: "Brussels"
+        role: "official"
+
+  - country: "BF"
+    capitals:
+      - name: "Ouagadougou"
+        role: "official"
+
+  - country: "BG"
+    capitals:
+      - name: "Sofia"
+        role: "official"
+
+  - country: "BH"
+    capitals:
+      - name: "Manama"
+        role: "official"
+
+  - country: "BI"
+    capitals:
+      - name: "Gitega"
+        role: "official"
+
+  - country: "BJ"
+    capitals:
+      - name: "Porto-Novo"
+        role: "official"
+      - name: "Cotonou"
+        role: "seat-of-government"
+    note: "Porto-Novo is official, Cotonou is de-facto seat of government"
+
+  - country: "BL"
+    capitals:
+      - name: "Gustavia"
+        role: "official"
+
+  - country: "BM"
+    capitals:
+      - name: "Hamilton"
+        role: "official"
+
+  - country: "BN"
+    capitals:
+      - name: "Bandar Seri Begawan"
+        role: "official"
+
+  - country: "BO"
+    capitals:
+      - name: "Sucre"
+        role: "official"
+      - name: "La Paz"
+        role: "seat-of-government"
+    note: "Sucre is constitutional capital, La Paz is administrative seat"
+
+  - country: "BQ"
+    capitals:
+      - name: "Kralendijk"
+        role: "official"
+
+  - country: "BR"
+    capitals:
+      - name: "Brasília"
+        role: "official"
+
+  - country: "BS"
+    capitals:
+      - name: "Nassau"
+        role: "official"
+
+  - country: "BT"
+    capitals:
+      - name: "Thimphu"
+        role: "official"
+
+  - country: "BV"
+    note: "No permanent human settlements; uninhabited territory"
+
+  - country: "BW"
+    capitals:
+      - name: "Gaborone"
+        role: "official"
+
+  - country: "BY"
+    capitals:
+      - name: "Minsk"
+        role: "official"
+
+  - country: "BZ"
+    capitals:
+      - name: "Belmopan"
+        role: "official"
+
+  - country: "CA"
+    capitals:
+      - name: "Ottawa"
+        role: "official"
+
+  - country: "CC"
+    capitals:
+      - name: "West Island"
+        role: "official"
+
+  - country: "CD"
+    capitals:
+      - name: "Kinshasa"
+        role: "official"
+
+  - country: "CF"
+    capitals:
+      - name: "Bangui"
+        role: "official"
+
+  - country: "CG"
+    capitals:
+      - name: "Brazzaville"
+        role: "official"
+
+  - country: "CH"
+    capitals:
+      - name: "Bern"
+        role: "de-facto"
+    note: "No official capital; Bern is de-facto seat"
+
+  - country: "CI"
+    capitals:
+      - name: "Yamoussoukro"
+        role: "official"
+      - name: "Abidjan"
+        role: "de-facto"
+    note: "Yamoussoukro is official, Abidjan is de-facto seat"
+
+  - country: "CK"
+    capitals:
+      - name: "Avarua"
+        role: "official"
+
+  - country: "CL"
+    capitals:
+      - name: "Santiago"
+        role: "official"
+
+  - country: "CM"
+    capitals:
+      - name: "Yaoundé"
+        role: "official"
+
+  - country: "CN"
+    capitals:
+      - name: "Beijing"
+        role: "official"
+
+  - country: "CO"
+    capitals:
+      - name: "Bogotá"
+        role: "official"
+
+  - country: "CR"
+    capitals:
+      - name: "San José"
+        role: "official"
+
+  - country: "CU"
+    capitals:
+      - name: "Havana"
+        role: "official"
+
+  - country: "CV"
+    capitals:
+      - name: "Praia"
+        role: "official"
+
+  - country: "CW"
+    capitals:
+      - name: "Willemstad"
+        role: "official"
+
+  - country: "CX"
+    capitals:
+      - name: "Flying Fish Cove"
+        role: "official"
+
+  - country: "CY"
+    capitals:
+      - name: "Nicosia"
+        role: "official"
+
+  - country: "CZ"
+    capitals:
+      - name: "Prague"
+        role: "official"
+
+  - country: "DE"
+    capitals:
+      - name: "Berlin"
+        role: "official"
+
+  - country: "DJ"
+    capitals:
+      - name: "Djibouti City"
+        role: "official"
+
+  - country: "DK"
+    capitals:
+      - name: "Copenhagen"
+        role: "official"
+
+  - country: "DM"
+    capitals:
+      - name: "Roseau"
+        role: "official"
+
+  - country: "DO"
+    capitals:
+      - name: "Santo Domingo"
+        role: "official"
+
+  - country: "DZ"
+    capitals:
+      - name: "Algiers"
+        role: "official"
+
+  - country: "EC"
+    capitals:
+      - name: "Quito"
+        role: "official"
+
+  - country: "EE"
+    capitals:
+      - name: "Tallinn"
+        role: "official"
+
+  - country: "EG"
+    capitals:
+      - name: "Cairo"
+        role: "official"
+
+  - country: "EH"
+    note: "Disputed territory; no internationally recognized capital"
+
+  - country: "ER"
+    capitals:
+      - name: "Asmara"
+        role: "official"
+
+  - country: "ES"
+    capitals:
+      - name: "Madrid"
+        role: "official"
+
+  - country: "ET"
+    capitals:
+      - name: "Addis Ababa"
+        role: "official"
+
+  - country: "FI"
+    capitals:
+      - name: "Helsinki"
+        role: "official"
+
+  - country: "FJ"
+    capitals:
+      - name: "Suva"
+        role: "official"
+
+  - country: "FK"
+    capitals:
+      - name: "Stanley"
+        role: "official"
+
+  - country: "FM"
+    capitals:
+      - name: "Palikir"
+        role: "official"
+
+  - country: "FO"
+    capitals:
+      - name: "Tórshavn"
+        role: "official"
+
+  - country: "FR"
+    capitals:
+      - name: "Paris"
+        role: "official"
+
+  - country: "GA"
+    capitals:
+      - name: "Libreville"
+        role: "official"
+
+  - country: "GB"
+    capitals:
+      - name: "London"
+        role: "official"
+
+  - country: "GD"
+    capitals:
+      - name: "Saint George's"
+        role: "official"
+
+  - country: "GE"
+    capitals:
+      - name: "Tbilisi"
+        role: "official"
+
+  - country: "GF"
+    capitals:
+      - name: "Cayenne"
+        role: "official"
+
+  - country: "GG"
+    capitals:
+      - name: "Saint Peter Port"
+        role: "official"
+
+  - country: "GH"
+    capitals:
+      - name: "Accra"
+        role: "official"
+
+  - country: "GI"
+    capitals:
+      - name: "Gibraltar"
+        role: "official"
+
+  - country: "GL"
+    capitals:
+      - name: "Nuuk"
+        role: "official"
+
+  - country: "GM"
+    capitals:
+      - name: "Banjul"
+        role: "official"
+
+  - country: "GN"
+    capitals:
+      - name: "Conakry"
+        role: "official"
+
+  - country: "GP"
+    capitals:
+      - name: "Basse-Terre"
+        role: "official"
+
+  - country: "GQ"
+    capitals:
+      - name: "Malabo"
+        role: "official"
+
+  - country: "GR"
+    capitals:
+      - name: "Athens"
+        role: "official"
+
+  - country: "GS"
+    capitals:
+      - name: "King Edward Point"
+        role: "official"
+
+  - country: "GT"
+    capitals:
+      - name: "Guatemala City"
+        role: "official"
+
+  - country: "GU"
+    capitals:
+      - name: "Hagatna"
+        role: "official"
+
+  - country: "GW"
+    capitals:
+      - name: "Bissau"
+        role: "official"
+
+  - country: "GY"
+    capitals:
+      - name: "Georgetown"
+        role: "official"
+
+  - country: "HK"
+    capitals:
+      - name: "Hong Kong"
+        role: "official"
+
+  - country: "HM"
+    note: "No permanent human settlements; uninhabited territory"
+
+  - country: "HN"
+    capitals:
+      - name: "Tegucigalpa"
+        role: "official"
+
+  - country: "HR"
+    capitals:
+      - name: "Zagreb"
+        role: "official"
+
+  - country: "HT"
+    capitals:
+      - name: "Port-au-Prince"
+        role: "official"
+
+  - country: "HU"
+    capitals:
+      - name: "Budapest"
+        role: "official"
+
+  - country: "ID"
+    capitals:
+      - name: "Jakarta"
+        role: "official"
+    note: "Nusantara planned as future capital; transfer in progress"
+
+  - country: "IE"
+    capitals:
+      - name: "Dublin"
+        role: "official"
+
+  - country: "IL"
+    capitals:
+      - name: "Jerusalem"
+        role: "official"
+    note: "Status disputed internationally"
+
+  - country: "IM"
+    capitals:
+      - name: "Douglas"
+        role: "official"
+
+  - country: "IN"
+    capitals:
+      - name: "New Delhi"
+        role: "official"
+
+  - country: "IO"
+    capitals:
+      - name: "Diego Garcia"
+        role: "official"
+
+  - country: "IQ"
+    capitals:
+      - name: "Baghdad"
+        role: "official"
+
+  - country: "IR"
+    capitals:
+      - name: "Tehran"
+        role: "official"
+
+  - country: "IS"
+    capitals:
+      - name: "Reykjavik"
+        role: "official"
+
+  - country: "IT"
+    capitals:
+      - name: "Rome"
+        role: "official"
+
+  - country: "JE"
+    capitals:
+      - name: "Saint Helier"
+        role: "official"
+
+  - country: "JM"
+    capitals:
+      - name: "Kingston"
+        role: "official"
+
+  - country: "JO"
+    capitals:
+      - name: "Amman"
+        role: "official"
+
+  - country: "JP"
+    capitals:
+      - name: "Tokyo"
+        role: "official"
+
+  - country: "KE"
+    capitals:
+      - name: "Nairobi"
+        role: "official"
+
+  - country: "KG"
+    capitals:
+      - name: "Bishkek"
+        role: "official"
+
+  - country: "KH"
+    capitals:
+      - name: "Phnom Penh"
+        role: "official"
+
+  - country: "KI"
+    capitals:
+      - name: "Tarawa"
+        role: "official"
+
+  - country: "KM"
+    capitals:
+      - name: "Moroni"
+        role: "official"
+
+  - country: "KN"
+    capitals:
+      - name: "Basseterre"
+        role: "official"
+
+  - country: "KP"
+    capitals:
+      - name: "Pyongyang"
+        role: "official"
+
+  - country: "KR"
+    capitals:
+      - name: "Seoul"
+        role: "official"
+
+  - country: "KW"
+    capitals:
+      - name: "Kuwait City"
+        role: "official"
+
+  - country: "KY"
+    capitals:
+      - name: "George Town"
+        role: "official"
+
+  - country: "KZ"
+    capitals:
+      - name: "Astana"
+        role: "official"
+    note: "Renamed from Nur-Sultan (2019) and Akmola (1998–2019)"
+
+  - country: "LA"
+    capitals:
+      - name: "Vientiane"
+        role: "official"
+
+  - country: "LB"
+    capitals:
+      - name: "Beirut"
+        role: "official"
+
+  - country: "LC"
+    capitals:
+      - name: "Castries"
+        role: "official"
+
+  - country: "LI"
+    capitals:
+      - name: "Vaduz"
+        role: "official"
+
+  - country: "LK"
+    capitals:
+      - name: "Sri Jayawardenepura Kotte"
+        role: "official"
+      - name: "Colombo"
+        role: "executive"
+    note: "Sri Jayawardenepura Kotte is official, Colombo is executive/commercial center"
+
+  - country: "LR"
+    capitals:
+      - name: "Monrovia"
+        role: "official"
+
+  - country: "LS"
+    capitals:
+      - name: "Maseru"
+        role: "official"
+
+  - country: "LT"
+    capitals:
+      - name: "Vilnius"
+        role: "official"
+
+  - country: "LU"
+    capitals:
+      - name: "Luxembourg City"
+        role: "official"
+
+  - country: "LV"
+    capitals:
+      - name: "Riga"
+        role: "official"
+
+  - country: "LY"
+    capitals:
+      - name: "Tripoli"
+        role: "official"
+
+  - country: "MA"
+    capitals:
+      - name: "Rabat"
+        role: "official"
+
+  - country: "MC"
+    capitals:
+      - name: "Monaco"
+        role: "official"
+
+  - country: "MD"
+    capitals:
+      - name: "Chișinău"
+        role: "official"
+
+  - country: "ME"
+    capitals:
+      - name: "Podgorica"
+        role: "official"
+
+  - country: "MF"
+    capitals:
+      - name: "Marigot"
+        role: "official"
+
+  - country: "MG"
+    capitals:
+      - name: "Antananarivo"
+        role: "official"
+
+  - country: "MH"
+    capitals:
+      - name: "Majuro"
+        role: "official"
+
+  - country: "MK"
+    capitals:
+      - name: "Skopje"
+        role: "official"
+
+  - country: "ML"
+    capitals:
+      - name: "Bamako"
+        role: "official"
+
+  - country: "MM"
+    capitals:
+      - name: "Naypyidaw"
+        role: "official"
+
+  - country: "MN"
+    capitals:
+      - name: "Ulaanbaatar"
+        role: "official"
+
+  - country: "MO"
+    capitals:
+      - name: "Macau"
+        role: "official"
+
+  - country: "MP"
+    capitals:
+      - name: "Saipan"
+        role: "official"
+
+  - country: "MQ"
+    capitals:
+      - name: "Fort-de-France"
+        role: "official"
+
+  - country: "MR"
+    capitals:
+      - name: "Nouakchott"
+        role: "official"
+
+  - country: "MS"
+    capitals:
+      - name: "Plymouth"
+        role: "official"
+    note: "Plymouth abandoned 1997; de-facto: Brades"
+
+  - country: "MT"
+    capitals:
+      - name: "Valletta"
+        role: "official"
+
+  - country: "MU"
+    capitals:
+      - name: "Port Louis"
+        role: "official"
+
+  - country: "MV"
+    capitals:
+      - name: "Malé"
+        role: "official"
+
+  - country: "MW"
+    capitals:
+      - name: "Lilongwe"
+        role: "official"
+
+  - country: "MX"
+    capitals:
+      - name: "Mexico City"
+        role: "official"
+
+  - country: "MY"
+    capitals:
+      - name: "Kuala Lumpur"
+        role: "official"
+      - name: "Putrajaya"
+        role: "seat-of-government"
+    note: "Kuala Lumpur is official, Putrajaya is administrative seat"
+
+  - country: "MZ"
+    capitals:
+      - name: "Maputo"
+        role: "official"
+
+  - country: "NA"
+    capitals:
+      - name: "Windhoek"
+        role: "official"
+
+  - country: "NC"
+    capitals:
+      - name: "Nouméa"
+        role: "official"
+
+  - country: "NE"
+    capitals:
+      - name: "Niamey"
+        role: "official"
+
+  - country: "NF"
+    capitals:
+      - name: "Kingston"
+        role: "official"
+
+  - country: "NG"
+    capitals:
+      - name: "Abuja"
+        role: "official"
+
+  - country: "NI"
+    capitals:
+      - name: "Managua"
+        role: "official"
+
+  - country: "NL"
+    capitals:
+      - name: "Amsterdam"
+        role: "official"
+      - name: "The Hague"
+        role: "seat-of-government"
+    note: "Amsterdam is official, The Hague is seat of government"
+
+  - country: "NO"
+    capitals:
+      - name: "Oslo"
+        role: "official"
+
+  - country: "NP"
+    capitals:
+      - name: "Kathmandu"
+        role: "official"
+
+  - country: "NR"
+    capitals:
+      - name: "Yaren"
+        role: "official"
+
+  - country: "NU"
+    capitals:
+      - name: "Alofi"
+        role: "official"
+
+  - country: "NZ"
+    capitals:
+      - name: "Wellington"
+        role: "official"
+
+  - country: "OM"
+    capitals:
+      - name: "Muscat"
+        role: "official"
+
+  - country: "PA"
+    capitals:
+      - name: "Panama City"
+        role: "official"
+
+  - country: "PE"
+    capitals:
+      - name: "Lima"
+        role: "official"
+
+  - country: "PF"
+    capitals:
+      - name: "Papeete"
+        role: "official"
+
+  - country: "PG"
+    capitals:
+      - name: "Port Moresby"
+        role: "official"
+
+  - country: "PH"
+    capitals:
+      - name: "Manila"
+        role: "official"
+
+  - country: "PK"
+    capitals:
+      - name: "Islamabad"
+        role: "official"
+
+  - country: "PL"
+    capitals:
+      - name: "Warsaw"
+        role: "official"
+
+  - country: "PM"
+    capitals:
+      - name: "Saint-Pierre"
+        role: "official"
+
+  - country: "PN"
+    capitals:
+      - name: "Adamstown"
+        role: "official"
+
+  - country: "PR"
+    capitals:
+      - name: "San Juan"
+        role: "official"
+
+  - country: "PS"
+    capitals:
+      - name: "Ramallah"
+        role: "official"
+    note: "Disputed territory; de-facto seat"
+
+  - country: "PT"
+    capitals:
+      - name: "Lisbon"
+        role: "official"
+
+  - country: "PW"
+    capitals:
+      - name: "Ngerulmud"
+        role: "official"
+
+  - country: "PY"
+    capitals:
+      - name: "Asunción"
+        role: "official"
+
+  - country: "QA"
+    capitals:
+      - name: "Doha"
+        role: "official"
+
+  - country: "RE"
+    capitals:
+      - name: "Saint-Denis"
+        role: "official"
+
+  - country: "RO"
+    capitals:
+      - name: "Bucharest"
+        role: "official"
+
+  - country: "RS"
+    capitals:
+      - name: "Belgrade"
+        role: "official"
+
+  - country: "RU"
+    capitals:
+      - name: "Moscow"
+        role: "official"
+
+  - country: "RW"
+    capitals:
+      - name: "Kigali"
+        role: "official"
+
+  - country: "SA"
+    capitals:
+      - name: "Riyadh"
+        role: "official"
+
+  - country: "SB"
+    capitals:
+      - name: "Honiara"
+        role: "official"
+
+  - country: "SC"
+    capitals:
+      - name: "Victoria"
+        role: "official"
+
+  - country: "SD"
+    capitals:
+      - name: "Khartoum"
+        role: "official"
+
+  - country: "SE"
+    capitals:
+      - name: "Stockholm"
+        role: "official"
+
+  - country: "SG"
+    capitals:
+      - name: "Singapore"
+        role: "official"
+
+  - country: "SH"
+    capitals:
+      - name: "Jamestown"
+        role: "official"
+
+  - country: "SI"
+    capitals:
+      - name: "Ljubljana"
+        role: "official"
+
+  - country: "SJ"
+    note: "Territory administered by Norway; no separate capital"
+
+  - country: "SK"
+    capitals:
+      - name: "Bratislava"
+        role: "official"
+
+  - country: "SL"
+    capitals:
+      - name: "Freetown"
+        role: "official"
+
+  - country: "SM"
+    capitals:
+      - name: "San Marino"
+        role: "official"
+
+  - country: "SN"
+    capitals:
+      - name: "Dakar"
+        role: "official"
+
+  - country: "SO"
+    capitals:
+      - name: "Mogadishu"
+        role: "official"
+
+  - country: "SR"
+    capitals:
+      - name: "Paramaribo"
+        role: "official"
+
+  - country: "SS"
+    capitals:
+      - name: "Juba"
+        role: "official"
+
+  - country: "ST"
+    capitals:
+      - name: "São Tomé"
+        role: "official"
+
+  - country: "SV"
+    capitals:
+      - name: "San Salvador"
+        role: "official"
+
+  - country: "SX"
+    capitals:
+      - name: "Philipsburg"
+        role: "official"
+
+  - country: "SY"
+    capitals:
+      - name: "Damascus"
+        role: "official"
+
+  - country: "SZ"
+    capitals:
+      - name: "Mbabane"
+        role: "executive"
+      - name: "Lobamba"
+        role: "legislative"
+    note: "Mbabane is executive capital, Lobamba is legislative capital"
+
+  - country: "TC"
+    capitals:
+      - name: "Cockburn Town"
+        role: "official"
+
+  - country: "TD"
+    capitals:
+      - name: "N'Djamena"
+        role: "official"
+
+  - country: "TF"
+    note: "No permanent human settlements; uninhabited territory"
+
+  - country: "TG"
+    capitals:
+      - name: "Lomé"
+        role: "official"
+
+  - country: "TH"
+    capitals:
+      - name: "Bangkok"
+        role: "official"
+
+  - country: "TJ"
+    capitals:
+      - name: "Dushanbe"
+        role: "official"
+
+  - country: "TK"
+    capitals:
+      - name: "Atafu"
+        role: "official"
+
+  - country: "TL"
+    capitals:
+      - name: "Dili"
+        role: "official"
+
+  - country: "TM"
+    capitals:
+      - name: "Ashgabat"
+        role: "official"
+
+  - country: "TN"
+    capitals:
+      - name: "Tunis"
+        role: "official"
+
+  - country: "TO"
+    capitals:
+      - name: "Nuku'alofa"
+        role: "official"
+
+  - country: "TR"
+    capitals:
+      - name: "Ankara"
+        role: "official"
+
+  - country: "TT"
+    capitals:
+      - name: "Port of Spain"
+        role: "official"
+
+  - country: "TV"
+    capitals:
+      - name: "Funafuti"
+        role: "official"
+
+  - country: "TW"
+    capitals:
+      - name: "Taipei"
+        role: "official"
+    note: "Status disputed; People's Republic of China does not recognize"
+
+  - country: "TZ"
+    capitals:
+      - name: "Dodoma"
+        role: "official"
+      - name: "Dar es Salaam"
+        role: "de-facto"
+    note: "Dodoma is official capital, Dar es Salaam is de-facto seat"
+
+  - country: "UA"
+    capitals:
+      - name: "Kyiv"
+        role: "official"
+
+  - country: "UG"
+    capitals:
+      - name: "Kampala"
+        role: "official"
+
+  - country: "UM"
+    note: "Uninhabited island territories; no capital"
+
+  - country: "US"
+    capitals:
+      - name: "Washington, D.C."
+        role: "official"
+
+  - country: "UY"
+    capitals:
+      - name: "Montevideo"
+        role: "official"
+
+  - country: "UZ"
+    capitals:
+      - name: "Tashkent"
+        role: "official"
+
+  - country: "VA"
+    capitals:
+      - name: "Vatican City"
+        role: "official"
+
+  - country: "VC"
+    capitals:
+      - name: "Kingstown"
+        role: "official"
+
+  - country: "VE"
+    capitals:
+      - name: "Caracas"
+        role: "official"
+
+  - country: "VG"
+    capitals:
+      - name: "Road Town"
+        role: "official"
+
+  - country: "VI"
+    capitals:
+      - name: "Charlotte Amalie"
+        role: "official"
+
+  - country: "VN"
+    capitals:
+      - name: "Hanoi"
+        role: "official"
+
+  - country: "VU"
+    capitals:
+      - name: "Port Vila"
+        role: "official"
+
+  - country: "WF"
+    capitals:
+      - name: "Matāutu"
+        role: "official"
+
+  - country: "WS"
+    capitals:
+      - name: "Apia"
+        role: "official"
+
+  - country: "YE"
+    capitals:
+      - name: "Sana'a"
+        role: "official"
+
+  - country: "YT"
+    capitals:
+      - name: "Mamoudzou"
+        role: "official"
+
+  - country: "ZA"
+    capitals:
+      - name: "Pretoria"
+        role: "executive"
+      - name: "Cape Town"
+        role: "legislative"
+      - name: "Bloemfontein"
+        role: "judicial"
+    note: "South Africa has three capitals: Pretoria (executive), Cape Town (legislative), Bloemfontein (judicial)"
+
+  - country: "ZM"
+    capitals:
+      - name: "Lusaka"
+        role: "official"
+
+  - country: "ZW"
+    capitals:
+      - name: "Harare"
+        role: "official"
