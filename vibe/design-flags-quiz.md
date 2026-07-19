@@ -5,7 +5,7 @@ Architecture-only design for the flags topic (orchestrator brief item C1 / archi
 ## 1. Goal
 
 Flag image (or emoji fallback) → country name, single-choice by default. Two designed variants:
-- **Set-choice** for visually confusable flag pairs/groups (e.g. Chad/Romania; Indonesia/Monaco/Poland) — the grading model from architecture §1.6, not a hand-waved "close enough" MCQ.
+- **Set-choice** for visually confusable flag pairs/groups (e.g. Chad/Romania; Indonesia/Monaco/Poland — full list of 10 groups in §5a) — the grading model from architecture §1.6, not a hand-waved "close enough" MCQ.
 - **Emoji-only text fallback** when no image asset is ingested yet for an item, so the topic is usable before the media pipeline is fully populated.
 
 Includes GB subdivision flags (England/Scotland/Wales), which are visually distinct from each other and from the Union Flag, so they are ordinary single items — no subdivision belongs to a confusable group.
@@ -28,7 +28,7 @@ flags (container, base_tier=0)
 ```json
 {
   "flag_emoji": "🇫🇷",
-  "image": "flags/fr.png",
+  "image": "fr.png",
   "is_subdivision": false
 }
 ```
@@ -40,7 +40,7 @@ flags (container, base_tier=0)
 ```json
 {
   "countries": ["TD", "RO"],
-  "images": ["flags/td.png", "flags/ro.png"],
+  "images": ["td.png", "ro.png"],
   "label": "Chad / Romania"
 }
 ```
@@ -49,37 +49,62 @@ flags (container, base_tier=0)
 
 `BuildExercise` picks which member's image to show for a group item via `rng.Intn(len(images))` each time — varying which of the pair/triplet is displayed across repetitions, so the user learns to tell all members apart, not just memorize one image.
 
-## 4. Where data lives — seed file sketch
+## 4. Where data lives — seed file
 
-`seeds/flags.yaml` (illustrative shape only, no real entries):
+`seeds/flags.yaml` is filled in: 228 ordinary single items (one per country/subdivision not in a confusable group) plus 10 `confusable_groups` entries covering the remaining 24 countries — 252 total, matching every `iso_a2` row in `seeds/countries.yaml` exactly once. Real shape (see the file's own top-of-file schema comment for the authoritative version):
 
 ```yaml
 flags:
   - country: FR
-    image: flags/fr.png
+    image: fr.png
   - country: GB-SCT       # subdivision, ordinary single item
-    image: flags/gb-sct.png
+    image: gb-sct.png
 
 confusable_groups:
-  - countries: [TD, RO]
-    images: [flags/td.png, flags/ro.png]
+  - group: chad-romania
+    countries: [TD, RO]
+    images: [td.png, ro.png]
     label: "Chad / Romania"
-  - countries: [ID, MC, PL]
-    images: [flags/id.png, flags/mc.png, flags/pl.png]
+  - group: indonesia-monaco-poland
+    countries: [ID, MC, PL]
+    images: [id.png, mc.png, pl.png]
     label: "Indonesia / Monaco / Poland"
 ```
 
-Countries themselves are NOT re-declared here — `flags.country` / `confusable_groups.countries` are ISO A2 codes resolved against the existing `countries` table (architecture §2.6, already seeded by `roadside.Seed`/its `countries.yaml`). Flags seeding only needs `GetCountryByISO` lookups, never `UpsertCountry`.
+Countries themselves are NOT re-declared here — `flags.country` / `confusable_groups.countries` are ISO A2 codes resolved against the existing `countries` table (architecture §2.6, already seeded by `roadside.Seed`/its `countries.yaml`). Flags seeding only needs `GetCountryByISO` lookups, never `UpsertCountry`. `image`/`images` entries are bare filenames — relative to the media root, which is itself `data/flags/` (see §5), so there is no `flags/` path segment inside the value.
 
 ## 5. Media pipeline
 
-Image assets (a public-domain flag set, e.g. sourced from Wikimedia Commons and re-encoded to a consistent PNG size — the concrete source is a data-task decision, not this doc's) live in a **gitignored** `media/` directory at the repo root, sibling to `seeds/` but never committed: ~260 flag PNGs (countries + subdivisions + group duplicates) would bloat a public repo for assets that are trivially re-fetched from their public-domain source. Add `media/` to `.gitignore` alongside the existing `.env`/`*.log` entries.
+**Image source (decided):** [flagcdn.com](https://flagcdn.com/) (operated by Flagpedia.net), PNG at the `w320` fixed-width size — e.g. `https://flagcdn.com/w320/fr.png`, `https://flagcdn.com/w320/gb-sct.png`. flagcdn.com additionally exposes the UK constituent-country subdivisions under exactly the codes this project already uses lowercased (`gb-eng`, `gb-sct`, `gb-wls`, plus `gb-nir` which this project doesn't seed), so no separate subdivision source was needed.
 
-Ingest pipeline (a new `cmd/flagassets` tool, isolated per architecture §8's conflict-avoidance rule):
-1. For each seed-file image path, compute `sha256` of the on-disk file under the media root.
+**License:** public domain. Flagpedia.net's own License section (`https://flagpedia.net/about`, "License"): *"Flag images are in the public domain (exempt from copyright). They are completely free for non-commercial and even commercial use."* No attribution is legally required (a backlink to flagpedia.net is merely "appreciated"). This is safe to redistribute via a fetch script committed to a public repo — the script only contains a URL pattern and country codes, and the images it fetches carry no copyright restriction.
+
+**Media root (decided):** `data/flags/`, i.e. the existing gitignored `/data/` root (already covering the Tatoeba download cache, `.gitignore` line 2) gets a `flags/` subdirectory — no new `.gitignore` entry needed. This supersedes the originally-sketched separate `media/` directory: reusing `/data/` avoids an extra gitignore rule for what is conceptually the same thing (a local, regenerable, non-versioned asset cache). Full path for a given code: `data/flags/<lowercase-iso2>.png` (e.g. `data/flags/fr.png`, `data/flags/gb-sct.png`).
+
+**Fetch script (built):** `scripts/fetch-flags.sh` — reads every `iso_a2` out of `seeds/countries.yaml` (including the 3 GB-* subdivision rows), downloads `https://flagcdn.com/w320/<lowercase-code>.png` into `data/flags/<lowercase-code>.png` for any code not already present on disk, at 1 request/second with an honest User-Agent identifying the project and a contact URL. A per-file download failure is logged to stderr and the script continues to the next code (never aborts the whole run); a summary (total/downloaded/skipped/failed) prints at the end. Run once already: all 252 codes downloaded successfully (0 failures) — `data/flags/` is populated locally (~1.1 MB) for the downstream Go worker to test the media pipeline against real files. Re-running is a no-op (idempotent skip-if-present).
+
+**Still open for the Go worker (a new `cmd/flagassets` tool, isolated per architecture §8's conflict-avoidance rule)** — this data task only populates the local disk cache; DB ingestion is unbuilt:
+1. For each seed-file image path, compute `sha256` of the on-disk file under the media root (`data/flags/`).
 2. `store.InsertContent`-equivalent for v2: create a `content_items` row (`kind='photo'`, `topic_id=<guess-the-flag topic id>`, `key=<iso_a2 or group key>`, `payload=<relative path>`, architecture §2.8).
 3. `store.PutMediaFile(ctx, &contentID, localPath, sha256, width, height, bytes)` (already implemented, `internal/storage/media.go`) — upserts keyed on `local_path`, idempotent.
 4. `telegram_file_id` starts empty; it is populated lazily.
+
+### 5a. Confusable groups (10, 24 countries)
+
+Beyond the two named in the original sketch, this task's research pass added a few more well-known look-alike sets, keeping every country in at most one group (required by the §3 exclusivity rule and the §8 audit):
+
+| Slug | Members | Why confusable |
+|---|---|---|
+| `chad-romania` | TD, RO | Near-identical blue/yellow/red vertical tricolour, differing only in shade |
+| `indonesia-monaco-poland` | ID, MC, PL | Plain red/white horizontal bicolour, differing only in stripe order (ID/MC red-over-white vs PL white-over-red) |
+| `netherlands-luxembourg` | NL, LU | Red/white/blue horizontal tricolour, differing only in blue shade and proportions |
+| `ireland-cote-divoire` | IE, CI | Green/white/orange vertical tricolour, mirror-image stripe order |
+| `norway-iceland` | NO, IS | Nordic-cross flags, both red/white/blue, differing only in cross proportions |
+| `pan-slavic-tricolour` | SI, SK, RU | White/blue/red horizontal tricolour family; SI/SK add a small coat of arms easy to miss at a glance |
+| `australia-new-zealand` | AU, NZ | Blue ensign with Union Jack canton plus stars, differing only in star count/color and Commonwealth Star |
+| `pan-african-green-yellow-red` | SN, ML, CM | Green/yellow/red vertical or horizontal pan-African tricolour, differing only in emblem/stripe orientation |
+| `andean-tricolour` | CO, EC, VE | Yellow/blue/red horizontal tricolour (Gran Colombia lineage), differing only in band proportions and coat of arms |
+| `rio-de-la-plata-sun` | AR, UY | Light-blue/white horizontal bands with a golden Sun of May, differing only in band count/layout |
 
 **Telegram file_id caching (a small existing-code gap to flag for the implementer):** today `Session.SendPhoto` (`internal/telegram/bot.go`) always sends via `telebot.FromDisk(path)` — it never consults or writes `media_files.telegram_file_id`. Flags is the first topic that actually needs the "cached on first send" win (task brief, architecture §2.8/§6 decision 6), so this wave should extend `SendPhoto`/`EditCaption` (or wrap them) to: look up `GetMediaByLocalPath`, send via a cached Telegram file_id when present (telebot supports sending an `&telebot.Photo{File: telebot.File{FileID: id}}`), otherwise send from disk and call `SetMediaTelegramFileID` with the resulting `msg.Photo.FileID`. This touches `internal/telegram/bot.go`, which is outside this design doc's own file scope (`vibe/` only) — call it out as a required follow-up task for whichever wave wires flags into `cmd/bot`.
 
@@ -114,9 +139,10 @@ Recommend factoring the per-country tier function into a small shared helper (no
 
 - `internal/topics/flags/{seed.go,generator.go,seed_test.go,generator_test.go,audit_test.go,integration_test.go}`
 - `internal/topics/countrytier/tier.go` (shared helper, if not already created by whichever of these five docs lands first — see §7)
-- `cmd/flagassets/main.go` (isolated ingest tool, §5)
-- `seeds/flags.yaml` (structure only until a haiku data task fills it)
-- `.gitignore` entry for `media/`
+- `cmd/flagassets/main.go` (isolated ingest tool, §5 — DB ingestion, not yet built)
+- `seeds/flags.yaml` — **done**: 228 single items + 10 confusable groups (§4, §5a)
+- `scripts/fetch-flags.sh` — **done**: idempotent flagcdn.com PNG fetcher (§5)
+- No `.gitignore` change needed — `data/flags/` is already covered by the existing `/data/` rule
 
 No new migration.
 

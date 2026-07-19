@@ -1,0 +1,523 @@
+# Flags quiz seed data (seeds/flags.yaml)
+#
+# Consumed by internal/topics/flags (see vibe/design-flags-quiz.md). Data-only
+# file — no Go code here. Countries are NOT re-declared: `flags[].country` and
+# `confusable_groups[].countries` are ISO A2 codes (including the GB-ENG/GB-SCT/
+# GB-WLS subdivision pseudo-codes) resolved against the `countries` table already
+# seeded from seeds/countries.yaml. Tiers are NOT assigned here — the Go seed step
+# derives tier from the shared country-tier rubric (architecture SS4) at seed time.
+#
+# Schema:
+#
+# flags:                        # ordinary single items (one country each)
+#   - country: <ISO2>            # e.g. "FR", "GB-SCT" — matches seeds/countries.yaml iso_a2
+#     image: <lowercase-iso2>.png # filename under the media root data/flags/ (gitignored;
+#                                 # fetched by scripts/fetch-flags.sh). Relative to media root.
+#
+# confusable_groups:            # set-choice items — the group, not any one member, is quizzed
+#   - group: <slug>              # stable machine key, used as items.key material (sorted ISO list)
+#     countries: [<ISO2>, ...]    # member countries; NONE of these also appear under `flags:`
+#                                 # above (design.md SS3 exclusivity rule) — no standalone single
+#                                 # item for a country whose flag is only unambiguous as a group
+#     images: [<lowercase-iso2>.png, ...]  # same order/length as `countries`; one PNG per member
+#     label: "<human label>"      # shown in prompts/logs, e.g. "Chad / Romania"
+
+flags:
+  - country: AD
+    image: ad.png
+  - country: AE
+    image: ae.png
+  - country: AF
+    image: af.png
+  - country: AG
+    image: ag.png
+  - country: AI
+    image: ai.png
+  - country: AL
+    image: al.png
+  - country: AM
+    image: am.png
+  - country: AO
+    image: ao.png
+  - country: AQ
+    image: aq.png
+  - country: AS
+    image: as.png
+  - country: AT
+    image: at.png
+  - country: AW
+    image: aw.png
+  - country: AX
+    image: ax.png
+  - country: AZ
+    image: az.png
+  - country: BA
+    image: ba.png
+  - country: BB
+    image: bb.png
+  - country: BD
+    image: bd.png
+  - country: BE
+    image: be.png
+  - country: BF
+    image: bf.png
+  - country: BG
+    image: bg.png
+  - country: BH
+    image: bh.png
+  - country: BI
+    image: bi.png
+  - country: BJ
+    image: bj.png
+  - country: BL
+    image: bl.png
+  - country: BM
+    image: bm.png
+  - country: BN
+    image: bn.png
+  - country: BO
+    image: bo.png
+  - country: BQ
+    image: bq.png
+  - country: BR
+    image: br.png
+  - country: BS
+    image: bs.png
+  - country: BT
+    image: bt.png
+  - country: BV
+    image: bv.png
+  - country: BW
+    image: bw.png
+  - country: BY
+    image: by.png
+  - country: BZ
+    image: bz.png
+  - country: CA
+    image: ca.png
+  - country: CC
+    image: cc.png
+  - country: CD
+    image: cd.png
+  - country: CF
+    image: cf.png
+  - country: CG
+    image: cg.png
+  - country: CH
+    image: ch.png
+  - country: CK
+    image: ck.png
+  - country: CL
+    image: cl.png
+  - country: CN
+    image: cn.png
+  - country: CR
+    image: cr.png
+  - country: CU
+    image: cu.png
+  - country: CV
+    image: cv.png
+  - country: CW
+    image: cw.png
+  - country: CX
+    image: cx.png
+  - country: CY
+    image: cy.png
+  - country: CZ
+    image: cz.png
+  - country: DE
+    image: de.png
+  - country: DJ
+    image: dj.png
+  - country: DK
+    image: dk.png
+  - country: DM
+    image: dm.png
+  - country: DO
+    image: do.png
+  - country: DZ
+    image: dz.png
+  - country: EE
+    image: ee.png
+  - country: EG
+    image: eg.png
+  - country: EH
+    image: eh.png
+  - country: ER
+    image: er.png
+  - country: ES
+    image: es.png
+  - country: ET
+    image: et.png
+  - country: FI
+    image: fi.png
+  - country: FJ
+    image: fj.png
+  - country: FK
+    image: fk.png
+  - country: FM
+    image: fm.png
+  - country: FO
+    image: fo.png
+  - country: FR
+    image: fr.png
+  - country: GA
+    image: ga.png
+  - country: GB
+    image: gb.png
+  - country: GB-ENG
+    image: gb-eng.png
+  - country: GB-SCT
+    image: gb-sct.png
+  - country: GB-WLS
+    image: gb-wls.png
+  - country: GD
+    image: gd.png
+  - country: GE
+    image: ge.png
+  - country: GF
+    image: gf.png
+  - country: GG
+    image: gg.png
+  - country: GH
+    image: gh.png
+  - country: GI
+    image: gi.png
+  - country: GL
+    image: gl.png
+  - country: GM
+    image: gm.png
+  - country: GN
+    image: gn.png
+  - country: GP
+    image: gp.png
+  - country: GQ
+    image: gq.png
+  - country: GR
+    image: gr.png
+  - country: GS
+    image: gs.png
+  - country: GT
+    image: gt.png
+  - country: GU
+    image: gu.png
+  - country: GW
+    image: gw.png
+  - country: GY
+    image: gy.png
+  - country: HK
+    image: hk.png
+  - country: HM
+    image: hm.png
+  - country: HN
+    image: hn.png
+  - country: HR
+    image: hr.png
+  - country: HT
+    image: ht.png
+  - country: HU
+    image: hu.png
+  - country: IL
+    image: il.png
+  - country: IM
+    image: im.png
+  - country: IN
+    image: in.png
+  - country: IO
+    image: io.png
+  - country: IQ
+    image: iq.png
+  - country: IR
+    image: ir.png
+  - country: IT
+    image: it.png
+  - country: JE
+    image: je.png
+  - country: JM
+    image: jm.png
+  - country: JO
+    image: jo.png
+  - country: JP
+    image: jp.png
+  - country: KE
+    image: ke.png
+  - country: KG
+    image: kg.png
+  - country: KH
+    image: kh.png
+  - country: KI
+    image: ki.png
+  - country: KM
+    image: km.png
+  - country: KN
+    image: kn.png
+  - country: KP
+    image: kp.png
+  - country: KR
+    image: kr.png
+  - country: KW
+    image: kw.png
+  - country: KY
+    image: ky.png
+  - country: KZ
+    image: kz.png
+  - country: LA
+    image: la.png
+  - country: LB
+    image: lb.png
+  - country: LC
+    image: lc.png
+  - country: LI
+    image: li.png
+  - country: LK
+    image: lk.png
+  - country: LR
+    image: lr.png
+  - country: LS
+    image: ls.png
+  - country: LT
+    image: lt.png
+  - country: LV
+    image: lv.png
+  - country: LY
+    image: ly.png
+  - country: MA
+    image: ma.png
+  - country: MD
+    image: md.png
+  - country: ME
+    image: me.png
+  - country: MF
+    image: mf.png
+  - country: MG
+    image: mg.png
+  - country: MH
+    image: mh.png
+  - country: MK
+    image: mk.png
+  - country: MM
+    image: mm.png
+  - country: MN
+    image: mn.png
+  - country: MO
+    image: mo.png
+  - country: MP
+    image: mp.png
+  - country: MQ
+    image: mq.png
+  - country: MR
+    image: mr.png
+  - country: MS
+    image: ms.png
+  - country: MT
+    image: mt.png
+  - country: MU
+    image: mu.png
+  - country: MV
+    image: mv.png
+  - country: MW
+    image: mw.png
+  - country: MX
+    image: mx.png
+  - country: MY
+    image: my.png
+  - country: MZ
+    image: mz.png
+  - country: NA
+    image: na.png
+  - country: NC
+    image: nc.png
+  - country: NE
+    image: ne.png
+  - country: NF
+    image: nf.png
+  - country: NG
+    image: ng.png
+  - country: NI
+    image: ni.png
+  - country: NP
+    image: np.png
+  - country: NR
+    image: nr.png
+  - country: NU
+    image: nu.png
+  - country: OM
+    image: om.png
+  - country: PA
+    image: pa.png
+  - country: PE
+    image: pe.png
+  - country: PF
+    image: pf.png
+  - country: PG
+    image: pg.png
+  - country: PH
+    image: ph.png
+  - country: PK
+    image: pk.png
+  - country: PM
+    image: pm.png
+  - country: PN
+    image: pn.png
+  - country: PR
+    image: pr.png
+  - country: PS
+    image: ps.png
+  - country: PT
+    image: pt.png
+  - country: PW
+    image: pw.png
+  - country: PY
+    image: py.png
+  - country: QA
+    image: qa.png
+  - country: RE
+    image: re.png
+  - country: RS
+    image: rs.png
+  - country: RW
+    image: rw.png
+  - country: SA
+    image: sa.png
+  - country: SB
+    image: sb.png
+  - country: SC
+    image: sc.png
+  - country: SD
+    image: sd.png
+  - country: SE
+    image: se.png
+  - country: SG
+    image: sg.png
+  - country: SH
+    image: sh.png
+  - country: SJ
+    image: sj.png
+  - country: SL
+    image: sl.png
+  - country: SM
+    image: sm.png
+  - country: SO
+    image: so.png
+  - country: SR
+    image: sr.png
+  - country: SS
+    image: ss.png
+  - country: ST
+    image: st.png
+  - country: SV
+    image: sv.png
+  - country: SX
+    image: sx.png
+  - country: SY
+    image: sy.png
+  - country: SZ
+    image: sz.png
+  - country: TC
+    image: tc.png
+  - country: TF
+    image: tf.png
+  - country: TG
+    image: tg.png
+  - country: TH
+    image: th.png
+  - country: TJ
+    image: tj.png
+  - country: TK
+    image: tk.png
+  - country: TL
+    image: tl.png
+  - country: TM
+    image: tm.png
+  - country: TN
+    image: tn.png
+  - country: TO
+    image: to.png
+  - country: TR
+    image: tr.png
+  - country: TT
+    image: tt.png
+  - country: TV
+    image: tv.png
+  - country: TW
+    image: tw.png
+  - country: TZ
+    image: tz.png
+  - country: UA
+    image: ua.png
+  - country: UG
+    image: ug.png
+  - country: UM
+    image: um.png
+  - country: US
+    image: us.png
+  - country: UZ
+    image: uz.png
+  - country: VA
+    image: va.png
+  - country: VC
+    image: vc.png
+  - country: VG
+    image: vg.png
+  - country: VI
+    image: vi.png
+  - country: VN
+    image: vn.png
+  - country: VU
+    image: vu.png
+  - country: WF
+    image: wf.png
+  - country: WS
+    image: ws.png
+  - country: YE
+    image: ye.png
+  - country: YT
+    image: yt.png
+  - country: ZA
+    image: za.png
+  - country: ZM
+    image: zm.png
+  - country: ZW
+    image: zw.png
+
+confusable_groups:
+  - group: chad-romania
+    countries: [TD, RO]
+    images: [td.png, ro.png]
+    label: "Chad / Romania"
+  - group: indonesia-monaco-poland
+    countries: [ID, MC, PL]
+    images: [id.png, mc.png, pl.png]
+    label: "Indonesia / Monaco / Poland"
+  - group: netherlands-luxembourg
+    countries: [NL, LU]
+    images: [nl.png, lu.png]
+    label: "Netherlands / Luxembourg"
+  - group: ireland-cote-divoire
+    countries: [IE, CI]
+    images: [ie.png, ci.png]
+    label: "Ireland / Cote d'Ivoire"
+  - group: norway-iceland
+    countries: [NO, IS]
+    images: [no.png, is.png]
+    label: "Norway / Iceland"
+  - group: pan-slavic-tricolour
+    countries: [SI, SK, RU]
+    images: [si.png, sk.png, ru.png]
+    label: "Slovenia / Slovakia / Russia"
+  - group: australia-new-zealand
+    countries: [AU, NZ]
+    images: [au.png, nz.png]
+    label: "Australia / New Zealand"
+  - group: pan-african-green-yellow-red
+    countries: [SN, ML, CM]
+    images: [sn.png, ml.png, cm.png]
+    label: "Senegal / Mali / Cameroon"
+  - group: andean-tricolour
+    countries: [CO, EC, VE]
+    images: [co.png, ec.png, ve.png]
+    label: "Colombia / Ecuador / Venezuela"
+  - group: rio-de-la-plata-sun
+    countries: [AR, UY]
+    images: [ar.png, uy.png]
+    label: "Argentina / Uruguay"
