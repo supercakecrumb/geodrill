@@ -26,6 +26,7 @@ type userStore interface {
 	SetReminderHour(ctx context.Context, userID uuid.UUID, hour int) error
 	SetFollowUpEnabled(ctx context.Context, userID uuid.UUID, enabled bool) error
 	SetFollowUpDelay(ctx context.Context, userID uuid.UUID, minutes int) error
+	SetGGOnly(ctx context.Context, userID uuid.UUID, enabled bool) error
 	SetLabelStyle(ctx context.Context, userID uuid.UUID, style string) error
 	UsersWithReminders(ctx context.Context) ([]storage.User, error)
 	CountReviewsSince(ctx context.Context, userID uuid.UUID, since time.Time) (int, error)
@@ -106,7 +107,7 @@ const fallbackText = "Something went wrong on my end. Please try again in a mome
 const staleToast = "⏳ already answered"
 const correctToast = "✅ correct"
 const wrongToast = "❌ wrong"
-const settingsText = "⚙️ Settings — daily new-skill cap, button style, and reminders:"
+const settingsText = "⚙️ Settings — daily new-skill cap, button style, reminders, and the GeoGuessr-only filter:"
 
 // decksUnavailableText is what the retired /decks command replies with when
 // TopicService isn't wired: the legacy per-deck picker was removed along
@@ -290,6 +291,31 @@ func (b *Bot) handleFollowUpDelayCycle(ctx context.Context, s Session) error {
 	user.FollowUpDelayMin = nextFollowUpDelay(user.FollowUpDelayMin)
 	if err := b.store.SetFollowUpDelay(ctx, user.ID, user.FollowUpDelayMin); err != nil {
 		return err
+	}
+	return b.rerenderSettings(ctx, s, user)
+}
+
+// handleGGOnlyToggle flips the GeoGuessr-only coverage filter (users.gg_only)
+// and re-renders settings. Because tier totals depend on this per-user flag
+// (the tier queries filter on items.gg_relevant when it's set), the gating
+// cache is rebuilt immediately via TierRecomputer so /topics, /study
+// candidates, and the /stats tier readout reflect the new mode at once —
+// otherwise AllowedTiers would gate against stale totals until the next
+// answer. A nil TierRecomputer still persists the flag (nil-safe); the next
+// answer/introduction recomputes the touched tier anyway.
+func (b *Bot) handleGGOnlyToggle(ctx context.Context, s Session) error {
+	user, err := b.loadOrCreateUser(ctx, s)
+	if err != nil {
+		return err
+	}
+	user.GGOnly = !user.GGOnly
+	if err := b.store.SetGGOnly(ctx, user.ID, user.GGOnly); err != nil {
+		return err
+	}
+	if b.tiers != nil {
+		if err := b.tiers.RecomputeTiers(ctx, user.ID); err != nil {
+			return err
+		}
 	}
 	return b.rerenderSettings(ctx, s, user)
 }
@@ -552,6 +578,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleReminderHourChange(ctx, s, -1)
 	case data == "fup:toggle":
 		return b.handleFollowUpToggle(ctx, s)
+	case data == "gg:toggle":
+		return b.handleGGOnlyToggle(ctx, s)
 	case data == "fupdelay:cycle":
 		return b.handleFollowUpDelayCycle(ctx, s)
 	case data == "style:cycle":
@@ -673,6 +701,13 @@ func settingsRows(user storage.User, introCap *int) [][]Btn {
 	rows = append(rows, []Btn{
 		{Label: fmt.Sprintf("⏱ follow-up after %d min", user.FollowUpDelayMin), Data: "fupdelay:cycle"},
 	})
+
+	// GeoGuessr-only filter: hide non-coverage countries/languages everywhere.
+	ggLabel := "🌍 GeoGuessr-only: off"
+	if user.GGOnly {
+		ggLabel = "🌍 GeoGuessr-only: on"
+	}
+	rows = append(rows, []Btn{{Label: ggLabel, Data: "gg:toggle"}})
 
 	rows = append(rows, []Btn{{Label: "⬅️ Menu", Data: dataMenuOpen}})
 

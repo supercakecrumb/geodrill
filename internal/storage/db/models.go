@@ -93,16 +93,17 @@ type Introduction struct {
 }
 
 type Item struct {
-	ID        uuid.UUID
-	TopicID   uuid.UUID
-	Key       string
-	Label     string
-	Tier      pgtype.Int2
-	Payload   []byte
-	CountryID *uuid.UUID
-	Position  int32
-	Active    bool
-	CreatedAt pgtype.Timestamptz
+	ID         uuid.UUID
+	TopicID    uuid.UUID
+	Key        string
+	Label      string
+	Tier       pgtype.Int2
+	Payload    []byte
+	CountryID  *uuid.UUID
+	Position   int32
+	Active     bool
+	GgRelevant bool
+	CreatedAt  pgtype.Timestamptz
 }
 
 type ItemTier struct {
@@ -178,6 +179,7 @@ type User struct {
 	ReminderHour     int32
 	FollowUpEnabled  bool
 	FollowUpDelayMin int32
+	GgOnly           bool
 	CreatedAt        pgtype.Timestamptz
 }
 

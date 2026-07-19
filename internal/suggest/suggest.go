@@ -74,6 +74,11 @@ type Entry struct {
 	Emoji  string
 	Key    string
 	Domain Domain
+	// Coverage is the GeoGuessr Street View coverage of the entry's country
+	// (a capital entry inherits its country's flag). MatchDomain drops
+	// non-coverage entries when the querying user has gg_only set, so
+	// autocomplete never suggests a country that's hidden everywhere else.
+	Coverage bool
 }
 
 // Suggestion is one ranked Match/MatchDomain result. Its shape mirrors Entry
@@ -82,10 +87,11 @@ type Entry struct {
 // "what an Index happens to be built from", which stays free to grow
 // index-internal fields later without changing Match's contract.
 type Suggestion struct {
-	Label  string
-	Emoji  string
-	Key    string
-	Domain Domain
+	Label    string
+	Emoji    string
+	Key      string
+	Domain   Domain
+	Coverage bool
 }
 
 // Index is an in-memory suggestion source built from a fixed slice of Entry
@@ -123,6 +129,7 @@ type CapitalEntry struct {
 	CountryISO string // iso_a2, used to build Key ("cap:" + CountryISO)
 	Name       string // capital city name, e.g. "Bogotá"
 	FlagEmoji  string // the country's flag, e.g. "🇨🇴"
+	Coverage   bool   // the country's GeoGuessr coverage (for the gg_only filter)
 }
 
 // NewFromCountriesAndCapitals builds ONE merged Index covering both
@@ -146,7 +153,7 @@ type CapitalEntry struct {
 func NewFromCountriesAndCapitals(countries []storage.Country, capitals []CapitalEntry) *Index {
 	entries := countryEntries(countries)
 	for _, c := range capitals {
-		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "cap:" + c.CountryISO, Domain: DomainCapital})
+		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "cap:" + c.CountryISO, Domain: DomainCapital, Coverage: c.Coverage})
 	}
 	return New(entries)
 }
@@ -154,7 +161,7 @@ func NewFromCountriesAndCapitals(countries []storage.Country, capitals []Capital
 func countryEntries(countries []storage.Country) []Entry {
 	entries := make([]Entry, len(countries))
 	for i, c := range countries {
-		entries[i] = Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: c.ISOA2, Domain: DomainCountry}
+		entries[i] = Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: c.ISOA2, Domain: DomainCountry, Coverage: c.GGCoverage}
 	}
 	return entries
 }
@@ -193,9 +200,12 @@ func (idx *Index) Match(query string, limit int) []Suggestion {
 // DomainCountry entries when handleQuery's open exercise expects a country
 // answer, only DomainCapital entries for a capital answer (see
 // DomainForAnswer) — using the identical prefix-then-fuzzy ranking Match
-// itself uses, just over the domain-filtered subset. Same nil-safety and
+// itself uses, just over the domain-filtered subset. When ggOnly is set, it
+// additionally drops entries whose country has no GeoGuessr coverage
+// (Entry.Coverage == false), so a gg_only user's autocomplete never suggests
+// a country hidden from study/stats everywhere else. Same nil-safety and
 // limit<=0 contract as Match.
-func (idx *Index) MatchDomain(query string, domain Domain, limit int) []Suggestion {
+func (idx *Index) MatchDomain(query string, domain Domain, ggOnly bool, limit int) []Suggestion {
 	if limit <= 0 {
 		return nil
 	}
@@ -205,9 +215,13 @@ func (idx *Index) MatchDomain(query string, domain Domain, limit int) []Suggesti
 
 	var filtered []Entry
 	for _, e := range idx.entries {
-		if e.Domain == domain {
-			filtered = append(filtered, e)
+		if e.Domain != domain {
+			continue
 		}
+		if ggOnly && !e.Coverage {
+			continue
+		}
+		filtered = append(filtered, e)
 	}
 	return matchEntries(filtered, query, limit)
 }

@@ -183,6 +183,31 @@ func (s *Service) CurrentTier(ctx context.Context, userID uuid.UUID) (tier, maxT
 	return tier, maxTier, nil
 }
 
+// RecomputeTiers refreshes the entire cached per-tier progress
+// (user_tier_progress) for one user and re-derives each tier's Complete flag
+// (tierComplete). It exists for the /settings GeoGuessr-only toggle: tier
+// totals depend on the per-user gg_only flag (the tier queries filter on
+// items.gg_relevant when it's set), so flipping the setting must invalidate
+// and rebuild the whole gating cache immediately — otherwise AllowedTiers
+// (which reads the cache) would gate against stale totals until the next
+// answer happened to recompute a tier. Store.RecomputeTierProgress already
+// reads the user's live gg_only via its users join, so this simply persists
+// what it returns. Per-answer recompute stays single-tier (finishAnswer);
+// this whole-catalog rebuild is only for the rare toggle.
+func (s *Service) RecomputeTiers(ctx context.Context, userID uuid.UUID) error {
+	rows, err := s.store.RecomputeTierProgress(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, p := range rows {
+		p.Complete = tierComplete(p)
+		if err := s.store.UpsertTierProgress(ctx, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // toInt16Slice converts []int (topics.Service.AllowedTiers' return type) to
 // []int16 (Store.ListCandidateIntroItems' parameter type).
 func toInt16Slice(tiers []int) []int16 {

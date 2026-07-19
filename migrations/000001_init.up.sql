@@ -23,6 +23,7 @@ CREATE TABLE users (
   reminder_hour        int NOT NULL DEFAULT 9,
   follow_up_enabled    boolean NOT NULL DEFAULT true,
   follow_up_delay_min  int NOT NULL DEFAULT 60,
+  gg_only              boolean NOT NULL DEFAULT true,   -- GeoGuessr-only mode: hide non-coverage countries/languages everywhere
   created_at           timestamptz NOT NULL DEFAULT now()
 );
 
@@ -72,12 +73,14 @@ CREATE TABLE items (
   country_id  uuid REFERENCES countries(id),    -- optional link (road-side, flags, profiles)
   position    int  NOT NULL DEFAULT 0,
   active      boolean NOT NULL DEFAULT true,
+  gg_relevant boolean NOT NULL DEFAULT true,     -- precomputed at ingest: is this item about a GeoGuessr-covered country/language? (gated per-user by users.gg_only)
   created_at  timestamptz NOT NULL DEFAULT now(),
   UNIQUE (topic_id, key)
 );
 CREATE INDEX items_topic_idx        ON items(topic_id);
 CREATE INDEX items_country_idx      ON items(country_id);
 CREATE INDEX items_effective_tier   ON items(topic_id, COALESCE(tier, 0)); -- effective tier resolved via item_tiers view
+CREATE INDEX items_gg_relevant_idx  ON items(gg_relevant);                 -- every study/stats/tier query filters on it under gg_only
 
 -- Per-user per-item lifecycle + FSRS card.
 CREATE TABLE user_items (

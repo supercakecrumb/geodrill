@@ -453,12 +453,27 @@ type Suggester interface {
 	// domain-agnostic Match, so suggestions never mix countries and
 	// capitals regardless of which direction's exercise is open (kanban
 	// card "Autocomplete must be scoped to the question's answer domain").
-	MatchDomain(query string, domain suggest.Domain, limit int) []suggest.Suggestion
+	// ggOnly additionally drops non-coverage countries when the querying
+	// user has the GeoGuessr-only filter on (queryScope reads it).
+	MatchDomain(query string, domain suggest.Domain, ggOnly bool, limit int) []suggest.Suggestion
 	// DomainForAnswer resolves which suggest.Domain an open exercise's
 	// CorrectAnswer belongs to (country-first membership — see
 	// suggest.Index.DomainForAnswer's doc comment), so handleQuery knows
 	// which Domain to pass to MatchDomain.
 	DomainForAnswer(correct string) suggest.Domain
+}
+
+// TierRecomputer rebuilds a user's whole cached tier-progress gating set —
+// the /settings GeoGuessr-only toggle (handleGGOnlyToggle) calls it after
+// flipping users.gg_only, because tier totals depend on that per-user flag
+// and the gating cache (AllowedTiers) would otherwise stay stale until the
+// next answer. internal/study.Service satisfies it (RecomputeTiers). A nil
+// TierRecomputer keeps the toggle's persistence working but skips the eager
+// cache rebuild (the next answer/introduction recomputes the touched tier
+// anyway), the same nil-safe convention every other optional Config field
+// follows.
+type TierRecomputer interface {
+	RecomputeTiers(ctx context.Context, userID uuid.UUID) error
 }
 
 // IntroCapStore is the narrow settings surface for the daily intro cap

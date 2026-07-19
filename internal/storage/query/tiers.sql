@@ -23,7 +23,9 @@ SELECT t.tier,
                            OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
 FROM item_tiers t
 JOIN items i ON i.id = t.item_id
+JOIN users u ON u.id = $1
 LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE (NOT u.gg_only OR i.gg_relevant)
 GROUP BY t.tier
 ORDER BY t.tier;
 
@@ -38,8 +40,10 @@ SELECT t.tier,
                            OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
 FROM item_tiers t
 JOIN items i ON i.id = t.item_id
-LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
-WHERE t.tier = $2
+JOIN users u ON u.id = sqlc.arg(user_id)
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = sqlc.arg(user_id)
+WHERE t.tier = sqlc.arg(tier)
+  AND (NOT u.gg_only OR i.gg_relevant)
 GROUP BY t.tier;
 
 -- name: RecomputeTopicProgress :one

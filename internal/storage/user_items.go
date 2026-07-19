@@ -164,7 +164,7 @@ func (s *Store) CountKnownItems(ctx context.Context, userID uuid.UUID) (int, err
 // — the priority order engram.NextIntroductions expects the caller to supply
 // (architecture §1.4/§4.2).
 func (s *Store) ListCandidateIntroItems(ctx context.Context, userID uuid.UUID, allowedTiers []int16) ([]IntroCandidate, error) {
-	rows, err := s.q.ListCandidateIntroItems(ctx, db.ListCandidateIntroItemsParams{UserID: userID, Column2: allowedTiers})
+	rows, err := s.q.ListCandidateIntroItems(ctx, db.ListCandidateIntroItemsParams{UserID: userID, Tiers: allowedTiers})
 	if err != nil {
 		return nil, err
 	}

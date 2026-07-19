@@ -224,7 +224,7 @@ func TestDomainForAnswer_NilIndexIsSafe(t *testing.T) {
 
 func TestMatchDomain_ScopesToCountryOnly(t *testing.T) {
 	idx := testCountriesAndCapitalsIndex()
-	got := labels(idx.MatchDomain("a", DomainCountry, 10))
+	got := labels(idx.MatchDomain("a", DomainCountry, false, 10))
 	for _, l := range got {
 		if l == "Canberra" || l == "Paris" {
 			t.Fatalf("MatchDomain(DomainCountry) leaked a capital-only entry: %v", got)
@@ -234,15 +234,34 @@ func TestMatchDomain_ScopesToCountryOnly(t *testing.T) {
 
 func TestMatchDomain_ScopesToCapitalOnly(t *testing.T) {
 	idx := testCountriesAndCapitalsIndex()
-	got := labels(idx.MatchDomain("ca", DomainCapital, 10))
+	got := labels(idx.MatchDomain("ca", DomainCapital, false, 10))
 	want := []string{"Canberra"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("MatchDomain(DomainCapital, %q) = %v, want %v", "ca", got, want)
 	}
 	// "Australia" (a country) must never surface from a capital-scoped
 	// match even though it's a prefix match for itself.
-	if leaked := idx.MatchDomain("austra", DomainCapital, 10); len(leaked) != 0 {
+	if leaked := idx.MatchDomain("austra", DomainCapital, false, 10); len(leaked) != 0 {
 		t.Fatalf("MatchDomain(DomainCapital) leaked a country-only entry: %v", leaked)
+	}
+}
+
+func TestMatchDomain_GGOnlyDropsNonCoverage(t *testing.T) {
+	// FR covered, XX not. Under ggOnly, only the covered country surfaces;
+	// with ggOnly off, both do.
+	idx := New([]Entry{
+		{Label: "France", Key: "FR", Domain: DomainCountry, Coverage: true},
+		{Label: "Freedonia", Key: "XX", Domain: DomainCountry, Coverage: false},
+	})
+
+	off := labels(idx.MatchDomain("fr", DomainCountry, false, 10))
+	if len(off) != 2 {
+		t.Fatalf("ggOnly=false should return both countries, got %v", off)
+	}
+
+	on := labels(idx.MatchDomain("fr", DomainCountry, true, 10))
+	if len(on) != 1 || on[0] != "France" {
+		t.Fatalf("ggOnly=true should return only covered France, got %v", on)
 	}
 }
 

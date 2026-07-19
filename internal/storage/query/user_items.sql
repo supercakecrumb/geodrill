@@ -29,49 +29,77 @@ SELECT * FROM user_items WHERE user_id = $1 AND lifecycle = $2 ORDER BY updated_
 
 -- name: ListDueUserItems :many
 -- Due Introduced/Reviewing cards (engram.NextReview candidate set) joined
--- with their item for topic/key/label context.
+-- with their item for topic/key/label context. GeoGuessr-only filter: joins
+-- the owning user and drops non-coverage items when users.gg_only is set
+-- (the predicate is a no-op when it isn't) — no extra parameter, since
+-- user_id ($1) already identifies the user whose flag governs the filter.
 SELECT ui.user_id, ui.item_id, ui.lifecycle, ui.due, ui.stability, ui.difficulty,
        ui.reps, ui.lapses, ui.state, ui.last_review, ui.introduced_at, ui.known_at,
        ui.updated_at, i.topic_id, i.key, i.label
 FROM user_items ui
 JOIN items i ON i.id = ui.item_id
-WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2) AND ui.due <= $2
+JOIN users u ON u.id = sqlc.arg(user_id)
+WHERE ui.user_id = sqlc.arg(user_id) AND ui.lifecycle IN (1, 2) AND ui.due <= sqlc.arg(due)
+  AND (NOT u.gg_only OR i.gg_relevant)
 ORDER BY ui.due;
 
 -- name: CountDueUserItems :one
 -- internal/study.Service.DueCount / the reminder loop's due count:
--- Introduced/Reviewing cards due at or before now.
-SELECT count(*) FROM user_items
-WHERE user_id = $1 AND lifecycle IN (1, 2) AND due <= $2;
+-- Introduced/Reviewing cards due at or before now. GeoGuessr-only filtered
+-- (see ListDueUserItems).
+SELECT count(*) FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = sqlc.arg(user_id)
+WHERE ui.user_id = sqlc.arg(user_id) AND ui.lifecycle IN (1, 2) AND ui.due <= sqlc.arg(due)
+  AND (NOT u.gg_only OR i.gg_relevant);
 
 -- name: ListUserItemCardsInFSRS :many
 -- internal/study.Service.Stats' DueForecast input: every Introduced/
 -- Reviewing card for a user — replaces ListCardsForUser for the item-based review
 -- path. Known/new rows are excluded: they carry a zeroed/absent due date
 -- that would otherwise skew engram.DueForecast's "due today" bucket.
-SELECT * FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2);
+-- GeoGuessr-only filtered (see ListDueUserItems).
+SELECT ui.* FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2)
+  AND (NOT u.gg_only OR i.gg_relevant);
 
 -- name: CountIntroducedItems :one
 -- internal/study.Service.Stats, "introduced" count: items that have
--- left lifecycle=new (Introduced, Reviewing, or Known).
-SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2, 3);
+-- left lifecycle=new (Introduced, Reviewing, or Known). GeoGuessr-only
+-- filtered (see ListDueUserItems).
+SELECT count(*) FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2, 3)
+  AND (NOT u.gg_only OR i.gg_relevant);
 
 -- name: CountKnownItems :one
 -- internal/study.Service.Stats, "known" count: items marked known via
--- the "I know this" intro outcome.
-SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle = 3;
+-- the "I know this" intro outcome. GeoGuessr-only filtered (see
+-- ListDueUserItems).
+SELECT count(*) FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle = 3
+  AND (NOT u.gg_only OR i.gg_relevant);
 
 -- name: ListCandidateIntroItems :many
 -- Candidate items for the introduction queue: active, tier-unlocked
 -- (parameterized allowed-tiers array), and either no user_items row yet or
 -- still lifecycle=new. Ordered tier, then topic position, then item position
 -- — the app-supplied priority order engram.NextIntroductions preserves.
+-- GeoGuessr-only filtered (see ListDueUserItems): non-coverage items are
+-- never introduced while the user's gg_only is set.
 SELECT i.id AS item_id, i.topic_id, i.key, i.label, it.tier
 FROM items i
 JOIN item_tiers it ON it.item_id = i.id
 JOIN topics t ON t.id = i.topic_id
-LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+JOIN users u ON u.id = sqlc.arg(user_id)
+LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = sqlc.arg(user_id)
 WHERE i.active = true
   AND (ui.item_id IS NULL OR ui.lifecycle = 0)
-  AND it.tier = ANY($2::smallint[])
+  AND it.tier = ANY(sqlc.arg(tiers)::smallint[])
+  AND (NOT u.gg_only OR i.gg_relevant)
 ORDER BY it.tier, t.position, i.position;

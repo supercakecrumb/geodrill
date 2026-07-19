@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
@@ -919,6 +920,120 @@ func TestTierProgress(t *testing.T) {
 	if cached[0].Complete {
 		t.Fatalf("tier1 should not be complete (only 3/4 introduced)")
 	}
+}
+
+// TestGGOnlyFilter verifies the GeoGuessr-only predicate: a non-coverage
+// country's item is hidden from study/stats/tier queries when the user's
+// gg_only is set, and reappears when it's cleared — all without any query
+// signature change (the predicate reads users.gg_only via the queries' own
+// user_id).
+func TestGGOnlyFilter(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 1201, "gg-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	if !u.GGOnly {
+		t.Fatalf("gg_only should default to true, got false")
+	}
+
+	covered, err := st.UpsertCountry(ctx, storage.Country{ISOA2: "FR", ISOA3: "FRA", Name: "France", GGCoverage: true})
+	if err != nil {
+		t.Fatalf("upsert covered country: %v", err)
+	}
+	uncovered, err := st.UpsertCountry(ctx, storage.Country{ISOA2: "XK", ISOA3: "XKX", Name: "Nowhere", GGCoverage: false})
+	if err != nil {
+		t.Fatalf("upsert uncovered country: %v", err)
+	}
+
+	topic, err := st.UpsertTopic(ctx, nil, "gg-topic", "GG Topic", 0, 1, "container", nil, true, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+	covID := covered.ID
+	uncovID := uncovered.ID
+	itemCov, err := st.UpsertItem(ctx, topic.ID, "cov", "Covered", nil, []byte(`{}`), &covID, 0, true)
+	if err != nil {
+		t.Fatalf("upsert covered item: %v", err)
+	}
+	itemUncov, err := st.UpsertItem(ctx, topic.ID, "unc", "Uncovered", nil, []byte(`{}`), &uncovID, 1, true)
+	if err != nil {
+		t.Fatalf("upsert uncovered item: %v", err)
+	}
+
+	// Country relevance pass: gg_relevant mirrors the linked country's coverage.
+	if err := st.UpdateItemsRelevanceByCountry(ctx); err != nil {
+		t.Fatalf("relevance pass: %v", err)
+	}
+
+	// Introduce both items as due-now reviewing cards.
+	now := time.Now().UTC().Truncate(time.Second)
+	for _, id := range []uuid.UUID{itemCov.ID, itemUncov.ID} {
+		if err := st.PutUserItem(ctx, u.ID, id, 2, storage.CardFields{Due: now.Add(-time.Hour), Stability: 5, State: 2, LastReview: now}, now, time.Time{}); err != nil {
+			t.Fatalf("put user item: %v", err)
+		}
+	}
+
+	// gg_only ON (default): only the covered item is visible.
+	due, err := st.ListDueUserItems(ctx, u.ID, now)
+	if err != nil {
+		t.Fatalf("list due (gg_only): %v", err)
+	}
+	if len(due) != 1 || due[0].ItemID != itemCov.ID {
+		t.Fatalf("gg_only ON: expected only the covered item due, got %d rows %+v", len(due), due)
+	}
+	if n, _ := st.CountIntroducedItems(ctx, u.ID); n != 1 {
+		t.Fatalf("gg_only ON: introduced count = %d, want 1", n)
+	}
+	rows, err := st.RecomputeTierProgress(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("recompute (gg_only): %v", err)
+	}
+	if total := tierTotal(rows, 1); total != 1 {
+		t.Fatalf("gg_only ON: tier1 total = %d, want 1", total)
+	}
+
+	// gg_only OFF: both items are visible again.
+	if err := st.SetGGOnly(ctx, u.ID, false); err != nil {
+		t.Fatalf("set gg_only false: %v", err)
+	}
+	due, err = st.ListDueUserItems(ctx, u.ID, now)
+	if err != nil {
+		t.Fatalf("list due (all): %v", err)
+	}
+	if len(due) != 2 {
+		t.Fatalf("gg_only OFF: expected both items due, got %d", len(due))
+	}
+	if n, _ := st.CountIntroducedItems(ctx, u.ID); n != 2 {
+		t.Fatalf("gg_only OFF: introduced count = %d, want 2", n)
+	}
+	rows, err = st.RecomputeTierProgress(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("recompute (all): %v", err)
+	}
+	if total := tierTotal(rows, 1); total != 2 {
+		t.Fatalf("gg_only OFF: tier1 total = %d, want 2", total)
+	}
+}
+
+// tierTotal returns the total_items for tier t in a recompute result (-1 if
+// the tier is absent).
+func tierTotal(rows []storage.TierProgress, t int16) int {
+	for _, r := range rows {
+		if r.Tier == t {
+			return r.TotalItems
+		}
+	}
+	return -1
 }
 
 func TestWithTxCommitAndRollback(t *testing.T) {

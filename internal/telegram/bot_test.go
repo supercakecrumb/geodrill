@@ -69,14 +69,16 @@ type fakeSuggester struct {
 
 	query  string
 	domain suggest.Domain
+	ggOnly bool
 	limit  int
 
 	domainForAnswerCalledWith string
 }
 
-func (f *fakeSuggester) MatchDomain(query string, domain suggest.Domain, limit int) []suggest.Suggestion {
+func (f *fakeSuggester) MatchDomain(query string, domain suggest.Domain, ggOnly bool, limit int) []suggest.Suggestion {
 	f.query = query
 	f.domain = domain
+	f.ggOnly = ggOnly
 	f.limit = limit
 	return f.result
 }
@@ -103,7 +105,7 @@ func TestBuildQueryResults_RendersBareLabelNoEmoji(t *testing.T) {
 		{Label: "Chad", Key: "TD"}, // no emoji
 	}}
 
-	got := buildQueryResults(sg, "fra", suggest.DomainCountry)
+	got := buildQueryResults(sg, "fra", suggest.DomainCountry, false)
 	if sg.query != "fra" || sg.limit != maxQueryResults {
 		t.Fatalf("expected MatchDomain called with (query, _, maxQueryResults), got (%q, _, %d)", sg.query, sg.limit)
 	}
@@ -123,7 +125,7 @@ func TestBuildQueryResults_RendersBareLabelNoEmoji(t *testing.T) {
 }
 
 func TestBuildQueryResults_NilSuggesterYieldsNoResults(t *testing.T) {
-	if got := buildQueryResults(nil, "anything", suggest.DomainCountry); got != nil {
+	if got := buildQueryResults(nil, "anything", suggest.DomainCountry, false); got != nil {
 		t.Fatalf("expected nil, got %v", got)
 	}
 }
@@ -251,9 +253,9 @@ func TestQueryDomain_DefaultsToCountryWhenNoOpenExercise(t *testing.T) {
 	b.suggest = &fakeSuggester{domainForAnswer: suggest.DomainCapital}
 	b.exerciseStore = &fakeExerciseStore{found: false}
 
-	got := b.queryDomain(context.Background(), &tele.Query{Text: "x", Sender: &tele.User{ID: 42}})
+	got, _ := b.queryScope(context.Background(), &tele.Query{Text: "x", Sender: &tele.User{ID: 42}})
 	if got != suggest.DomainCountry {
-		t.Fatalf("queryDomain with no open exercise = %v, want DomainCountry", got)
+		t.Fatalf("queryScope with no open exercise = %v, want DomainCountry", got)
 	}
 }
 
@@ -262,9 +264,9 @@ func TestQueryDomain_DefaultsToCountryWhenNoSender(t *testing.T) {
 	b.suggest = &fakeSuggester{domainForAnswer: suggest.DomainCapital}
 	b.exerciseStore = &fakeExerciseStore{found: true, exercise: storage.Exercise{CorrectAnswer: "Canberra"}}
 
-	got := b.queryDomain(context.Background(), &tele.Query{Text: "x"}) // no Sender
+	got, _ := b.queryScope(context.Background(), &tele.Query{Text: "x"}) // no Sender
 	if got != suggest.DomainCountry {
-		t.Fatalf("queryDomain with no Sender = %v, want DomainCountry", got)
+		t.Fatalf("queryScope with no Sender = %v, want DomainCountry", got)
 	}
 }
 
@@ -272,8 +274,8 @@ func TestQueryDomain_DefaultsToCountryWhenSuggesterNil(t *testing.T) {
 	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
 	b.exerciseStore = &fakeExerciseStore{found: true, exercise: storage.Exercise{CorrectAnswer: "Canberra"}}
 
-	got := b.queryDomain(context.Background(), &tele.Query{Text: "x", Sender: &tele.User{ID: 42}})
+	got, _ := b.queryScope(context.Background(), &tele.Query{Text: "x", Sender: &tele.User{ID: 42}})
 	if got != suggest.DomainCountry {
-		t.Fatalf("queryDomain with nil Suggester = %v, want DomainCountry", got)
+		t.Fatalf("queryScope with nil Suggester = %v, want DomainCountry", got)
 	}
 }

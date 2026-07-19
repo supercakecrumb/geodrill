@@ -86,7 +86,9 @@ SELECT t.tier,
                            OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
 FROM item_tiers t
 JOIN items i ON i.id = t.item_id
+JOIN users u ON u.id = $1
 LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
+WHERE (NOT u.gg_only OR i.gg_relevant)
 GROUP BY t.tier
 ORDER BY t.tier
 `
@@ -102,8 +104,8 @@ type RecomputeTierProgressRow struct {
 // totals, introduced, and "good shape" counts via a single GROUP BY over
 // item_tiers <-> items <-> user_items. Good-shape = known (lifecycle=3) OR
 // graduated-and-durable (state=Review(2) AND stability>=21d, §4.1).
-func (q *Queries) RecomputeTierProgress(ctx context.Context, userID uuid.UUID) ([]RecomputeTierProgressRow, error) {
-	rows, err := q.db.Query(ctx, recomputeTierProgress, userID)
+func (q *Queries) RecomputeTierProgress(ctx context.Context, id uuid.UUID) ([]RecomputeTierProgressRow, error) {
+	rows, err := q.db.Query(ctx, recomputeTierProgress, id)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +137,10 @@ SELECT t.tier,
                            OR (ui.state = 2 AND ui.stability >= 21))::int AS good_shape_items
 FROM item_tiers t
 JOIN items i ON i.id = t.item_id
+JOIN users u ON u.id = $1
 LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
 WHERE t.tier = $2
+  AND (NOT u.gg_only OR i.gg_relevant)
 GROUP BY t.tier
 `
 

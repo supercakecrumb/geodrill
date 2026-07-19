@@ -184,6 +184,16 @@ func (s *Service) buildExerciseForItem(ctx context.Context, user storage.User, i
 		return telegram.Prompt{}, false, err
 	}
 	siblings = removeItemFromSlice(siblings, item.ID)
+	// GeoGuessr-only: drop non-coverage siblings from the distractor pool so a
+	// covered-country question never offers a non-covered wrong answer. Done
+	// centrally here (the single choke point every topic's Generator receives
+	// its Siblings through) rather than in each Generator. The answer item
+	// (req.Item) is never in Siblings, so this only ever removes distractors;
+	// generators already tolerate a smaller pool (they sample/cap distractors
+	// and fall back to fewer options).
+	if user.GGOnly {
+		siblings = filterGGRelevantItems(siblings)
+	}
 
 	userItem, _, err := s.store.GetUserItem(ctx, user.ID, item.ID)
 	if err != nil {
@@ -660,6 +670,19 @@ func removeDueItem(items []storage.DueUserItem, id uuid.UUID) []storage.DueUserI
 	out := items[:0:0]
 	for _, it := range items {
 		if it.ItemID != id {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+// filterGGRelevantItems keeps only GeoGuessr-coverage-relevant items — the
+// distractor-pool filter applied under a user's gg_only setting
+// (buildExerciseForItem). Returns a new slice; leaves the input untouched.
+func filterGGRelevantItems(items []storage.Item) []storage.Item {
+	out := make([]storage.Item, 0, len(items))
+	for _, it := range items {
+		if it.GGRelevant {
 			out = append(out, it)
 		}
 	}

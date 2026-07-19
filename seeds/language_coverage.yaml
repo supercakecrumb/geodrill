@@ -1,0 +1,81 @@
+# Language-coverage bridge for the GeoGuessr-only filter (users.gg_only).
+#
+# The language topics (guess-the-language, special-characters, common-words)
+# key their items by ISO-639-3 deck code (seeds/decks.yaml: rus, isl, cat, …).
+# The GeoGuessr-coverage signal, however, lives on countries (gg_coverage),
+# and "which languages are spoken in a covered country" is derived from the
+# languages_spoken country facts (seeds/country_profiles.yaml) — which store
+# ENGLISH NAMES ("Russian", "Icelandic", "Catalan", …), not codes.
+#
+# This file bridges the two: each deck code maps to the languages_spoken
+# name spelling(s) that count as "the same language". The ingest relevance
+# pass (cmd/ingest → internal/coverage) marks a language item gg_relevant iff
+# any of its codes maps to a name spoken in a covered country.
+#
+# Conservative rule (internal/coverage.Decider): a language whose name is
+# ABSENT from the languages_spoken data entirely (coverage undeterminable) is
+# kept visible, not hidden — so a coverage language is never silently dropped
+# just because the coarse country-profile data doesn't list it. Only a
+# language that IS in the data but only in non-coverage countries is hidden.
+# The ingest audit logs every code kept this way.
+#
+# Keep this in sync with seeds/decks.yaml: every deck code should appear here.
+# Spellings must match seeds/country_profiles.yaml's languages_spoken values.
+
+languages:
+  # Romance
+  spa: [Spanish]
+  por: [Portuguese]
+  ita: [Italian]
+  fra: [French]
+  cat: [Catalan]
+  ron: [Romanian]
+
+  # CJK
+  cmn: [Chinese, Mandarin]
+  jpn: [Japanese]
+  kor: [Korean]
+
+  # Slavic (Latin script)
+  pol: [Polish]
+  ces: [Czech]
+  slk: [Slovak]
+  hrv: [Croatian]
+  slv: [Slovenian]
+
+  # Slavic (Cyrillic script)
+  rus: [Russian]
+  ukr: [Ukrainian]
+  bul: [Bulgarian]
+  srp: [Serbian]
+  mkd: [Macedonian]
+
+  # Nordic
+  swe: [Swedish]
+  nor: [Norwegian]
+  dan: [Danish]
+  isl: [Icelandic]
+  fin: [Finnish]
+
+  # Southeast Asia
+  tha: [Thai]
+  khm: [Khmer]
+  lao: [Lao]
+  mya: [Burmese]
+  vie: [Vietnamese]
+  ind: [Indonesian]
+  msa: [Malay]
+
+  # Indian scripts — most are absent from the coarse country-profile
+  # languages_spoken data (India/Sri Lanka list only Hindi/English there),
+  # so all but Hindi/Bengali fall to the conservative "keep + flag" path:
+  # they stay visible under gg_only until the profile data is enriched.
+  hin: [Hindi]
+  ben: [Bengali]
+  mar: [Marathi]
+  tam: [Tamil]
+  tel: [Telugu]
+  guj: [Gujarati]
+  kan: [Kannada]
+  mal: [Malayalam]
+  pan: [Punjabi]

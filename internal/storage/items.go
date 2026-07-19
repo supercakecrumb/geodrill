@@ -10,36 +10,106 @@ import (
 
 func itemFrom(i db.Item) Item {
 	return Item{
-		ID:        i.ID,
-		TopicID:   i.TopicID,
-		Key:       i.Key,
-		Label:     i.Label,
-		Tier:      int2Ptr(i.Tier),
-		Payload:   i.Payload,
-		CountryID: i.CountryID,
-		Position:  int(i.Position),
-		Active:    i.Active,
-		CreatedAt: tsTime(i.CreatedAt),
+		ID:         i.ID,
+		TopicID:    i.TopicID,
+		Key:        i.Key,
+		Label:      i.Label,
+		Tier:       int2Ptr(i.Tier),
+		Payload:    i.Payload,
+		CountryID:  i.CountryID,
+		Position:   int(i.Position),
+		Active:     i.Active,
+		GGRelevant: i.GgRelevant,
+		CreatedAt:  tsTime(i.CreatedAt),
 	}
 }
 
 // UpsertItem inserts or updates an item by (topic_id, key). tier nil inherits
-// the topic's base_tier (architecture §2.2).
+// the topic's base_tier (architecture §2.2). gg_relevant is written as the
+// default true here and corrected afterwards by the ingest relevance pass
+// (cmd/ingest's recomputeGGRelevance: UpdateItemsRelevanceByCountry + the
+// language pass) — the single global source of truth for coverage — so no
+// seeder needs to know an item's coverage at upsert time.
 func (s *Store) UpsertItem(ctx context.Context, topicID uuid.UUID, key, label string, tier *int16, payload []byte, countryID *uuid.UUID, position int, active bool) (Item, error) {
 	i, err := s.q.UpsertItem(ctx, db.UpsertItemParams{
-		TopicID:   topicID,
-		Key:       key,
-		Label:     label,
-		Tier:      pgInt2(tier),
-		Payload:   payload,
-		CountryID: countryID,
-		Position:  int32(position),
-		Active:    active,
+		TopicID:    topicID,
+		Key:        key,
+		Label:      label,
+		Tier:       pgInt2(tier),
+		Payload:    payload,
+		CountryID:  countryID,
+		Position:   int32(position),
+		Active:     active,
+		GgRelevant: true,
 	})
 	if err != nil {
 		return Item{}, err
 	}
 	return itemFrom(i), nil
+}
+
+// UpdateItemsRelevanceByCountry sets every country-linked item's gg_relevant
+// to its country's gg_coverage (the country sub-pass of cmd/ingest's
+// GeoGuessr-relevance recompute). Language items (country_id IS NULL) are
+// left for the language pass.
+func (s *Store) UpdateItemsRelevanceByCountry(ctx context.Context) error {
+	return s.q.UpdateItemsRelevanceByCountry(ctx)
+}
+
+// SetItemRelevance sets one item's gg_relevant explicitly — used by the
+// language sub-pass of the relevance recompute for country_id IS NULL items.
+func (s *Store) SetItemRelevance(ctx context.Context, itemID uuid.UUID, ggRelevant bool) error {
+	return s.q.SetItemRelevance(ctx, db.SetItemRelevanceParams{ID: itemID, GgRelevant: ggRelevant})
+}
+
+// ListLanguageItems returns every item with no country link (the language
+// topics: special characters, common words, guess-the-language) — the input
+// to the language relevance pass.
+func (s *Store) ListLanguageItems(ctx context.Context) ([]Item, error) {
+	rows, err := s.q.ListLanguageItems(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Item, len(rows))
+	for i, r := range rows {
+		out[i] = itemFrom(r)
+	}
+	return out, nil
+}
+
+// ListCoveredLanguageFactValues returns the distinct languages_spoken fact
+// values across every GeoGuessr-covered country — the raw covered-language
+// spellings the language relevance pass normalizes and matches against.
+func (s *Store) ListCoveredLanguageFactValues(ctx context.Context) ([]string, error) {
+	rows, err := s.q.ListCoveredLanguageFactValues(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if r.Valid {
+			out = append(out, r.String)
+		}
+	}
+	return out, nil
+}
+
+// ListAllLanguageFactValues returns the distinct languages_spoken fact values
+// across every country (covered or not) — the language relevance pass uses it
+// to distinguish a genuinely non-covered language from one absent from the
+// fact data entirely (see the query's doc).
+func (s *Store) ListAllLanguageFactValues(ctx context.Context) ([]string, error) {
+	rows, err := s.q.ListAllLanguageFactValues(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if r.Valid {
+			out = append(out, r.String)
+		}
+	}
+	return out, nil
 }
 
 // GetItemByID looks up an item by primary key.
@@ -91,16 +161,17 @@ func (s *Store) ListItemsWithTierByTopic(ctx context.Context, topicID uuid.UUID)
 	for idx, r := range rows {
 		out[idx] = ItemWithTier{
 			Item: Item{
-				ID:        r.ID,
-				TopicID:   r.TopicID,
-				Key:       r.Key,
-				Label:     r.Label,
-				Tier:      int2Ptr(r.Tier),
-				Payload:   r.Payload,
-				CountryID: r.CountryID,
-				Position:  int(r.Position),
-				Active:    r.Active,
-				CreatedAt: tsTime(r.CreatedAt),
+				ID:         r.ID,
+				TopicID:    r.TopicID,
+				Key:        r.Key,
+				Label:      r.Label,
+				Tier:       int2Ptr(r.Tier),
+				Payload:    r.Payload,
+				CountryID:  r.CountryID,
+				Position:   int(r.Position),
+				Active:     r.Active,
+				GGRelevant: r.GgRelevant,
+				CreatedAt:  tsTime(r.CreatedAt),
 			},
 			EffectiveTier: r.EffectiveTier,
 		}

@@ -13,8 +13,11 @@ import (
 )
 
 const countReviewsSince = `-- name: CountReviewsSince :one
-SELECT count(*) FROM reviews
-WHERE user_id = $1 AND reviewed_at >= $2
+SELECT count(*) FROM reviews r
+LEFT JOIN items i ON i.id = r.item_id
+JOIN users u ON u.id = $1
+WHERE r.user_id = $1 AND r.reviewed_at >= $2
+  AND (NOT u.gg_only OR i.gg_relevant)
 `
 
 type CountReviewsSinceParams struct {
@@ -22,6 +25,7 @@ type CountReviewsSinceParams struct {
 	ReviewedAt pgtype.Timestamptz
 }
 
+// GeoGuessr-only filtered (see ListReviewsSince).
 func (q *Queries) CountReviewsSince(ctx context.Context, arg CountReviewsSinceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countReviewsSince, arg.UserID, arg.ReviewedAt)
 	var count int64
@@ -138,10 +142,13 @@ func (q *Queries) InsertReview(ctx context.Context, arg InsertReviewParams) erro
 }
 
 const listAttemptsSince = `-- name: ListAttemptsSince :many
-SELECT correct_answer, chosen, correct, response_ms, reviewed_at
-FROM reviews
-WHERE user_id = $1 AND reviewed_at >= $2 AND item_id IS NOT NULL
-ORDER BY reviewed_at
+SELECT r.correct_answer, r.chosen, r.correct, r.response_ms, r.reviewed_at
+FROM reviews r
+JOIN items i ON i.id = r.item_id
+JOIN users u ON u.id = $1
+WHERE r.user_id = $1 AND r.reviewed_at >= $2 AND r.item_id IS NOT NULL
+  AND (NOT u.gg_only OR i.gg_relevant)
+ORDER BY r.reviewed_at
 `
 
 type ListAttemptsSinceParams struct {
@@ -160,7 +167,7 @@ type ListAttemptsSinceRow struct {
 // internal/study.Service.Stats: answer records for quiz.Confusion,
 // restricted to item-based attempts (item_id IS NOT NULL, so chosen/correct_answer
 // are always populated by the item-based write path — see internal/study's
-// finishAnswer).
+// finishAnswer). GeoGuessr-only filtered (see ListReviewsSince).
 func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error) {
 	rows, err := q.db.Query(ctx, listAttemptsSince, arg.UserID, arg.ReviewedAt)
 	if err != nil {
@@ -188,9 +195,12 @@ func (q *Queries) ListAttemptsSince(ctx context.Context, arg ListAttemptsSincePa
 }
 
 const listReviewsSince = `-- name: ListReviewsSince :many
-SELECT id, user_id, item_id, exercise_id, content_id, mode, chosen, correct_answer, correct, rating, response_ms, stability_before, difficulty_before, stability_after, difficulty_after, state_before, scheduled_days, elapsed_days, practice, reviewed_at FROM reviews
-WHERE user_id = $1 AND reviewed_at >= $2
-ORDER BY reviewed_at
+SELECT r.id, r.user_id, r.item_id, r.exercise_id, r.content_id, r.mode, r.chosen, r.correct_answer, r.correct, r.rating, r.response_ms, r.stability_before, r.difficulty_before, r.stability_after, r.difficulty_after, r.state_before, r.scheduled_days, r.elapsed_days, r.practice, r.reviewed_at FROM reviews r
+LEFT JOIN items i ON i.id = r.item_id
+JOIN users u ON u.id = $1
+WHERE r.user_id = $1 AND r.reviewed_at >= $2
+  AND (NOT u.gg_only OR i.gg_relevant)
+ORDER BY r.reviewed_at
 `
 
 type ListReviewsSinceParams struct {
@@ -198,6 +208,10 @@ type ListReviewsSinceParams struct {
 	ReviewedAt pgtype.Timestamptz
 }
 
+// GeoGuessr-only filter: LEFT JOIN items so legacy item-less rows are kept
+// when gg_only is off, and dropped only under gg_only (a NULL gg_relevant
+// fails the predicate) — the same no-extra-param, user_id-drives-the-flag
+// pattern the study/tier queries use.
 func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSinceParams) ([]Review, error) {
 	rows, err := q.db.Query(ctx, listReviewsSince, arg.UserID, arg.ReviewedAt)
 	if err != nil {
@@ -246,7 +260,9 @@ SELECT t.id AS topic_id, t.name,
 FROM reviews r
 JOIN items i ON i.id = r.item_id
 JOIN topics t ON t.id = i.topic_id
+JOIN users u ON u.id = $1
 WHERE r.user_id = $1 AND r.reviewed_at >= $2 AND r.item_id IS NOT NULL
+  AND (NOT u.gg_only OR i.gg_relevant)
 GROUP BY t.id, t.name
 ORDER BY t.name
 `
@@ -265,6 +281,7 @@ type ReviewStatsByTopicRow struct {
 
 // internal/study.Service.Stats: per-topic accuracy since a time,
 // restricted to item-based attempts (item_id IS NOT NULL) — the /stats view.
+// GeoGuessr-only filtered (see ListReviewsSince).
 func (q *Queries) ReviewStatsByTopic(ctx context.Context, arg ReviewStatsByTopicParams) ([]ReviewStatsByTopicRow, error) {
 	rows, err := q.db.Query(ctx, reviewStatsByTopic, arg.UserID, arg.ReviewedAt)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 const getItemByID = `-- name: GetItemByID :one
-SELECT id, topic_id, key, label, tier, payload, country_id, position, active, created_at FROM items WHERE id = $1
+SELECT id, topic_id, key, label, tier, payload, country_id, position, active, gg_relevant, created_at FROM items WHERE id = $1
 `
 
 func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (Item, error) {
@@ -29,6 +29,7 @@ func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (Item, error) {
 		&i.CountryID,
 		&i.Position,
 		&i.Active,
+		&i.GgRelevant,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -46,7 +47,7 @@ func (q *Queries) GetItemEffectiveTier(ctx context.Context, itemID uuid.UUID) (i
 }
 
 const listActiveItemsByTopic = `-- name: ListActiveItemsByTopic :many
-SELECT id, topic_id, key, label, tier, payload, country_id, position, active, created_at FROM items WHERE topic_id = $1 AND active = true ORDER BY position, key
+SELECT id, topic_id, key, label, tier, payload, country_id, position, active, gg_relevant, created_at FROM items WHERE topic_id = $1 AND active = true ORDER BY position, key
 `
 
 func (q *Queries) ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error) {
@@ -68,6 +69,7 @@ func (q *Queries) ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID)
 			&i.CountryID,
 			&i.Position,
 			&i.Active,
+			&i.GgRelevant,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -114,8 +116,74 @@ func (q *Queries) ListAllItemKeyLabels(ctx context.Context) ([]ListAllItemKeyLab
 	return items, nil
 }
 
+const listAllLanguageFactValues = `-- name: ListAllLanguageFactValues :many
+SELECT DISTINCT cf.val_text
+FROM country_facts cf
+JOIN fact_defs fd ON fd.id = cf.fact_def_id
+WHERE fd.key = 'languages_spoken'
+  AND cf.val_text IS NOT NULL
+`
+
+// Distinct languages_spoken fact values across ALL countries (covered or
+// not) — the language relevance pass uses this to tell a genuinely
+// non-covered language (present in the fact data, but only in non-coverage
+// countries → hide) apart from one absent from the fact data entirely
+// (coverage undeterminable → conservatively keep + flag).
+func (q *Queries) ListAllLanguageFactValues(ctx context.Context) ([]pgtype.Text, error) {
+	rows, err := q.db.Query(ctx, listAllLanguageFactValues)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.Text{}
+	for rows.Next() {
+		var val_text pgtype.Text
+		if err := rows.Scan(&val_text); err != nil {
+			return nil, err
+		}
+		items = append(items, val_text)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCoveredLanguageFactValues = `-- name: ListCoveredLanguageFactValues :many
+SELECT DISTINCT cf.val_text
+FROM country_facts cf
+JOIN fact_defs fd ON fd.id = cf.fact_def_id
+JOIN countries c  ON c.id = cf.country_id
+WHERE fd.key = 'languages_spoken'
+  AND c.gg_coverage = true
+  AND cf.val_text IS NOT NULL
+`
+
+// Distinct languages_spoken fact values across every GeoGuessr-covered
+// country — the covered-language set the language relevance pass matches
+// language items against (normalized via seeds/language_coverage.yaml).
+func (q *Queries) ListCoveredLanguageFactValues(ctx context.Context) ([]pgtype.Text, error) {
+	rows, err := q.db.Query(ctx, listCoveredLanguageFactValues)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.Text{}
+	for rows.Next() {
+		var val_text pgtype.Text
+		if err := rows.Scan(&val_text); err != nil {
+			return nil, err
+		}
+		items = append(items, val_text)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItemsByTopic = `-- name: ListItemsByTopic :many
-SELECT id, topic_id, key, label, tier, payload, country_id, position, active, created_at FROM items WHERE topic_id = $1 ORDER BY position, key
+SELECT id, topic_id, key, label, tier, payload, country_id, position, active, gg_relevant, created_at FROM items WHERE topic_id = $1 ORDER BY position, key
 `
 
 func (q *Queries) ListItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error) {
@@ -137,6 +205,7 @@ func (q *Queries) ListItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]It
 			&i.CountryID,
 			&i.Position,
 			&i.Active,
+			&i.GgRelevant,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -151,7 +220,7 @@ func (q *Queries) ListItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]It
 
 const listItemsWithTierByTopic = `-- name: ListItemsWithTierByTopic :many
 SELECT i.id, i.topic_id, i.key, i.label, i.tier, i.payload, i.country_id,
-       i.position, i.active, i.created_at, it.tier AS effective_tier
+       i.position, i.active, i.gg_relevant, i.created_at, it.tier AS effective_tier
 FROM items i
 JOIN item_tiers it ON it.item_id = i.id
 WHERE i.topic_id = $1
@@ -168,6 +237,7 @@ type ListItemsWithTierByTopicRow struct {
 	CountryID     *uuid.UUID
 	Position      int32
 	Active        bool
+	GgRelevant    bool
 	CreatedAt     pgtype.Timestamptz
 	EffectiveTier int16
 }
@@ -193,6 +263,7 @@ func (q *Queries) ListItemsWithTierByTopic(ctx context.Context, topicID uuid.UUI
 			&i.CountryID,
 			&i.Position,
 			&i.Active,
+			&i.GgRelevant,
 			&i.CreatedAt,
 			&i.EffectiveTier,
 		); err != nil {
@@ -206,9 +277,78 @@ func (q *Queries) ListItemsWithTierByTopic(ctx context.Context, topicID uuid.UUI
 	return items, nil
 }
 
+const listLanguageItems = `-- name: ListLanguageItems :many
+SELECT id, topic_id, key, label, tier, payload, country_id, position, active, gg_relevant, created_at FROM items WHERE country_id IS NULL ORDER BY topic_id, key
+`
+
+// Items with no country link (language topics: special characters, common
+// words, guess-the-language) — the input to the language relevance pass.
+func (q *Queries) ListLanguageItems(ctx context.Context) ([]Item, error) {
+	rows, err := q.db.Query(ctx, listLanguageItems)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.TopicID,
+			&i.Key,
+			&i.Label,
+			&i.Tier,
+			&i.Payload,
+			&i.CountryID,
+			&i.Position,
+			&i.Active,
+			&i.GgRelevant,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setItemRelevance = `-- name: SetItemRelevance :exec
+UPDATE items SET gg_relevant = $2 WHERE id = $1
+`
+
+type SetItemRelevanceParams struct {
+	ID         uuid.UUID
+	GgRelevant bool
+}
+
+// Sets one item's gg_relevant explicitly — the language relevance pass
+// (cmd/ingest) uses it for country_id IS NULL language items.
+func (q *Queries) SetItemRelevance(ctx context.Context, arg SetItemRelevanceParams) error {
+	_, err := q.db.Exec(ctx, setItemRelevance, arg.ID, arg.GgRelevant)
+	return err
+}
+
+const updateItemsRelevanceByCountry = `-- name: UpdateItemsRelevanceByCountry :exec
+UPDATE items i
+SET gg_relevant = c.gg_coverage
+FROM countries c
+WHERE i.country_id = c.id
+`
+
+// GeoGuessr-coverage relevance pass (cmd/ingest): every country-linked item's
+// gg_relevant mirrors its country's gg_coverage. Language items (country_id
+// IS NULL) are left to the language pass (SetItemRelevance).
+func (q *Queries) UpdateItemsRelevanceByCountry(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, updateItemsRelevanceByCountry)
+	return err
+}
+
 const upsertItem = `-- name: UpsertItem :one
-INSERT INTO items (topic_id, key, label, tier, payload, country_id, position, active)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO items (topic_id, key, label, tier, payload, country_id, position, active, gg_relevant)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (topic_id, key)
 DO UPDATE SET
   label = EXCLUDED.label,
@@ -216,19 +356,21 @@ DO UPDATE SET
   payload = EXCLUDED.payload,
   country_id = EXCLUDED.country_id,
   position = EXCLUDED.position,
-  active = EXCLUDED.active
-RETURNING id, topic_id, key, label, tier, payload, country_id, position, active, created_at
+  active = EXCLUDED.active,
+  gg_relevant = EXCLUDED.gg_relevant
+RETURNING id, topic_id, key, label, tier, payload, country_id, position, active, gg_relevant, created_at
 `
 
 type UpsertItemParams struct {
-	TopicID   uuid.UUID
-	Key       string
-	Label     string
-	Tier      pgtype.Int2
-	Payload   []byte
-	CountryID *uuid.UUID
-	Position  int32
-	Active    bool
+	TopicID    uuid.UUID
+	Key        string
+	Label      string
+	Tier       pgtype.Int2
+	Payload    []byte
+	CountryID  *uuid.UUID
+	Position   int32
+	Active     bool
+	GgRelevant bool
 }
 
 func (q *Queries) UpsertItem(ctx context.Context, arg UpsertItemParams) (Item, error) {
@@ -241,6 +383,7 @@ func (q *Queries) UpsertItem(ctx context.Context, arg UpsertItemParams) (Item, e
 		arg.CountryID,
 		arg.Position,
 		arg.Active,
+		arg.GgRelevant,
 	)
 	var i Item
 	err := row.Scan(
@@ -253,6 +396,7 @@ func (q *Queries) UpsertItem(ctx context.Context, arg UpsertItemParams) (Item, e
 		&i.CountryID,
 		&i.Position,
 		&i.Active,
+		&i.GgRelevant,
 		&i.CreatedAt,
 	)
 	return i, err

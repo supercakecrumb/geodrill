@@ -169,6 +169,11 @@ func (s *stubStore) SetFollowUpDelay(ctx context.Context, userID uuid.UUID, minu
 	return nil
 }
 
+func (s *stubStore) SetGGOnly(ctx context.Context, userID uuid.UUID, enabled bool) error {
+	s.user.GGOnly = enabled
+	return nil
+}
+
 func (s *stubStore) SetLabelStyle(ctx context.Context, userID uuid.UUID, style string) error {
 	s.user.LabelStyle = style
 	return nil
@@ -257,6 +262,7 @@ func TestSettingsRows(t *testing.T) {
 		ReminderHour:     9,
 		FollowUpEnabled:  true,
 		FollowUpDelayMin: 60,
+		GGOnly:           true,
 	}
 
 	collect := func(u storage.User, introCap *int) []Btn {
@@ -280,14 +286,56 @@ func TestSettingsRows(t *testing.T) {
 	assertHasBtn(t, all, Btn{Label: "+1h 🕙", Data: "rhour:inc"})
 	assertHasBtn(t, all, Btn{Label: "🔁 follow-up: on", Data: "fup:toggle"})
 	assertHasBtn(t, all, Btn{Label: "⏱ follow-up after 60 min", Data: "fupdelay:cycle"})
+	assertHasBtn(t, all, Btn{Label: "🌍 GeoGuessr-only: on", Data: "gg:toggle"})
 	assertHasBtn(t, all, Btn{Label: "⬅️ Menu", Data: dataMenuOpen})
 
 	// Off states flip the labels.
 	user.RemindersEnabled = false
 	user.FollowUpEnabled = false
+	user.GGOnly = false
 	allOff := collect(user, nil)
 	assertHasBtn(t, allOff, Btn{Label: "🔔 reminders: off", Data: "rem:toggle"})
 	assertHasBtn(t, allOff, Btn{Label: "🔁 follow-up: off", Data: "fup:toggle"})
+	assertHasBtn(t, allOff, Btn{Label: "🌍 GeoGuessr-only: off", Data: "gg:toggle"})
+}
+
+// fakeTierRecomputer records RecomputeTiers calls for the gg-toggle test.
+type fakeTierRecomputer struct {
+	calledFor []uuid.UUID
+}
+
+func (f *fakeTierRecomputer) RecomputeTiers(ctx context.Context, userID uuid.UUID) error {
+	f.calledFor = append(f.calledFor, userID)
+	return nil
+}
+
+// TestHandleGGOnlyToggle flips users.gg_only, persists it, and rebuilds the
+// tier cache via the TierRecomputer.
+func TestHandleGGOnlyToggle(t *testing.T) {
+	uid := uuid.New()
+	st := &stubStore{user: storage.User{ID: uid, GGOnly: true}}
+	rec := &fakeTierRecomputer{}
+	b := newTestBot(st)
+	b.tiers = rec
+
+	s := &fakeSession{userID: 1}
+	if err := b.handleGGOnlyToggle(context.Background(), s); err != nil {
+		t.Fatalf("handleGGOnlyToggle: %v", err)
+	}
+	if st.user.GGOnly {
+		t.Fatalf("gg_only should have flipped to false, got true")
+	}
+	if len(rec.calledFor) != 1 || rec.calledFor[0] != uid {
+		t.Fatalf("expected RecomputeTiers called once for %v, got %v", uid, rec.calledFor)
+	}
+
+	// Routes through the callback dispatcher too.
+	if err := b.handleCallback(context.Background(), &fakeSession{userID: 1, data: "gg:toggle"}); err != nil {
+		t.Fatalf("handleCallback(gg:toggle): %v", err)
+	}
+	if !st.user.GGOnly {
+		t.Fatalf("second toggle should flip gg_only back to true, got false")
+	}
 }
 
 func TestSettingsRows_IntroCapRow(t *testing.T) {

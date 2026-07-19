@@ -13,8 +13,11 @@ import (
 )
 
 const countDueUserItems = `-- name: CountDueUserItems :one
-SELECT count(*) FROM user_items
-WHERE user_id = $1 AND lifecycle IN (1, 2) AND due <= $2
+SELECT count(*) FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2) AND ui.due <= $2
+  AND (NOT u.gg_only OR i.gg_relevant)
 `
 
 type CountDueUserItemsParams struct {
@@ -23,7 +26,8 @@ type CountDueUserItemsParams struct {
 }
 
 // internal/study.Service.DueCount / the reminder loop's due count:
-// Introduced/Reviewing cards due at or before now.
+// Introduced/Reviewing cards due at or before now. GeoGuessr-only filtered
+// (see ListDueUserItems).
 func (q *Queries) CountDueUserItems(ctx context.Context, arg CountDueUserItemsParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countDueUserItems, arg.UserID, arg.Due)
 	var count int64
@@ -32,26 +36,36 @@ func (q *Queries) CountDueUserItems(ctx context.Context, arg CountDueUserItemsPa
 }
 
 const countIntroducedItems = `-- name: CountIntroducedItems :one
-SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2, 3)
+SELECT count(*) FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2, 3)
+  AND (NOT u.gg_only OR i.gg_relevant)
 `
 
 // internal/study.Service.Stats, "introduced" count: items that have
-// left lifecycle=new (Introduced, Reviewing, or Known).
-func (q *Queries) CountIntroducedItems(ctx context.Context, userID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countIntroducedItems, userID)
+// left lifecycle=new (Introduced, Reviewing, or Known). GeoGuessr-only
+// filtered (see ListDueUserItems).
+func (q *Queries) CountIntroducedItems(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countIntroducedItems, id)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const countKnownItems = `-- name: CountKnownItems :one
-SELECT count(*) FROM user_items WHERE user_id = $1 AND lifecycle = 3
+SELECT count(*) FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle = 3
+  AND (NOT u.gg_only OR i.gg_relevant)
 `
 
 // internal/study.Service.Stats, "known" count: items marked known via
-// the "I know this" intro outcome.
-func (q *Queries) CountKnownItems(ctx context.Context, userID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countKnownItems, userID)
+// the "I know this" intro outcome. GeoGuessr-only filtered (see
+// ListDueUserItems).
+func (q *Queries) CountKnownItems(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countKnownItems, id)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -92,16 +106,18 @@ SELECT i.id AS item_id, i.topic_id, i.key, i.label, it.tier
 FROM items i
 JOIN item_tiers it ON it.item_id = i.id
 JOIN topics t ON t.id = i.topic_id
+JOIN users u ON u.id = $1
 LEFT JOIN user_items ui ON ui.item_id = i.id AND ui.user_id = $1
 WHERE i.active = true
   AND (ui.item_id IS NULL OR ui.lifecycle = 0)
   AND it.tier = ANY($2::smallint[])
+  AND (NOT u.gg_only OR i.gg_relevant)
 ORDER BY it.tier, t.position, i.position
 `
 
 type ListCandidateIntroItemsParams struct {
-	UserID  uuid.UUID
-	Column2 []int16
+	UserID uuid.UUID
+	Tiers  []int16
 }
 
 type ListCandidateIntroItemsRow struct {
@@ -116,8 +132,10 @@ type ListCandidateIntroItemsRow struct {
 // (parameterized allowed-tiers array), and either no user_items row yet or
 // still lifecycle=new. Ordered tier, then topic position, then item position
 // — the app-supplied priority order engram.NextIntroductions preserves.
+// GeoGuessr-only filtered (see ListDueUserItems): non-coverage items are
+// never introduced while the user's gg_only is set.
 func (q *Queries) ListCandidateIntroItems(ctx context.Context, arg ListCandidateIntroItemsParams) ([]ListCandidateIntroItemsRow, error) {
-	rows, err := q.db.Query(ctx, listCandidateIntroItems, arg.UserID, arg.Column2)
+	rows, err := q.db.Query(ctx, listCandidateIntroItems, arg.UserID, arg.Tiers)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +166,9 @@ SELECT ui.user_id, ui.item_id, ui.lifecycle, ui.due, ui.stability, ui.difficulty
        ui.updated_at, i.topic_id, i.key, i.label
 FROM user_items ui
 JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
 WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2) AND ui.due <= $2
+  AND (NOT u.gg_only OR i.gg_relevant)
 ORDER BY ui.due
 `
 
@@ -177,7 +197,10 @@ type ListDueUserItemsRow struct {
 }
 
 // Due Introduced/Reviewing cards (engram.NextReview candidate set) joined
-// with their item for topic/key/label context.
+// with their item for topic/key/label context. GeoGuessr-only filter: joins
+// the owning user and drops non-coverage items when users.gg_only is set
+// (the predicate is a no-op when it isn't) — no extra parameter, since
+// user_id ($1) already identifies the user whose flag governs the filter.
 func (q *Queries) ListDueUserItems(ctx context.Context, arg ListDueUserItemsParams) ([]ListDueUserItemsRow, error) {
 	rows, err := q.db.Query(ctx, listDueUserItems, arg.UserID, arg.Due)
 	if err != nil {
@@ -216,15 +239,20 @@ func (q *Queries) ListDueUserItems(ctx context.Context, arg ListDueUserItemsPara
 }
 
 const listUserItemCardsInFSRS = `-- name: ListUserItemCardsInFSRS :many
-SELECT user_id, item_id, lifecycle, due, stability, difficulty, reps, lapses, state, last_review, introduced_at, known_at, updated_at FROM user_items WHERE user_id = $1 AND lifecycle IN (1, 2)
+SELECT ui.user_id, ui.item_id, ui.lifecycle, ui.due, ui.stability, ui.difficulty, ui.reps, ui.lapses, ui.state, ui.last_review, ui.introduced_at, ui.known_at, ui.updated_at FROM user_items ui
+JOIN items i ON i.id = ui.item_id
+JOIN users u ON u.id = $1
+WHERE ui.user_id = $1 AND ui.lifecycle IN (1, 2)
+  AND (NOT u.gg_only OR i.gg_relevant)
 `
 
 // internal/study.Service.Stats' DueForecast input: every Introduced/
 // Reviewing card for a user — replaces ListCardsForUser for the item-based review
 // path. Known/new rows are excluded: they carry a zeroed/absent due date
 // that would otherwise skew engram.DueForecast's "due today" bucket.
-func (q *Queries) ListUserItemCardsInFSRS(ctx context.Context, userID uuid.UUID) ([]UserItem, error) {
-	rows, err := q.db.Query(ctx, listUserItemCardsInFSRS, userID)
+// GeoGuessr-only filtered (see ListDueUserItems).
+func (q *Queries) ListUserItemCardsInFSRS(ctx context.Context, id uuid.UUID) ([]UserItem, error) {
+	rows, err := q.db.Query(ctx, listUserItemCardsInFSRS, id)
 	if err != nil {
 		return nil, err
 	}

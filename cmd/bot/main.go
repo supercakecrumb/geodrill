@@ -138,7 +138,7 @@ func run() error {
 		if !ok {
 			continue
 		}
-		capitalEntries = append(capitalEntries, suggest.CapitalEntry{CountryISO: c.ISOA2, Name: *f.ValText, FlagEmoji: c.FlagEmoji})
+		capitalEntries = append(capitalEntries, suggest.CapitalEntry{CountryISO: c.ISOA2, Name: *f.ValText, FlagEmoji: c.FlagEmoji, Coverage: c.GGCoverage})
 	}
 	suggestIdx := suggest.NewFromCountriesAndCapitals(countries, capitalEntries)
 
@@ -151,12 +151,13 @@ func run() error {
 		// W4.3a: study.Service is now the ONLY exercise/answer/stats engine
 		// — the legacy trainer it replaced is gone), and *storage.Store
 		// implements IntroCapStore directly (internal/storage/introcap.go).
-		StudyService:  studySvc,
-		TopicService:  studySvc,
-		Trainer:       studySvc,
-		IntroCapStore: store,
-		Game:          telegram.NewGameService(gameEngine, store, time.Now().UnixNano()),
-		Suggest:       suggestIdx,
+		StudyService:   studySvc,
+		TopicService:   studySvc,
+		Trainer:        studySvc,
+		IntroCapStore:  store,
+		TierRecomputer: studySvc,
+		Game:           telegram.NewGameService(gameEngine, store, time.Now().UnixNano()),
+		Suggest:        suggestIdx,
 	})
 	if err != nil {
 		return fmt.Errorf("build bot: %w", err)

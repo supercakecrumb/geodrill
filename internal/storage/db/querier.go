@@ -20,11 +20,13 @@ type Querier interface {
 	AnswerIntroductionOnce(ctx context.Context, arg AnswerIntroductionOnceParams) (Introduction, error)
 	CountContentByKey(ctx context.Context, arg CountContentByKeyParams) (int64, error)
 	// internal/study.Service.DueCount / the reminder loop's due count:
-	// Introduced/Reviewing cards due at or before now.
+	// Introduced/Reviewing cards due at or before now. GeoGuessr-only filtered
+	// (see ListDueUserItems).
 	CountDueUserItems(ctx context.Context, arg CountDueUserItemsParams) (int64, error)
 	// internal/study.Service.Stats, "introduced" count: items that have
-	// left lifecycle=new (Introduced, Reviewing, or Known).
-	CountIntroducedItems(ctx context.Context, userID uuid.UUID) (int64, error)
+	// left lifecycle=new (Introduced, Reviewing, or Known). GeoGuessr-only
+	// filtered (see ListDueUserItems).
+	CountIntroducedItems(ctx context.Context, id uuid.UUID) (int64, error)
 	// "Introduced today" for the daily budget (architecture §2.4): distinct items
 	// with a first-exposure (seq=1), a genuinely-introduced outcome, inside the
 	// caller-supplied local-day [from, to) bounds. Excludes outcome=1
@@ -32,8 +34,10 @@ type Querier interface {
 	// the item, so it must not spend the daily intro budget.
 	CountIntroductionsToday(ctx context.Context, arg CountIntroductionsTodayParams) (int64, error)
 	// internal/study.Service.Stats, "known" count: items marked known via
-	// the "I know this" intro outcome.
-	CountKnownItems(ctx context.Context, userID uuid.UUID) (int64, error)
+	// the "I know this" intro outcome. GeoGuessr-only filtered (see
+	// ListDueUserItems).
+	CountKnownItems(ctx context.Context, id uuid.UUID) (int64, error)
+	// GeoGuessr-only filtered (see ListReviewsSince).
 	CountReviewsSince(ctx context.Context, arg CountReviewsSinceParams) (int64, error)
 	// Clears every fact value for one country+def (used to replace multi-valued
 	// facts wholesale on reseed).
@@ -109,16 +113,24 @@ type Querier interface {
 	// returns last for it — an acceptable approximation for a "which
 	// language/character/word" hint.
 	ListAllItemKeyLabels(ctx context.Context) ([]ListAllItemKeyLabelsRow, error)
+	// Distinct languages_spoken fact values across ALL countries (covered or
+	// not) — the language relevance pass uses this to tell a genuinely
+	// non-covered language (present in the fact data, but only in non-coverage
+	// countries → hide) apart from one absent from the fact data entirely
+	// (coverage undeterminable → conservatively keep + flag).
+	ListAllLanguageFactValues(ctx context.Context) ([]pgtype.Text, error)
 	ListAllTopics(ctx context.Context) ([]Topic, error)
 	// internal/study.Service.Stats: answer records for quiz.Confusion,
 	// restricted to item-based attempts (item_id IS NOT NULL, so chosen/correct_answer
 	// are always populated by the item-based write path — see internal/study's
-	// finishAnswer).
+	// finishAnswer). GeoGuessr-only filtered (see ListReviewsSince).
 	ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error)
 	// Candidate items for the introduction queue: active, tier-unlocked
 	// (parameterized allowed-tiers array), and either no user_items row yet or
 	// still lifecycle=new. Ordered tier, then topic position, then item position
 	// — the app-supplied priority order engram.NextIntroductions preserves.
+	// GeoGuessr-only filtered (see ListDueUserItems): non-coverage items are
+	// never introduced while the user's gg_only is set.
 	ListCandidateIntroItems(ctx context.Context, arg ListCandidateIntroItemsParams) ([]ListCandidateIntroItemsRow, error)
 	ListChildTopics(ctx context.Context, parentID *uuid.UUID) ([]Topic, error)
 	ListCountries(ctx context.Context) ([]Country, error)
@@ -128,13 +140,20 @@ type Querier interface {
 	// Facts for one fact_def, looked up by its key (e.g. 'drives_on') — the
 	// building block for arbitrary-filter joins (architecture §2.7).
 	ListCountryFactsByDefKey(ctx context.Context, key string) ([]CountryFact, error)
+	// Distinct languages_spoken fact values across every GeoGuessr-covered
+	// country — the covered-language set the language relevance pass matches
+	// language items against (normalized via seeds/language_coverage.yaml).
+	ListCoveredLanguageFactValues(ctx context.Context) ([]pgtype.Text, error)
 	// internal/study.TopicService: every effective tier used by an item
 	// anywhere in a topic's subtree (itself + descendants) — the input to the
 	// 🔒 AnyLocked/LockedTier badge (architecture §5.2), by comparing against
 	// the user's currently-unlocked tier set.
 	ListDistinctTiersUnderTopic(ctx context.Context, id uuid.UUID) ([]int16, error)
 	// Due Introduced/Reviewing cards (engram.NextReview candidate set) joined
-	// with their item for topic/key/label context.
+	// with their item for topic/key/label context. GeoGuessr-only filter: joins
+	// the owning user and drops non-coverage items when users.gg_only is set
+	// (the predicate is a no-op when it isn't) — no extra parameter, since
+	// user_id ($1) already identifies the user whose flag governs the filter.
 	ListDueUserItems(ctx context.Context, arg ListDueUserItemsParams) ([]ListDueUserItemsRow, error)
 	ListFactDefs(ctx context.Context) ([]FactDef, error)
 	ListFactsForCountry(ctx context.Context, countryID uuid.UUID) ([]ListFactsForCountryRow, error)
@@ -142,6 +161,13 @@ type Querier interface {
 	// Items for a topic with their effective tier (COALESCE(items.tier,
 	// topics.base_tier)) resolved via the item_tiers view.
 	ListItemsWithTierByTopic(ctx context.Context, topicID uuid.UUID) ([]ListItemsWithTierByTopicRow, error)
+	// Items with no country link (language topics: special characters, common
+	// words, guess-the-language) — the input to the language relevance pass.
+	ListLanguageItems(ctx context.Context) ([]Item, error)
+	// GeoGuessr-only filter: LEFT JOIN items so legacy item-less rows are kept
+	// when gg_only is off, and dropped only under gg_only (a NULL gg_relevant
+	// fails the predicate) — the same no-extra-param, user_id-drives-the-flag
+	// pattern the study/tier queries use.
 	ListReviewsSince(ctx context.Context, arg ListReviewsSinceParams) ([]Review, error)
 	ListRootTopics(ctx context.Context) ([]Topic, error)
 	ListTierProgressForUser(ctx context.Context, userID uuid.UUID) ([]UserTierProgress, error)
@@ -150,7 +176,8 @@ type Querier interface {
 	// Reviewing card for a user — replaces ListCardsForUser for the item-based review
 	// path. Known/new rows are excluded: they carry a zeroed/absent due date
 	// that would otherwise skew engram.DueForecast's "due today" bucket.
-	ListUserItemCardsInFSRS(ctx context.Context, userID uuid.UUID) ([]UserItem, error)
+	// GeoGuessr-only filtered (see ListDueUserItems).
+	ListUserItemCardsInFSRS(ctx context.Context, id uuid.UUID) ([]UserItem, error)
 	ListUserItemsByLifecycle(ctx context.Context, arg ListUserItemsByLifecycleParams) ([]UserItem, error)
 	// Every topic with the user's enabled flag (default-on when no row exists,
 	// per architecture §2.10 / §9 open question 5).
@@ -170,7 +197,7 @@ type Querier interface {
 	// totals, introduced, and "good shape" counts via a single GROUP BY over
 	// item_tiers <-> items <-> user_items. Good-shape = known (lifecycle=3) OR
 	// graduated-and-durable (state=Review(2) AND stability>=21d, §4.1).
-	RecomputeTierProgress(ctx context.Context, userID uuid.UUID) ([]RecomputeTierProgressRow, error)
+	RecomputeTierProgress(ctx context.Context, id uuid.UUID) ([]RecomputeTierProgressRow, error)
 	// Single-tier variant of RecomputeTierProgress, for the per-answer /
 	// per-introduction transactional recompute (architecture §4.2/§5.5: "only the
 	// item's tier needs recompute").
@@ -193,6 +220,7 @@ type Querier interface {
 	ReparentTopic(ctx context.Context, arg ReparentTopicParams) error
 	// internal/study.Service.Stats: per-topic accuracy since a time,
 	// restricted to item-based attempts (item_id IS NOT NULL) — the /stats view.
+	// GeoGuessr-only filtered (see ListReviewsSince).
 	ReviewStatsByTopic(ctx context.Context, arg ReviewStatsByTopicParams) ([]ReviewStatsByTopicRow, error)
 	// Random sentence for an item key, excluding the user's last-50 seen content
 	// for that key (recently-seen exclusion, contract §4).
@@ -206,9 +234,14 @@ type Querier interface {
 	SetExerciseMessageID(ctx context.Context, arg SetExerciseMessageIDParams) error
 	SetFollowUpDelay(ctx context.Context, arg SetFollowUpDelayParams) error
 	SetFollowUpEnabled(ctx context.Context, arg SetFollowUpEnabledParams) error
+	// The /settings GeoGuessr-only toggle (users.gg_only).
+	SetGGOnly(ctx context.Context, arg SetGGOnlyParams) error
 	// The /settings daily intro-cap row (architecture §2.10/§8 IntroCapStore).
 	SetIntroCap(ctx context.Context, arg SetIntroCapParams) error
 	SetIntroductionMessageID(ctx context.Context, arg SetIntroductionMessageIDParams) error
+	// Sets one item's gg_relevant explicitly — the language relevance pass
+	// (cmd/ingest) uses it for country_id IS NULL language items.
+	SetItemRelevance(ctx context.Context, arg SetItemRelevanceParams) error
 	SetLabelStyle(ctx context.Context, arg SetLabelStyleParams) error
 	// Caches the Telegram file_id after first upload so later sends can reuse it
 	// and skip re-uploading the asset (architecture §2.8, decision 6).
@@ -223,6 +256,10 @@ type Querier interface {
 	SetTimezone(ctx context.Context, arg SetTimezoneParams) error
 	// ── user_topics (per-user topic opt-in/out, §2.10) ─────────────────────────
 	SetUserTopicEnabled(ctx context.Context, arg SetUserTopicEnabledParams) error
+	// GeoGuessr-coverage relevance pass (cmd/ingest): every country-linked item's
+	// gg_relevant mirrors its country's gg_coverage. Language items (country_id
+	// IS NULL) are left to the language pass (SetItemRelevance).
+	UpdateItemsRelevanceByCountry(ctx context.Context) error
 	// Upsert a child topic (parent_id NOT NULL), keyed by the topics_sibling_slug
 	// partial unique index.
 	UpsertChildTopic(ctx context.Context, arg UpsertChildTopicParams) (Topic, error)

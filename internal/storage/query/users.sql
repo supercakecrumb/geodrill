@@ -32,6 +32,10 @@ UPDATE users SET follow_up_enabled = $2 WHERE id = $1;
 -- name: SetFollowUpDelay :exec
 UPDATE users SET follow_up_delay_min = $2 WHERE id = $1;
 
+-- name: SetGGOnly :exec
+-- The /settings GeoGuessr-only toggle (users.gg_only).
+UPDATE users SET gg_only = $2 WHERE id = $1;
+
 -- name: UsersWithReminders :many
 SELECT * FROM users WHERE reminders_enabled = true ORDER BY created_at;
 

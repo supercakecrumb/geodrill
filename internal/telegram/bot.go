@@ -79,6 +79,10 @@ type Config struct {
 	Trainer Trainer
 	// IntroCapStore powers the /settings daily intro-cap row.
 	IntroCapStore IntroCapStore
+	// TierRecomputer rebuilds the gating cache after the /settings
+	// GeoGuessr-only toggle flips users.gg_only (nil-safe; see the interface's
+	// doc in services.go).
+	TierRecomputer TierRecomputer
 	// Game powers /game and its game zone (vibe/design-game-zone.md):
 	// today, Language Roulette.
 	Game GameService
@@ -142,6 +146,10 @@ type Bot struct {
 	// registration still checks it for nil (bot.go's New).
 	trainer  Trainer
 	introCap IntroCapStore
+	// tiers rebuilds the gating cache on the /settings GeoGuessr-only toggle
+	// (TierRecomputer's doc). Nil-safe: the toggle still persists gg_only
+	// without it.
+	tiers TierRecomputer
 	// game is nil until Config.Game is wired — every call site checks it
 	// before use (see game.go), the same nil-safe convention study/topics
 	// follow.
@@ -193,6 +201,7 @@ func New(cfg Config) (*Bot, error) {
 		topics:        cfg.TopicService,
 		trainer:       cfg.Trainer,
 		introCap:      cfg.IntroCapStore,
+		tiers:         cfg.TierRecomputer,
 		game:          cfg.Game,
 		suggest:       cfg.Suggest,
 		exerciseStore: cfg.Store,
@@ -740,11 +749,11 @@ type QueryResult struct {
 // handleQuery's own registration is already gated on a non-nil Suggester
 // (see New), so this nil check only matters for a direct unit test of this
 // function.
-func buildQueryResults(suggester Suggester, query string, domain suggest.Domain) []QueryResult {
+func buildQueryResults(suggester Suggester, query string, domain suggest.Domain, ggOnly bool) []QueryResult {
 	if suggester == nil {
 		return nil
 	}
-	matches := suggester.MatchDomain(query, domain, maxQueryResults)
+	matches := suggester.MatchDomain(query, domain, ggOnly, maxQueryResults)
 	out := make([]QueryResult, len(matches))
 	for i, m := range matches {
 		out[i] = QueryResult{Title: m.Label, Text: m.Label}
@@ -767,31 +776,33 @@ type queryContext interface {
 	Answer(resp *telebot.QueryResponse) error
 }
 
-// queryDomain resolves which suggest.Domain q's suggestions should be
-// scoped to: the querying user's currently open ModeText exercise's
-// CorrectAnswer, resolved via Suggester.DomainForAnswer's country-first
-// membership. It defaults to suggest.DomainCountry — the same default
-// DomainForAnswer itself falls back to for an unrecognized answer — when
-// there's no Suggester wired, no query sender, no matching internal user,
-// no exerciseStore wired, or no open ModeText exercise at all; none of
-// these are treated as errors (this package's "never block on a missing
-// optional dependency" convention, e.g. mediaStore's doc comment above).
-func (b *Bot) queryDomain(ctx context.Context, q *telebot.Query) suggest.Domain {
+// queryScope resolves how q's suggestions should be scoped: the answer
+// Domain (from the querying user's currently open ModeText exercise's
+// CorrectAnswer, via Suggester.DomainForAnswer's country-first membership)
+// and whether the user has the GeoGuessr-only filter on (ggOnly, so
+// non-coverage countries are dropped from suggestions too). It defaults to
+// (suggest.DomainCountry, false) — the same Domain default DomainForAnswer
+// falls back to, and gg_only off (show everything) — when there's no
+// Suggester wired, no query sender, or no matching internal user; once the
+// user is resolved, ggOnly reflects their real setting even if no exercise
+// is open. None of these are treated as errors (this package's "never block
+// on a missing optional dependency" convention, e.g. mediaStore's doc).
+func (b *Bot) queryScope(ctx context.Context, q *telebot.Query) (domain suggest.Domain, ggOnly bool) {
 	if b.suggest == nil || q == nil || q.Sender == nil {
-		return suggest.DomainCountry
+		return suggest.DomainCountry, false
 	}
 	u, ok, err := b.store.GetUserByTelegramID(ctx, q.Sender.ID)
 	if err != nil || !ok {
-		return suggest.DomainCountry
+		return suggest.DomainCountry, false
 	}
 	if b.exerciseStore == nil {
-		return suggest.DomainCountry
+		return suggest.DomainCountry, u.GGOnly
 	}
 	ex, found, err := b.exerciseStore.GetOpenExerciseByMode(ctx, u.ID, int16(quiz.ModeText))
 	if err != nil || !found {
-		return suggest.DomainCountry
+		return suggest.DomainCountry, u.GGOnly
 	}
-	return b.suggest.DomainForAnswer(ex.CorrectAnswer)
+	return b.suggest.DomainForAnswer(ex.CorrectAnswer), u.GGOnly
 }
 
 // handleQuery answers an inline query (telebot.OnQuery) with up to
@@ -812,9 +823,9 @@ func (b *Bot) handleQuery(c queryContext) (err error) {
 	}()
 
 	ctx := context.Background()
-	domain := b.queryDomain(ctx, c.Query())
+	domain, ggOnly := b.queryScope(ctx, c.Query())
 
-	results := buildQueryResults(b.suggest, c.Query().Text, domain)
+	results := buildQueryResults(b.suggest, c.Query().Text, domain, ggOnly)
 	articles := make(telebot.Results, len(results))
 	for i, r := range results {
 		articles[i] = &telebot.ArticleResult{

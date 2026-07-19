@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 
+	"github.com/supercakecrumb/geodrill/internal/coverage"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/topics/capitals"
 	"github.com/supercakecrumb/geodrill/internal/topics/cities"
@@ -85,6 +88,109 @@ func runSeedTopics(ctx context.Context, logger *slog.Logger, store *storage.Stor
 	}
 	logger.Info("seeded topic package", "topic", "flags/guess-the-flag", "quiz_kind", flags.Kind)
 
+	// GeoGuessr-only relevance pass — the single global source of truth for
+	// items.gg_relevant, run after every topic (and its country links) is
+	// seeded. Country-linked items mirror their country's gg_coverage;
+	// language items are matched against the languages spoken in covered
+	// countries (see recomputeGGRelevance).
+	if err := recomputeGGRelevance(ctx, logger, store); err != nil {
+		return fmt.Errorf("recompute gg_relevant: %w", err)
+	}
+
 	logger.Info("seed-topics: all topic packages seeded")
+	return nil
+}
+
+// langItemPayload is the subset of a language item's payload the relevance
+// pass reads: the ISO-639-3 deck code(s) the item is about. It covers all
+// three language topics' payload shapes — special-characters
+// ({"languages":[...]}), common-words and guess-the-language
+// ({"language":"..."}).
+type langItemPayload struct {
+	Languages []string `json:"languages"`
+	Language  string   `json:"language"`
+}
+
+// langCodes extracts the deck codes from a language item's jsonb payload.
+func langCodes(payload []byte) []string {
+	var p langItemPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return nil
+	}
+	codes := append([]string(nil), p.Languages...)
+	if p.Language != "" {
+		codes = append(codes, p.Language)
+	}
+	return codes
+}
+
+// recomputeGGRelevance is the two-pass computation of items.gg_relevant
+// (architecture: coverage is a GLOBAL item property; users.gg_only only
+// decides whether to apply it). It is idempotent — every UpsertItem writes
+// gg_relevant=true, and this pass corrects it — so re-running -seed-topics
+// always converges.
+//
+//  1. Country pass (SQL): every country-linked item's gg_relevant mirrors its
+//     country's gg_coverage.
+//  2. Language pass (Go): each language item (country_id IS NULL) is marked
+//     relevant iff one of its languages is spoken in a covered country, using
+//     the seeds/language_coverage.yaml code→name bridge and the conservative
+//     "keep undeterminable languages visible" rule (internal/coverage).
+func recomputeGGRelevance(ctx context.Context, logger *slog.Logger, store *storage.Store) error {
+	if err := store.UpdateItemsRelevanceByCountry(ctx); err != nil {
+		return fmt.Errorf("country relevance pass: %w", err)
+	}
+
+	mapping, err := coverage.Load(coverage.DefaultSeedPath)
+	if err != nil {
+		return err
+	}
+	coveredNames, err := store.ListCoveredLanguageFactValues(ctx)
+	if err != nil {
+		return fmt.Errorf("list covered languages: %w", err)
+	}
+	allNames, err := store.ListAllLanguageFactValues(ctx)
+	if err != nil {
+		return fmt.Errorf("list all languages: %w", err)
+	}
+	decider := coverage.NewDecider(mapping, coveredNames, allNames)
+
+	items, err := store.ListLanguageItems(ctx)
+	if err != nil {
+		return fmt.Errorf("list language items: %w", err)
+	}
+
+	var nRelevant, nHidden int
+	undeterminable := map[string]bool{}
+	for _, it := range items {
+		codes := langCodes(it.Payload)
+		relevant, undet := decider.Relevant(codes)
+		if undet {
+			for _, c := range codes {
+				undeterminable[c] = true
+			}
+		}
+		if relevant {
+			nRelevant++
+		} else {
+			nHidden++
+		}
+		if err := store.SetItemRelevance(ctx, it.ID, relevant); err != nil {
+			return fmt.Errorf("set language item %s relevance: %w", it.ID, err)
+		}
+	}
+
+	kept := make([]string, 0, len(undeterminable))
+	for c := range undeterminable {
+		kept = append(kept, c)
+	}
+	sort.Strings(kept)
+	logger.Info("gg_relevant: language pass",
+		"language_items", len(items),
+		"relevant", nRelevant,
+		"hidden", nHidden,
+		"covered_names", len(coveredNames),
+		"undeterminable_codes_kept", kept,
+	)
 	return nil
 }

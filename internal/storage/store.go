@@ -67,6 +67,10 @@ type User struct {
 	LabelStyle       string
 	Timezone         string
 	CreatedAt        time.Time
+	// GGOnly is the GeoGuessr-only filter (users.gg_only, default true): when
+	// set, every study/stats/tier query hides items whose country/language has
+	// no GeoGuessr Street View coverage (Item.GGRelevant == false).
+	GGOnly bool
 	// DailyIntroCap is the daily introduction budget (architecture §2.10,
 	// users.daily_intro_cap). 0 = unlimited (engram.RemainingIntroBudget's
 	// convention).
@@ -151,7 +155,12 @@ type Item struct {
 	CountryID *uuid.UUID
 	Position  int
 	Active    bool
-	CreatedAt time.Time
+	// GGRelevant is the precomputed GeoGuessr-coverage flag (items.gg_relevant,
+	// default true): true when this item is about a covered country or a
+	// language spoken in one. Set at ingest (cmd/ingest's relevance pass);
+	// gated per-user by User.GGOnly.
+	GGRelevant bool
+	CreatedAt  time.Time
 }
 
 // ItemWithTier pairs an item with its effective tier (COALESCE(items.tier,

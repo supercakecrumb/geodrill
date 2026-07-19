@@ -24,6 +24,7 @@ func userFrom(u db.User) User {
 		LabelStyle:       u.LabelStyle,
 		Timezone:         u.Timezone,
 		CreatedAt:        tsTime(u.CreatedAt),
+		GGOnly:           u.GgOnly,
 		DailyIntroCap:    int(u.DailyIntroCap),
 	}
 }
@@ -89,6 +90,13 @@ func (s *Store) SetFollowUpEnabled(ctx context.Context, userID uuid.UUID, enable
 // SetFollowUpDelay sets the minutes after the first reminder before a follow-up.
 func (s *Store) SetFollowUpDelay(ctx context.Context, userID uuid.UUID, minutes int) error {
 	return s.q.SetFollowUpDelay(ctx, db.SetFollowUpDelayParams{ID: userID, FollowUpDelayMin: int32(minutes)})
+}
+
+// SetGGOnly toggles the GeoGuessr-only coverage filter for a user
+// (users.gg_only). When on, every study/stats/tier query hides items whose
+// country/language has no GeoGuessr coverage.
+func (s *Store) SetGGOnly(ctx context.Context, userID uuid.UUID, enabled bool) error {
+	return s.q.SetGGOnly(ctx, db.SetGGOnlyParams{ID: userID, GgOnly: enabled})
 }
 
 // SetTimezone sets the user's IANA timezone.
