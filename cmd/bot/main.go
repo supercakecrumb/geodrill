@@ -24,6 +24,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/topics"
 	"github.com/supercakecrumb/geodrill/internal/topics/capitals"
 	"github.com/supercakecrumb/geodrill/internal/topics/cities"
+	"github.com/supercakecrumb/geodrill/internal/topics/flags"
 	"github.com/supercakecrumb/geodrill/internal/topics/profiles"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
@@ -91,6 +92,11 @@ func run() error {
 	// answered via the existing global country-suggestion index (no city
 	// entries added to it) — vibe/design-cities.md's task-brief override.
 	topics.Register(cities.New())
+	// Flags: flag photo -> country name (autocomplete), plus confusable-flag
+	// set-choice — vibe/design-flags-quiz.md. flags.New() resolves images
+	// against flags.DefaultMediaRoot ("data/flags", relative to the process's
+	// working directory — cmd/bot runs from the repo root).
+	topics.Register(flags.New())
 
 	studySvc := study.New(store, sched, study.GlobalRegistry, nil, time.Now().UnixNano())
 
