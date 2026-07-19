@@ -25,9 +25,10 @@ const (
 	rootPosition = 3 // sibling ordering among root topics (languages=0, roads=1, countries=2, cities=3)
 
 	// BaseTier is topics.base_tier for the leaf. It is a required, non-null
-	// column but otherwise irrelevant here: every item gets an explicit tier
-	// from the shared countrytier rubric (engine's TierFromCountry rule), so
-	// nothing ever inherits base_tier (mirrors tld.BaseTier / capitals.BaseTier).
+	// column but otherwise irrelevant here: every item gets an explicit
+	// per-city, population-banded tier (seeds/cities.yaml's tier field, set
+	// on engine.ItemSeed.Tier), so nothing ever inherits base_tier (mirrors
+	// tld.BaseTier / capitals.BaseTier).
 	BaseTier = 0
 
 	LeafSlug     = "city-to-country"
@@ -49,14 +50,17 @@ func cityTopic() []engine.TopicNode {
 // collision-safe "<iso2>:<slug>" identifier the seed file's header comment
 // documents (cities collide across countries and even within one — unlike
 // tld/capitals, which have exactly one item per country, so this is used as
-// items.key rather than the country iso2). Population is thousands
-// (approximate metro or city population, per the seed file's header) and
-// drives the population-descending ordering that sets items.position.
+// items.key rather than the country iso2). Population is a raw integer (NOT
+// thousands, per the seed file's header) and drives both the
+// population-descending ordering that sets items.position and, via Tier,
+// the item's own items.tier — cities are tiered by their OWN population,
+// not their country's tier (see cmd/citygen's tier bands).
 type citySeed struct {
 	Key        string `yaml:"key"`
 	Name       string `yaml:"name"`
 	Country    string `yaml:"country"`
 	Population int64  `yaml:"population"`
+	Tier       int16  `yaml:"tier"`
 }
 
 // citiesSeedFile is the top-level shape of seeds/cities.yaml.
@@ -155,9 +159,11 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 	items := make([]engine.ItemSeed, 0, len(entries))
 	for _, e := range entries {
 		c := byISO[e.Country]
+		tier := e.Tier // local copy — avoid aliasing the loop variable's address
 		items = append(items, engine.ItemSeed{
 			Key:   e.Key,
 			Label: e.Name,
+			Tier:  &tier,
 			Payload: itemPayload{
 				CityName:    e.Name,
 				Flag:        c.FlagEmoji,
@@ -165,11 +171,17 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 				ISOA2:       c.ISOA2,
 				ISOA3:       c.ISOA3,
 			},
+			// CountryISO is still needed: it resolves country_id (for the
+			// country-answer lookup / payload) via SeedData.Countries. It no
+			// longer drives tiering — Tier above always wins since it's
+			// explicitly set (engine.Seed only falls back to
+			// TierFromCountry when Tier is nil), and TierFromCountry is off
+			// below regardless.
 			CountryISO: e.Country,
 		})
 	}
 
-	data := engine.SeedData{Items: items, Countries: byISO, TierFromCountry: true}
+	data := engine.SeedData{Items: items, Countries: byISO, TierFromCountry: false}
 	if err := engine.Seed(ctx, store, engine.Descriptor{QuizKind: Kind, Topic: cityTopic()}, data); err != nil {
 		return fmt.Errorf("cities: seed %s: %w", LeafSlug, err)
 	}

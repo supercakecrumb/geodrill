@@ -9,16 +9,21 @@ import (
 
 // TestLoadCitiesRealSeed parses the committed seeds/cities.yaml and
 // cross-checks it against seeds/countries.yaml: every entry references a
-// real country, no key is duplicated, and every key/name/population is
-// well-formed. Runs without a DB so a structural break in the data fails
-// fast (mirrors tld's TestLoadTLDsRealSeed).
+// real country, no key is duplicated, every key/name/population/tier is
+// well-formed, all seven tiers (0..6) are represented, and the file is
+// ordered population-descending. Deliberately does NOT assert an exact city
+// count — cmd/citygen regenerates this file from the (frequently updated)
+// GeoNames dataset, so a brittle count would break on every refresh; the
+// structural invariants below are what actually matter. Runs without a DB
+// so a structural break in the data fails fast (mirrors tld's
+// TestLoadTLDsRealSeed).
 func TestLoadCitiesRealSeed(t *testing.T) {
 	sf, err := loadCitiesFile(citiesSeedPath())
 	if err != nil {
 		t.Fatalf("loadCitiesFile: %v", err)
 	}
-	if len(sf.Cities) != 451 {
-		t.Fatalf("len(cities) = %d, want 451", len(sf.Cities))
+	if len(sf.Cities) == 0 {
+		t.Fatalf("len(cities) = 0, want at least one city")
 	}
 
 	countries, err := engine.LoadCountriesFile(countriesSeedPath())
@@ -29,6 +34,8 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 	for _, c := range countries {
 		countryISO[c.ISOA2] = true
 	}
+
+	tiersSeen := make(map[int16]bool)
 
 	// Every key must be unique — the seeder upserts by key, so a repeated
 	// key would silently overwrite an earlier city.
@@ -48,6 +55,10 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 		if !countryISO[e.Country] {
 			t.Fatalf("city %q references unknown country %q", e.Key, e.Country)
 		}
+		if e.Tier < 0 || e.Tier > 6 {
+			t.Fatalf("city %q has tier %d, want in [0,6]", e.Key, e.Tier)
+		}
+		tiersSeen[e.Tier] = true
 		// Keys are collision-safe <iso2>:<slug> identifiers; only shape
 		// and uniqueness (checked above) are enforced here.
 		if !strings.Contains(e.Key, ":") {
@@ -55,7 +66,24 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 		}
 	}
 
-	// Spot checks from the brief: a few famous, population-heavy cities.
+	for tier := int16(0); tier <= 6; tier++ {
+		if !tiersSeen[tier] {
+			t.Fatalf("no city has tier %d — expected all seven tiers (0..6) to be represented", tier)
+		}
+	}
+
+	// The seed file itself must already be ordered population-descending —
+	// Seed relies on sortByPopulationDesc, but the committed file (produced
+	// by cmd/citygen) should already be in that order.
+	for i := 1; i < len(sf.Cities); i++ {
+		if sf.Cities[i].Population > sf.Cities[i-1].Population {
+			t.Fatalf("seeds/cities.yaml is not population-descending: entry %d (%s, pop=%d) follows entry %d (%s, pop=%d)",
+				i, sf.Cities[i].Key, sf.Cities[i].Population, i-1, sf.Cities[i-1].Key, sf.Cities[i-1].Population)
+		}
+	}
+
+	// Spot checks from the brief: a few famous, population-heavy cities,
+	// which must keep their curated English exonym after a regeneration.
 	spot := map[string]struct {
 		name    string
 		country string
@@ -63,6 +91,10 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 		"cn:shanghai": {"Shanghai", "CN"},
 		"in:mumbai":   {"Mumbai", "IN"},
 		"fr:paris":    {"Paris", "FR"},
+		"de:munich":   {"Munich", "DE"},
+		"ru:moscow":   {"Moscow", "RU"},
+		"at:vienna":   {"Vienna", "AT"},
+		"it:rome":     {"Rome", "IT"},
 	}
 	byKey := make(map[string]citySeed, len(sf.Cities))
 	for _, e := range sf.Cities {

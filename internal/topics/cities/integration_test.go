@@ -5,8 +5,9 @@ package cities_test
 // internal/topics/tld/integration_test.go and
 // internal/topics/capitals/integration_test.go). Seeds a fresh schema and
 // asserts: the topic exists with the right quiz_kind + exercise_modes, one
-// item per city in seeds/cities.yaml, item/country consistency, tier =
-// countrytier rubric, and items.position tracks population descending.
+// item per city in seeds/cities.yaml, item/country consistency, an explicit
+// per-city tier in [0,6] (population-banded — no longer the countrytier
+// rubric), and items.position tracks population descending.
 //
 // WARNING: freshSchema below drops every table (it exercises the down
 // migration), so the target MUST be a disposable database whose name
@@ -24,7 +25,6 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/topics/cities"
-	"github.com/supercakecrumb/geodrill/internal/topics/countrytier"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 )
 
@@ -89,14 +89,6 @@ func TestSeedAndConsistency(t *testing.T) {
 	if err := cities.Seed(ctx, store); err != nil {
 		t.Fatalf("seed cities: %v", err)
 	}
-	// Idempotency: reseeding must converge, not duplicate or error.
-	if err := cities.Seed(ctx, store); err != nil {
-		t.Fatalf("reseed cities: %v", err)
-	}
-
-	// seeds/cities.yaml has 451 entries, all with distinct keys (see
-	// seed_test.go's TestLoadCitiesRealSeed uniqueness check).
-	const wantEntries = 451
 
 	topic, found, err := store.GetTopicByPath(ctx, cities.RootSlug+"/"+cities.LeafSlug)
 	if err != nil || !found {
@@ -121,8 +113,25 @@ func TestSeedAndConsistency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list items: %v", err)
 	}
-	if len(items) != wantEntries {
-		t.Fatalf("len(items) = %d, want %d", len(items), wantEntries)
+	// Not a fixed count — cmd/citygen regenerates seeds/cities.yaml from the
+	// (frequently updated) GeoNames dataset, so hardcoding an exact number
+	// here would break on every data refresh; see seed_test.go's
+	// TestLoadCitiesRealSeed for the structural invariants that matter.
+	if len(items) == 0 {
+		t.Fatalf("len(items) = 0, want at least one city")
+	}
+
+	// Idempotency: reseeding must converge to the exact same item count, not
+	// duplicate or error.
+	if err := cities.Seed(ctx, store); err != nil {
+		t.Fatalf("reseed cities: %v", err)
+	}
+	reseededItems, err := store.ListItemsByTopic(ctx, topic.ID)
+	if err != nil {
+		t.Fatalf("list items after reseed: %v", err)
+	}
+	if len(reseededItems) != len(items) {
+		t.Fatalf("len(items) after reseed = %d, want %d (unchanged)", len(reseededItems), len(items))
 	}
 
 	countries, err := store.ListCountries(ctx)
@@ -175,10 +184,10 @@ func TestSeedAndConsistency(t *testing.T) {
 			t.Fatalf("item %s payload.city_name = %q, but label = %q", it.Key, p.CityName, it.Label)
 		}
 		if it.Tier == nil {
-			t.Fatalf("item %s has nil tier (want explicit countrytier override)", it.Key)
+			t.Fatalf("item %s has nil tier (want an explicit per-city, population-banded tier)", it.Key)
 		}
-		if wantTier := countrytier.Tier(country.ISOA2, country.UNMember, country.GGCoverage); *it.Tier != wantTier {
-			t.Fatalf("item %s tier = %d, want %d (countrytier)", it.Key, *it.Tier, wantTier)
+		if *it.Tier < 0 || *it.Tier > 6 {
+			t.Fatalf("item %s tier = %d, want in [0,6]", it.Key, *it.Tier)
 		}
 
 		byKey[it.Key] = seen{position: it.Position, iso2: country.ISOA2}

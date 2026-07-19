@@ -1,0 +1,2 @@
+kind: Changed
+body: "Cities are now tiered by their own population (tier 0 = the biggest metros down to tier 6 = ~15k–75k towns) instead of inheriting their country's tier, and the city set is expanded well beyond the original 451 using the open GeoNames cities15000 dataset (CC-BY 4.0) while keeping curated English city names."
