@@ -112,8 +112,9 @@ func TestHandleCallback_GameStart_NoContent(t *testing.T) {
 	if len(s.editedMsgs) != 1 || s.editedMsgs[0].text != gameUnavailableText {
 		t.Fatalf("expected the unavailable message edited in place, got %+v", s.editedMsgs)
 	}
-	if len(s.editedMsgs[0].rows) != 0 {
-		t.Fatalf("expected no buttons on the unavailable message, got %+v", s.editedMsgs[0].rows)
+	// A dead end (no content) still needs a way back to the hub.
+	if len(s.editedMsgs[0].rows) != 1 || s.editedMsgs[0].rows[0][0].Data != dataMenuOpen {
+		t.Fatalf("expected a single «⬅️ Menu» button on the unavailable message, got %+v", s.editedMsgs[0].rows)
 	}
 }
 
@@ -292,11 +293,18 @@ func TestHandleGameAnswer_Wrong_EndsRunAndPersistsStats(t *testing.T) {
 			t.Fatalf("expected closer to contain %q; got:\n%s", want, closer)
 		}
 	}
-	if len(s.editedMsgs[0].rows) != 1 || len(s.editedMsgs[0].rows[0]) != 2 {
-		t.Fatalf("expected the two closer controls, got %+v", s.editedMsgs[0].rows)
+	// The two closer controls on their own row, plus a trailing «⬅️ Menu»
+	// row back to the hub (hub-and-spoke rule: the game-over screen is
+	// /game's own terminal state).
+	rows := s.editedMsgs[0].rows
+	if len(rows) != 2 || len(rows[0]) != 2 {
+		t.Fatalf("expected the two closer controls plus a Menu row, got %+v", rows)
 	}
-	if s.editedMsgs[0].rows[0][0].Data != dataGameAgain || s.editedMsgs[0].rows[0][1].Data != dataGameDone {
-		t.Fatalf("expected Play-again then Done, got %+v", s.editedMsgs[0].rows[0])
+	if rows[0][0].Data != dataGameAgain || rows[0][1].Data != dataGameDone {
+		t.Fatalf("expected Play-again then Done, got %+v", rows[0])
+	}
+	if rows[1][0].Data != dataMenuOpen {
+		t.Fatalf("expected the trailing row to be «⬅️ Menu», got %+v", rows[1])
 	}
 
 	// The run must be cleared once it's over.
@@ -330,6 +338,10 @@ func TestHandleGameAnswer_Wrong_NoTipWhenNoneMatches(t *testing.T) {
 
 // ── game:done ────────────────────────────────────────────────────────────
 
+// TestHandleGameDone_DropsKeyboard covers game:done: the Play-again/Done
+// controls are dropped, but a one-button «⬅️ Menu» keyboard replaces them
+// rather than clearing to nil (hub-and-spoke rule — the summary must never
+// become a total dead end).
 func TestHandleGameDone_DropsKeyboard(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
 	b.game = &stubGameService{}
@@ -338,8 +350,11 @@ func TestHandleGameDone_DropsKeyboard(t *testing.T) {
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
-	if len(s.edits) != 1 || s.edits[0].messageID != 55 || s.edits[0].rows != nil {
-		t.Fatalf("expected the keyboard cleared on message 55, got %+v", s.edits)
+	if len(s.edits) != 1 || s.edits[0].messageID != 55 {
+		t.Fatalf("expected the keyboard replaced on message 55, got %+v", s.edits)
+	}
+	if len(s.edits[0].rows) != 1 || s.edits[0].rows[0][0].Data != dataMenuOpen {
+		t.Fatalf("expected a single «⬅️ Menu» button left in place, got %+v", s.edits[0].rows)
 	}
 	if len(s.responses) != 1 || s.responses[0] != "👋" {
 		t.Fatalf("expected the wave-goodbye ack, got %v", s.responses)

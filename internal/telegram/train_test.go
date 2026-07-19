@@ -124,6 +124,9 @@ func TestHandleStats_DormantWhenTrainerNil(t *testing.T) {
 	}
 }
 
+// TestHandleStats_RendersViewModel covers /stats when Trainer is wired: it
+// must now carry a one-button «⬅️ Menu» keyboard (hub-and-spoke rule — it
+// had no keyboard at all before).
 func TestHandleStats_RendersViewModel(t *testing.T) {
 	st := &stubStore{user: newTestUser()}
 	b := newTestBot(st)
@@ -133,11 +136,18 @@ func TestHandleStats_RendersViewModel(t *testing.T) {
 	if err := b.handleStats(context.Background(), s); err != nil {
 		t.Fatalf("handleStats: %v", err)
 	}
-	if len(s.sent) != 1 || !strings.Contains(s.sent[0], "Reviews today: 3") {
-		t.Fatalf("expected the stats rendered, got %v", s.sent)
+	if len(s.keyboards) != 1 || !strings.Contains(s.keyboards[0].text, "Reviews today: 3") {
+		t.Fatalf("expected the stats rendered as a keyboard message, got %+v", s.keyboards)
+	}
+	if len(s.keyboards[0].rows) != 1 || s.keyboards[0].rows[0][0].Data != dataMenuOpen {
+		t.Fatalf("expected a single «⬅️ Menu» button, got %+v", s.keyboards[0].rows)
 	}
 }
 
+// TestSendPrompt_NothingDueUsesUserTimezone covers /train's "nothing due"
+// terminal screen: the localized due time (unchanged) plus a one-button
+// «⬅️ Menu» keyboard (hub-and-spoke rule — it had no keyboard at all
+// before).
 func TestSendPrompt_NothingDueUsesUserTimezone(t *testing.T) {
 	user := storage.User{Timezone: "America/New_York"}
 	due := time.Date(2026, 7, 18, 20, 0, 0, 0, time.UTC) // 16:00 in America/New_York
@@ -146,8 +156,11 @@ func TestSendPrompt_NothingDueUsesUserTimezone(t *testing.T) {
 	if err := b.sendPrompt(s, user, Prompt{Kind: PromptKindNothingDue, DueAt: due}); err != nil {
 		t.Fatalf("sendPrompt: %v", err)
 	}
-	if len(s.sent) != 1 || !strings.Contains(s.sent[0], "16:00") {
-		t.Fatalf("expected the due time localized to 16:00, got %v", s.sent)
+	if len(s.keyboards) != 1 || !strings.Contains(s.keyboards[0].text, "16:00") {
+		t.Fatalf("expected the due time localized to 16:00, got %+v", s.keyboards)
+	}
+	if len(s.keyboards[0].rows) != 1 || s.keyboards[0].rows[0][0].Data != dataMenuOpen {
+		t.Fatalf("expected a single «⬅️ Menu» button, got %+v", s.keyboards[0].rows)
 	}
 }
 
@@ -248,8 +261,8 @@ func TestHandleAnswerCallback_GradesEditsAndAdvances(t *testing.T) {
 	if len(s.responses) != 1 || s.responses[0] != correctToast {
 		t.Fatalf("expected the correct toast, got %v", s.responses)
 	}
-	if len(s.sent) != 1 { // KindNothingDue -> plain Send
-		t.Fatalf("expected the next-result message sent, got %d", len(s.sent))
+	if len(s.keyboards) != 1 { // KindNothingDue -> SendKeyboard with the Menu button
+		t.Fatalf("expected the next-result message sent, got %d", len(s.keyboards))
 	}
 }
 
@@ -363,12 +376,17 @@ func TestHandleText_GradesAndAdvances(t *testing.T) {
 	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 5 {
 		t.Fatalf("expected the exercise edited via its own MessageID, got %+v", s.editedMsgs)
 	}
-	// No callback to Respond() to — the toast is a plain follow-up message.
-	if len(s.sent) != 2 { // toast + next-result (KindNothingDue)
-		t.Fatalf("expected a toast message plus the next-result message, got %d sends: %v", len(s.sent), s.sent)
+	// No callback to Respond() to — the toast is a plain follow-up message;
+	// the next-result (KindNothingDue) is now a keyboard message with the
+	// Menu button.
+	if len(s.sent) != 1 {
+		t.Fatalf("expected a single toast message, got %d sends: %v", len(s.sent), s.sent)
 	}
 	if s.sent[0] != wrongToast {
 		t.Fatalf("expected the wrong toast as a plain message, got %q", s.sent[0])
+	}
+	if len(s.keyboards) != 1 {
+		t.Fatalf("expected the next-result message sent as a keyboard, got %d", len(s.keyboards))
 	}
 }
 
@@ -406,10 +424,13 @@ func TestHandleText_SuggestionArrival_UsesExistingFreeTextGradingPath(t *testing
 	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 5 {
 		t.Fatalf("expected the exercise graded/edited exactly as a typed answer would be, got %+v", s.editedMsgs)
 	}
-	if len(s.sent) != 2 { // toast + next-result (KindNothingDue)
-		t.Fatalf("expected a toast message plus the next-result message, got %d sends: %v", len(s.sent), s.sent)
+	if len(s.sent) != 1 {
+		t.Fatalf("expected a single toast message, got %d sends: %v", len(s.sent), s.sent)
 	}
 	if s.sent[0] != correctToast {
 		t.Fatalf("expected the correct toast as a plain message, got %q", s.sent[0])
+	}
+	if len(s.keyboards) != 1 {
+		t.Fatalf("expected the next-result message sent as a keyboard, got %d", len(s.keyboards))
 	}
 }

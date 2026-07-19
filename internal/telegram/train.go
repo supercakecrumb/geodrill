@@ -67,7 +67,10 @@ func (b *Bot) sendNextTrain(ctx context.Context, s Session, user storage.User) e
 }
 
 // sendPrompt renders a Prompt result, mirroring sendNextResult's
-// Kind switch for the exercise path.
+// Kind switch for the exercise path. Every non-exercise branch is /train's
+// terminal/idle screen (hub-and-spoke rule): none carried a keyboard
+// before, so a one-button «⬅️ Menu» keyboard is the minimal fix — the
+// message text/copy itself is untouched.
 func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 	switch p.Kind {
 	case PromptKindExercise:
@@ -75,13 +78,17 @@ func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 	case PromptKindNothingDue:
 		if !p.DueAt.IsZero() {
 			loc := locationFor(user)
-			return s.Send(fmt.Sprintf("Nothing due right now. Come back at %s.", p.DueAt.In(loc).Format("15:04")))
+			_, err := s.SendKeyboard(fmt.Sprintf("Nothing due right now. Come back at %s.", p.DueAt.In(loc).Format("15:04")), menuBackRow())
+			return err
 		}
-		return s.Send(allCaughtUpText)
+		_, err := s.SendKeyboard(allCaughtUpText, menuBackRow())
+		return err
 	case PromptKindNoContent:
-		return s.Send(noContentText)
+		_, err := s.SendKeyboard(noContentText, menuBackRow())
+		return err
 	default:
-		return s.Send(fallbackText)
+		_, err := s.SendKeyboard(fallbackText, menuBackRow())
+		return err
 	}
 }
 

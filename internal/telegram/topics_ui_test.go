@@ -264,8 +264,15 @@ func TestHandleTopics_SendsRootListing(t *testing.T) {
 	if len(s.keyboards) != 1 || s.keyboards[0].text != topicsRootText {
 		t.Fatalf("expected the root listing sent, got %+v", s.keyboards)
 	}
-	if len(s.keyboards[0].rows) != 1 {
-		t.Fatalf("expected one row for one root topic, got %d", len(s.keyboards[0].rows))
+	// One row per root topic, plus the trailing «⬅️ Menu» row (hub-and-spoke
+	// rule: the root listing is where "Up" navigation would otherwise leave
+	// the tree with no way back).
+	rows := s.keyboards[0].rows
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows (1 topic + Menu), got %d", len(rows))
+	}
+	if rows[1][0].Data != dataMenuOpen {
+		t.Fatalf("expected the trailing row to be «⬅️ Menu», got %+v", rows[1])
 	}
 }
 
@@ -313,8 +320,13 @@ func TestHandleTopicCallback_Root(t *testing.T) {
 	if len(s.editedMsgs) != 1 || s.editedMsgs[0].text != topicsRootText {
 		t.Fatalf("expected the root listing re-rendered in place, got %+v", s.editedMsgs)
 	}
-	if len(s.editedMsgs[0].rows) != 2 {
-		t.Fatalf("expected 2 rows for 2 root topics, got %d", len(s.editedMsgs[0].rows))
+	// 2 topic rows + the trailing «⬅️ Menu» row.
+	rows := s.editedMsgs[0].rows
+	if len(rows) != 3 {
+		t.Fatalf("expected 3 rows (2 topics + Menu), got %d", len(rows))
+	}
+	if rows[2][0].Data != dataMenuOpen {
+		t.Fatalf("expected the trailing row to be «⬅️ Menu», got %+v", rows[2])
 	}
 }
 

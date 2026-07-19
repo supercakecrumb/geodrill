@@ -171,6 +171,10 @@ func TestSendIntroCard_Photo(t *testing.T) {
 	}
 }
 
+// TestSendIntroCard_ClosersByReason covers /study's terminal states (nothing
+// left to introduce, or today's budget spent): the message text is
+// untouched (that's a separate task's concern), but each now carries a
+// one-button «⬅️ Menu» keyboard back to the hub (hub-and-spoke rule).
 func TestSendIntroCard_ClosersByReason(t *testing.T) {
 	cases := []struct {
 		name string
@@ -187,14 +191,18 @@ func TestSendIntroCard_ClosersByReason(t *testing.T) {
 			if err := b.sendIntroCard(context.Background(), s, tc.card); err != nil {
 				t.Fatalf("sendIntroCard: %v", err)
 			}
-			if len(s.sent) != 1 {
-				t.Fatalf("expected one plain message sent, got %d", len(s.sent))
+			if len(s.sent) != 0 {
+				t.Fatalf("expected no plain Send (now a keyboard message), got %d", len(s.sent))
 			}
-			if !strings.Contains(s.sent[0], tc.want) {
-				t.Fatalf("expected closer text to contain %q, got %q", tc.want, s.sent[0])
+			if len(s.keyboards) != 1 {
+				t.Fatalf("expected one keyboard message sent, got %d", len(s.keyboards))
 			}
-			if len(s.keyboards) != 0 {
-				t.Fatalf("a closer message must not carry a keyboard, got %d", len(s.keyboards))
+			if !strings.Contains(s.keyboards[0].text, tc.want) {
+				t.Fatalf("expected closer text to contain %q, got %q", tc.want, s.keyboards[0].text)
+			}
+			if len(s.keyboards[0].rows) != 1 || len(s.keyboards[0].rows[0]) != 1 ||
+				s.keyboards[0].rows[0][0].Data != dataMenuOpen {
+				t.Fatalf("expected a single «⬅️ Menu» button, got %+v", s.keyboards[0].rows)
 			}
 		})
 	}
@@ -311,9 +319,10 @@ func TestHandleIntroCallback_PhotoCardUsesEditCaption(t *testing.T) {
 	if len(s.editedMsgs) != 0 {
 		t.Fatalf("a photo card must not use EditMessage, got %d calls", len(s.editedMsgs))
 	}
-	// Nothing left to introduce: the closer message, no next keyboard.
-	if len(s.sent) != 1 {
-		t.Fatalf("expected the closer message sent, got %d", len(s.sent))
+	// Nothing left to introduce: the closer message, sent as a one-button
+	// «⬅️ Menu» keyboard (hub-and-spoke rule), not a next card.
+	if len(s.keyboards) != 1 {
+		t.Fatalf("expected the closer message sent as a keyboard, got %d", len(s.keyboards))
 	}
 }
 

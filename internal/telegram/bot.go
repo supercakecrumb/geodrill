@@ -158,6 +158,7 @@ func New(cfg Config) (*Bot, error) {
 	}
 
 	tb.Handle("/start", b.wrap(b.handleStart))
+	tb.Handle("/menu", b.wrap(b.handleMenu))
 	tb.Handle("/train", b.wrap(b.handleTrain))
 	tb.Handle("/decks", b.wrap(b.handleDecks))
 	tb.Handle("/settings", b.wrap(b.handleSettings))
@@ -199,6 +200,7 @@ func New(cfg Config) (*Bot, error) {
 
 // botCommands is the "/" autocomplete menu shown in Telegram clients.
 var botCommands = []telebot.Command{
+	{Text: "menu", Description: "Main menu — jump to any section"},
 	{Text: "train", Description: "Next due exercise"},
 	{Text: "study", Description: "Introduce new items"},
 	{Text: "topics", Description: "Browse topics, tiers & progress"},

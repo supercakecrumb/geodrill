@@ -1,0 +1,2 @@
+kind: Added
+body: "Added a /menu navigation hub with a button for every wired destination (Study, Train, Game, Topics, Stats, Settings, Help); /start now ends there too, and every top-level section plus every Study/Train/Game terminal screen carries a \"⬅️ Menu\" button back to it, so you can always get from any screen to any other"

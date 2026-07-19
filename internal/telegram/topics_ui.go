@@ -201,12 +201,16 @@ func (b *Bot) handleTopicCallback(ctx context.Context, s Session, data string) e
 // ── pure rendering ───────────────────────────────────────────────────────
 
 // rootTopicRows renders one row per root TopicRow, drilling in via
-// "top:<uuid>".
+// "top:<uuid>", plus a trailing «⬅️ Menu» row back to the hub. The root
+// listing is where the ⬆️ "Up" navigation drilled-in views carry (see
+// topicNavButton) would otherwise leave the tree entirely with no further
+// way back — the hub-and-spoke rule closes that gap here.
 func rootTopicRows(rows []TopicRow) [][]Btn {
-	out := make([][]Btn, 0, len(rows))
+	out := make([][]Btn, 0, len(rows)+1)
 	for _, r := range rows {
 		out = append(out, []Btn{{Label: topicRowLabel(r), Data: "top:" + r.TopicID.String()}})
 	}
+	out = append(out, []Btn{{Label: "⬅️ Menu", Data: dataMenuOpen}})
 	return out
 }
 

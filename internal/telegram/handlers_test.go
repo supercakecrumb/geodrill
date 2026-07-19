@@ -732,7 +732,8 @@ func TestFormatStats_SingularStreak(t *testing.T) {
 // ── /help ────────────────────────────────────────────────────────────────
 
 // TestHandleHelp_RootMenu covers the initial /help message: the overview
-// text plus one button per subtopic, each on its own row.
+// text plus one button per subtopic, each on its own row, plus a trailing
+// «⬅️ Menu» row back to the hub (hub-and-spoke rule).
 func TestHandleHelp_RootMenu(t *testing.T) {
 	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
 	s := &fakeSession{userID: 1}
@@ -752,6 +753,7 @@ func TestHandleHelp_RootMenu(t *testing.T) {
 		"🎓 The intro buttons explained",
 		"🗺 Topics & tiers",
 		"🧭 Commands",
+		"⬅️ Menu",
 	}
 	if len(kb.rows) != len(wantLabels) {
 		t.Fatalf("expected %d rows (one button each), got %d", len(wantLabels), len(kb.rows))
@@ -837,7 +839,8 @@ func TestHandleCallback_HelpCmds_GatedByWiredServices(t *testing.T) {
 }
 
 // TestHandleCallback_HelpRoot_RestoresMenu covers the Back button: tapping
-// help:root must restore the exact root menu (overview text + 4 buttons).
+// help:root must restore the exact root menu (overview text + 4 subtopic
+// buttons + the trailing «⬅️ Menu» row).
 func TestHandleCallback_HelpRoot_RestoresMenu(t *testing.T) {
 	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
 	s := &fakeSession{userID: 1, messageID: 42, data: dataHelpRoot}
@@ -852,7 +855,221 @@ func TestHandleCallback_HelpRoot_RestoresMenu(t *testing.T) {
 	if edit.text != helpRootText {
 		t.Fatalf("expected the root overview text restored, got %q", edit.text)
 	}
-	if len(edit.rows) != 4 {
-		t.Fatalf("expected the 4-button root menu restored, got %d rows", len(edit.rows))
+	if len(edit.rows) != 5 {
+		t.Fatalf("expected the 5-row root menu restored, got %d rows", len(edit.rows))
+	}
+}
+
+// ── /menu ────────────────────────────────────────────────────────────────
+
+// menuBtnData flattens a keyboard's rows into their callback data, in row
+// order, for asserting which destinations a hub render carries.
+func menuBtnData(rows [][]Btn) []string {
+	var data []string
+	for _, row := range rows {
+		for _, b := range row {
+			data = append(data, b.Data)
+		}
+	}
+	return data
+}
+
+// TestHandleMenu_AllDestinationsWhenWired covers /menu with every optional
+// service wired: one button per destination, /train, /stats, /settings, and
+// /help always present alongside the gated /study, /game, /topics.
+func TestHandleMenu_AllDestinationsWhenWired(t *testing.T) {
+	b := newTestBot(&stubStore{user: newTestUser()})
+	b.study = &stubStudyService{}
+	b.topics = &stubTopicService{}
+	b.game = &stubGameService{}
+
+	s := &fakeSession{userID: 1}
+	if err := b.handleMenu(context.Background(), s); err != nil {
+		t.Fatalf("handleMenu: %v", err)
+	}
+	if len(s.keyboards) != 1 || s.keyboards[0].text != menuText {
+		t.Fatalf("expected the hub sent with its header text, got %+v", s.keyboards)
+	}
+	got := menuBtnData(s.keyboards[0].rows)
+	want := []string{dataMenuStudy, dataMenuTrain, dataMenuGame, dataMenuTopics, dataMenuStats, dataMenuSettings, dataMenuHelp}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d destination buttons, got %d: %v", len(want), len(got), got)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Fatalf("destination %d: got %q, want %q (full: %v)", i, got[i], w, got)
+		}
+	}
+}
+
+// TestHandleMenu_GatesUnwiredDestinations covers /menu with no optional
+// service wired: only the always-available destinations must appear,
+// mirroring helpCommandsText's own hasStudy/hasTopics/hasGame gating so the
+// hub never advertises a destination that would just reply "🚧 coming soon".
+func TestHandleMenu_GatesUnwiredDestinations(t *testing.T) {
+	b := newTestBot(&stubStore{user: newTestUser()})
+
+	s := &fakeSession{userID: 1}
+	if err := b.handleMenu(context.Background(), s); err != nil {
+		t.Fatalf("handleMenu: %v", err)
+	}
+	got := menuBtnData(s.keyboards[0].rows)
+	want := []string{dataMenuTrain, dataMenuStats, dataMenuSettings, dataMenuHelp}
+	if len(got) != len(want) {
+		t.Fatalf("expected only the always-available destinations, got %v", got)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Fatalf("destination %d: got %q, want %q (full: %v)", i, got[i], w, got)
+		}
+	}
+}
+
+// TestHandleMenuCallback_OpenReRendersHubInPlace covers menu:open: it must
+// edit the tapped message in place, mirroring rerenderSettings/
+// handleHelpCallback's own in-place-edit convention for every other hub
+// button.
+func TestHandleMenuCallback_OpenReRendersHubInPlace(t *testing.T) {
+	b := newTestBot(&stubStore{user: newTestUser()})
+	s := &fakeSession{userID: 1, messageID: 42, data: dataMenuOpen}
+
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 42 || s.editedMsgs[0].text != menuText {
+		t.Fatalf("expected the hub edited in place on message 42, got %+v", s.editedMsgs)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single empty ack, got %v", s.responses)
+	}
+}
+
+// TestHandleMenuCallback_OpensEachSection covers every menu:<dest> payload:
+// each must ack the tap and then run that destination's normal entry
+// point — exactly like typing its command (mirroring
+// handleStartTrainCallback/handleStudyCallback's existing ack-then-send
+// shape).
+func TestHandleMenuCallback_OpensEachSection(t *testing.T) {
+	cases := []struct {
+		name string
+		data string
+		wire func(b *Bot)
+		want func(t *testing.T, s *fakeSession)
+	}{
+		{
+			name: "study",
+			data: dataMenuStudy,
+			wire: func(b *Bot) {
+				b.study = &stubStudyService{nextCard: IntroCard{IntroID: uuid.New(), Text: "card", Reason: IntroOK}}
+			},
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || s.keyboards[0].text != "card" {
+					t.Fatalf("expected the intro card sent, got %+v", s.keyboards)
+				}
+			},
+		},
+		{
+			name: "train",
+			data: dataMenuTrain,
+			wire: func(b *Bot) {
+				b.trainer = &stubTrainer{next: Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "exercise"}}
+			},
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || s.keyboards[0].text != "exercise" {
+					t.Fatalf("expected the next exercise sent, got %+v", s.keyboards)
+				}
+			},
+		},
+		{
+			name: "game",
+			data: dataMenuGame,
+			wire: func(b *Bot) { b.game = &stubGameService{} },
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || s.keyboards[0].text != gameMenuText {
+					t.Fatalf("expected the game menu sent, got %+v", s.keyboards)
+				}
+			},
+		},
+		{
+			name: "topics",
+			data: dataMenuTopics,
+			wire: func(b *Bot) { b.topics = &stubTopicService{root: []TopicRow{{Name: "Languages"}}} },
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || s.keyboards[0].text != topicsRootText {
+					t.Fatalf("expected the topics root listing sent, got %+v", s.keyboards)
+				}
+			},
+		},
+		{
+			name: "stats",
+			data: dataMenuStats,
+			wire: func(b *Bot) { b.trainer = &stubTrainer{stats: Stats{ReviewsToday: 3}} },
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || !strings.Contains(s.keyboards[0].text, "Reviews today: 3") {
+					t.Fatalf("expected the stats view sent, got %+v", s.keyboards)
+				}
+			},
+		},
+		{
+			name: "settings",
+			data: dataMenuSettings,
+			wire: func(b *Bot) {},
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || s.keyboards[0].text != settingsText {
+					t.Fatalf("expected the settings keyboard sent, got %+v", s.keyboards)
+				}
+			},
+		},
+		{
+			name: "help",
+			data: dataMenuHelp,
+			wire: func(b *Bot) {},
+			want: func(t *testing.T, s *fakeSession) {
+				if len(s.keyboards) != 1 || s.keyboards[0].text != helpRootText {
+					t.Fatalf("expected the help root menu sent, got %+v", s.keyboards)
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := newTestBot(&stubStore{user: newTestUser()})
+			tc.wire(b)
+			s := &fakeSession{userID: 1, data: tc.data}
+
+			if err := b.handleCallback(context.Background(), s); err != nil {
+				t.Fatalf("handleCallback(%s): %v", tc.name, err)
+			}
+			if len(s.responses) != 1 || s.responses[0] != "" {
+				t.Fatalf("expected a single empty ack, got %v", s.responses)
+			}
+			tc.want(t, s)
+		})
+	}
+}
+
+// TestHandleStart_EndsAtMenu covers /start: after the welcome text and the
+// /topics send, it must close by sending the same hub /menu sends (Feature
+// 1's "no dead ends" rule for the entry point itself).
+func TestHandleStart_EndsAtMenu(t *testing.T) {
+	b := newTestBot(&stubStore{user: newTestUser()})
+	b.topics = &stubTopicService{root: []TopicRow{{Name: "Languages"}}}
+	s := &fakeSession{userID: 1}
+
+	if err := b.handleStart(context.Background(), s); err != nil {
+		t.Fatalf("handleStart: %v", err)
+	}
+	if len(s.sent) != 1 || s.sent[0] != welcomeText {
+		t.Fatalf("expected the welcome text sent first, got %v", s.sent)
+	}
+	// /topics then /menu each send a keyboard message.
+	if len(s.keyboards) != 2 {
+		t.Fatalf("expected two keyboard messages (topics root, then the hub), got %d: %+v", len(s.keyboards), s.keyboards)
+	}
+	if s.keyboards[0].text != topicsRootText {
+		t.Fatalf("expected the topics root listing first, got %q", s.keyboards[0].text)
+	}
+	if s.keyboards[1].text != menuText {
+		t.Fatalf("expected /start to end with the hub, got %q", s.keyboards[1].text)
 	}
 }

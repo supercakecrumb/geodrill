@@ -60,7 +60,11 @@ func (b *Bot) handleStudyCallback(ctx context.Context, s Session) error {
 // closer message (nothing left to introduce, or today's budget spent).
 func (b *Bot) sendIntroCard(ctx context.Context, s Session, card IntroCard) error {
 	if card.Reason != IntroOK {
-		return s.Send(introCloserText(card))
+		// This is /study's terminal/idle screen (hub-and-spoke rule): it had
+		// no keyboard at all before, so a one-button «⬅️ Menu» keyboard is
+		// the minimal fix.
+		_, err := s.SendKeyboard(introCloserText(card), menuBackRow())
+		return err
 	}
 	media := card.MediaPath != ""
 	rows := introButtonRows(card.IntroID, media)

@@ -146,7 +146,8 @@ func (b *Bot) startGameRun(ctx context.Context, s Session) error {
 		return err
 	}
 	if len(catalog) == 0 {
-		return s.EditMessage(s.MessageID(), gameUnavailableText, nil)
+		// A dead end (no content at all) — hub-and-spoke rule still applies.
+		return s.EditMessage(s.MessageID(), gameUnavailableText, menuBackRow())
 	}
 
 	used := map[uuid.UUID]bool{}
@@ -155,7 +156,7 @@ func (b *Bot) startGameRun(ctx context.Context, s Session) error {
 		return err
 	}
 	if !ok {
-		return s.EditMessage(s.MessageID(), gameUnavailableText, nil)
+		return s.EditMessage(s.MessageID(), gameUnavailableText, menuBackRow())
 	}
 	used[round.ContentID] = true
 	b.setGameRun(s.UserID(), &gameRun{catalog: catalog, used: used, streak: 0, round: round})
@@ -241,9 +242,11 @@ func (b *Bot) endGameRun(ctx context.Context, s Session, run *gameRun) error {
 }
 
 // handleGameDone ends the game-zone interaction: drops the closer's
-// keyboard in place, leaving the summary as a plain message.
+// Play-again/Done controls in place, leaving only the «⬅️ Menu» button
+// (hub-and-spoke rule — dropping the keyboard to nil entirely would leave
+// the summary a dead end with no way back to the hub).
 func (b *Bot) handleGameDone(ctx context.Context, s Session) error {
-	if err := s.EditKeyboard(s.MessageID(), nil); err != nil {
+	if err := s.EditKeyboard(s.MessageID(), menuBackRow()); err != nil {
 		b.logger.Warn("telegram: edit game closer keyboard", "error", err)
 	}
 	return s.Respond("👋")
@@ -333,10 +336,14 @@ func renderGameCloser(streak, best, runs int, missed game.Language, tip string) 
 }
 
 // gameCloserRows renders the closer's two controls (design doc: "▶️ Play
-// again" / "🏁 Done").
+// again" / "🏁 Done"), plus a trailing «⬅️ Menu» row back to the hub
+// (hub-and-spoke rule: the game-over screen is /game's own terminal state).
 func gameCloserRows() [][]Btn {
-	return [][]Btn{{
-		{Label: "▶️ Play again", Data: dataGameAgain},
-		{Label: "🏁 Done", Data: dataGameDone},
-	}}
+	return [][]Btn{
+		{
+			{Label: "▶️ Play again", Data: dataGameAgain},
+			{Label: "🏁 Done", Data: dataGameDone},
+		},
+		{{Label: "⬅️ Menu", Data: dataMenuOpen}},
+	}
 }

@@ -162,7 +162,13 @@ func (b *Bot) handleStart(ctx context.Context, s Session) error {
 	// The legacy deck picker that used to follow the welcome message was
 	// removed along with the decks/user_decks tables; /topics (via
 	// handleTopics, which is itself nil-safe) is its replacement.
-	return b.handleTopics(ctx, s)
+	if err := b.handleTopics(ctx, s); err != nil {
+		return err
+	}
+	// Hub-and-spoke (Feature 1): /start ends at the same navigation hub
+	// /menu sends, so a fresh user always lands somewhere every other
+	// destination can be reached from.
+	return b.handleMenu(ctx, s)
 }
 
 // ── /train ───────────────────────────────────────────────────────────────
@@ -328,13 +334,17 @@ func helpSection(data string, hasStudy, hasTopics, hasGame bool) (string, [][]Bt
 	}
 }
 
-// helpRootRows is the /help root menu: one button per subtopic, one per row.
+// helpRootRows is the /help root menu: one button per subtopic, one per
+// row, plus a trailing «⬅️ Menu» row back to the hub (hub-and-spoke rule —
+// help:root is the only dead end /help itself would otherwise leave: every
+// subtopic already returns here via helpBackRow).
 func helpRootRows() [][]Btn {
 	return [][]Btn{
 		{{Label: "📚 How spaced repetition works", Data: dataHelpFSRS}},
 		{{Label: "🎓 The intro buttons explained", Data: dataHelpIntro}},
 		{{Label: "🗺 Topics & tiers", Data: dataHelpTiers}},
 		{{Label: "🧭 Commands", Data: dataHelpCmds}},
+		{{Label: "⬅️ Menu", Data: dataMenuOpen}},
 	}
 }
 
@@ -388,7 +398,111 @@ func (b *Bot) handleStats(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	return s.Send(formatStats(st))
+	// /stats is a top-level section (hub-and-spoke rule): it had no keyboard
+	// at all before, so a one-button «⬅️ Menu» keyboard is the minimal fix.
+	_, err = s.SendKeyboard(formatStats(st), menuBackRow())
+	return err
+}
+
+// ── /menu ────────────────────────────────────────────────────────────────
+
+// menu: callback payloads (Feature: hub-and-spoke navigation). dataMenuOpen
+// is what every «⬅️ Menu» button across the bot carries (Settings, Help
+// root, Topics root, Stats, and every Study/Train/Game terminal/idle
+// screen) — it re-renders the hub in place over whatever message the tap
+// landed on. The per-destination payloads below are what the hub's own
+// buttons carry: each acks the tap and then runs that destination's normal
+// entry point, mirroring the existing ack-then-send shape of
+// handleStartTrainCallback ("▶️ Start reviewing") and handleStudyCallback
+// ("✨ Introduce new") — opening a section from the hub behaves exactly
+// like typing its command.
+const (
+	dataMenuOpen     = "menu:open"
+	dataMenuStudy    = "menu:study"
+	dataMenuTrain    = "menu:train"
+	dataMenuGame     = "menu:game"
+	dataMenuTopics   = "menu:topics"
+	dataMenuStats    = "menu:stats"
+	dataMenuSettings = "menu:settings"
+	dataMenuHelp     = "menu:help"
+)
+
+// menuText is the /menu hub's header.
+const menuText = "🧭 Main menu — where to?"
+
+// handleMenu serves /menu: the navigation hub, one button per destination.
+func (b *Bot) handleMenu(ctx context.Context, s Session) error {
+	_, err := s.SendKeyboard(menuText, menuRows(b.study != nil, b.topics != nil, b.game != nil))
+	return err
+}
+
+// menuRows renders the hub's destination buttons. /train, /stats,
+// /settings, and /help are always available (Trainer is required — see
+// Config's doc comment); /study, /topics, and /game are gated on their
+// service being wired, mirroring helpCommandsText's hasStudy/hasTopics/
+// hasGame gating so the hub never advertises a destination that would just
+// reply "🚧 coming soon".
+func menuRows(hasStudy, hasTopics, hasGame bool) [][]Btn {
+	rows := make([][]Btn, 0, 7)
+	if hasStudy {
+		rows = append(rows, []Btn{{Label: "📚 Study", Data: dataMenuStudy}})
+	}
+	rows = append(rows, []Btn{{Label: "🎯 Train", Data: dataMenuTrain}})
+	if hasGame {
+		rows = append(rows, []Btn{{Label: "🎮 Game", Data: dataMenuGame}})
+	}
+	if hasTopics {
+		rows = append(rows, []Btn{{Label: "🗺 Topics", Data: dataMenuTopics}})
+	}
+	rows = append(rows, []Btn{{Label: "📊 Stats", Data: dataMenuStats}})
+	rows = append(rows, []Btn{{Label: "⚙️ Settings", Data: dataMenuSettings}})
+	rows = append(rows, []Btn{{Label: "❓ Help", Data: dataMenuHelp}})
+	return rows
+}
+
+// menuBackRow is the single «⬅️ Menu» button carried by every top-level
+// section (Settings, Help root, Topics root, Stats) and every Study/Train/
+// Game terminal/idle screen, per the hub-and-spoke rule: there must be no
+// dead end anywhere a user can land.
+func menuBackRow() [][]Btn {
+	return [][]Btn{{{Label: "⬅️ Menu", Data: dataMenuOpen}}}
+}
+
+// handleMenuCallback routes every "menu:" callback: menu:open re-renders the
+// hub in place over the tapped message (mirroring rerenderSettings/
+// handleHelpCallback's own in-place-edit convention); each per-destination
+// payload acks the tap and then runs that destination's normal entry point.
+// An unrecognized menu: payload is acked and otherwise inert, the same
+// fallback every other callback family in this package uses.
+func (b *Bot) handleMenuCallback(ctx context.Context, s Session, data string) error {
+	if data == dataMenuOpen {
+		if err := s.EditMessage(s.MessageID(), menuText, menuRows(b.study != nil, b.topics != nil, b.game != nil)); err != nil {
+			b.logger.Warn("telegram: edit menu", "error", err)
+		}
+		return s.Respond("")
+	}
+
+	if err := s.Respond(""); err != nil {
+		return err
+	}
+	switch data {
+	case dataMenuStudy:
+		return b.handleStudy(ctx, s)
+	case dataMenuTrain:
+		return b.handleTrain(ctx, s)
+	case dataMenuGame:
+		return b.handleGame(ctx, s)
+	case dataMenuTopics:
+		return b.handleTopics(ctx, s)
+	case dataMenuStats:
+		return b.handleStats(ctx, s)
+	case dataMenuSettings:
+		return b.handleSettings(ctx, s)
+	case dataMenuHelp:
+		return b.handleHelp(ctx, s)
+	default:
+		return nil
+	}
 }
 
 // ── callbacks ────────────────────────────────────────────────────────────
@@ -441,6 +555,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleHelpCallback(ctx, s, data)
 	case strings.HasPrefix(data, "game:"):
 		return b.handleGameCallback(ctx, s, data)
+	case strings.HasPrefix(data, "menu:"):
+		return b.handleMenuCallback(ctx, s, data)
 	default: // includes DataNoop and any unrecognized payload
 		return s.Respond("")
 	}
