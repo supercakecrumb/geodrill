@@ -25,6 +25,7 @@ import (
 	"github.com/supercakecrumb/engram/quiz"
 
 	"github.com/supercakecrumb/geodrill/internal/game"
+	"github.com/supercakecrumb/geodrill/internal/suggest"
 )
 
 // ── /study — introductions (architecture §5.1) ──────────────────────────────
@@ -235,6 +236,15 @@ type Prompt struct {
 	// prac: callback prefix instead of ans:, mirroring the legacy
 	// train.Prompt.Practice flag.
 	Practice bool
+
+	// Autocomplete is true when this ModeText exercise should render the
+	// "⌨️ Type your answer" inline-query prefill button
+	// (vibe/spike-autocomplete-inline.md) alongside its bare "Type your
+	// answer" prompt — set by internal/study from the topic's
+	// exercise_modes config and/or the generator's own
+	// topics.Exercise.Autocomplete flag (see study.modeFromString /
+	// buildExerciseForItem). Ignored outside ModeText.
+	Autocomplete bool
 }
 
 // Mark is the visual state of a graded answer option (formerly the legacy
@@ -387,6 +397,21 @@ type GameService interface {
 	// runs increments by one) and returns the updated aggregate for the
 	// "final streak, personal best, runs played" closer.
 	FinishRun(ctx context.Context, userID uuid.UUID, streak int, at time.Time) (bestStreak, runs int, err error)
+}
+
+// ── inline-mode autocomplete (vibe/spike-autocomplete-inline.md) ───────────
+
+// Suggester answers inline-query autocomplete lookups (telebot.OnQuery,
+// bot.go's handleQuery) with ranked, typo-tolerant matches —
+// internal/suggest.Index satisfies this directly (its own Match method has
+// this exact shape); this package declares its own copy of the interface,
+// per this file's narrow-dependency-interface convention, so handleQuery is
+// unit-testable against a hand-written fake instead of a real Index. A nil
+// Suggester on Config keeps telebot.OnQuery unregistered entirely (bot.go's
+// New, mirroring Trainer's OnText gate) — a query never reaches an
+// unconfigured bot.
+type Suggester interface {
+	Match(query string, limit int) []suggest.Suggestion
 }
 
 // IntroCapStore is the narrow settings surface for the daily intro cap

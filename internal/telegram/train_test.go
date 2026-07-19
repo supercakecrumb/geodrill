@@ -254,6 +254,48 @@ func TestSendExercise_ModeTextHasNoButtons(t *testing.T) {
 	}
 }
 
+func TestSendExercise_AutocompleteAddsInlineQueryButton(t *testing.T) {
+	s := &fakeSession{}
+	b := newTestBot(&stubStore{})
+	p := Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "France", Mode: quiz.ModeText, Autocomplete: true}
+	if err := b.sendExercise(s, p); err != nil {
+		t.Fatalf("sendExercise: %v", err)
+	}
+	rows := s.keyboards[0].rows
+	if len(rows) != 1 || len(rows[0]) != 1 {
+		t.Fatalf("expected exactly one autocomplete button row, got %+v", rows)
+	}
+	btn := rows[0][0]
+	if !btn.InlineQueryChat {
+		t.Fatalf("expected an InlineQueryChat button, got %+v", btn)
+	}
+	if btn.Label != autocompleteButtonLabel {
+		t.Fatalf("expected the autocomplete button label, got %q", btn.Label)
+	}
+}
+
+func TestSendExercise_AutocompletePracticeOrdersButtonsCorrectly(t *testing.T) {
+	s := &fakeSession{}
+	b := newTestBot(&stubStore{})
+	p := Prompt{
+		Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "France", Mode: quiz.ModeText,
+		Autocomplete: true, Practice: true,
+	}
+	if err := b.sendExercise(s, p); err != nil {
+		t.Fatalf("sendExercise: %v", err)
+	}
+	rows := s.keyboards[0].rows
+	if len(rows) != 2 {
+		t.Fatalf("expected an autocomplete row plus a trailing stop-practice row, got %+v", rows)
+	}
+	if !rows[0][0].InlineQueryChat {
+		t.Fatalf("expected the autocomplete button first, got %+v", rows[0])
+	}
+	if rows[1][0].Data != dataStopPractice {
+		t.Fatalf("expected the stop-practice button second, got %+v", rows[1])
+	}
+}
+
 func TestSendExercise_ModeSingleHasButtons(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
@@ -515,6 +557,48 @@ func TestHandleText_GradesAndAdvances(t *testing.T) {
 	}
 	if s.sent[0] != wrongToast {
 		t.Fatalf("expected the wrong toast as a plain message, got %q", s.sent[0])
+	}
+}
+
+// TestHandleText_SuggestionArrival_UsesExistingFreeTextGradingPath documents
+// vibe/spike-autocomplete-inline.md §2's verdict: a message that lands in
+// the chat from a tapped inline suggestion is an ordinary OnText update,
+// indistinguishable from one the user typed by hand — this package has no
+// ChosenInlineResult handling and no result-id decoding anywhere, because
+// Session (session.go) exposes no such hooks in the first place:
+// MessageText() is the only channel handleText ever reads incoming text
+// from, whether it was typed or arrived via InputTextMessageContent.Text
+// from a tapped suggestion (buildQueryResults's own doc, bot.go). This test
+// feeds handleText exactly that arrival shape — a bare label, "France", as
+// a tapped suggestion would send — and asserts it is graded through the
+// SAME AnswerText call and edit/advance flow as
+// TestHandleText_GradesAndAdvances's hand-typed case, immediately above; no
+// separate branch exists to find.
+func TestHandleText_SuggestionArrival_UsesExistingFreeTextGradingPath(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(st)
+	stub := &stubTrainer{
+		textOK: true,
+		answer: AnswerResult{Correct: true, Text: "France", HasMessage: true, MessageID: 5},
+		next:   Prompt{Kind: PromptKindNothingDue},
+	}
+	b.trainer = stub
+
+	s := &fakeSession{userID: 1, msgText: "France"}
+	if err := b.handleText(context.Background(), s); err != nil {
+		t.Fatalf("handleText: %v", err)
+	}
+	if stub.textCall.typed != "France" {
+		t.Fatalf("expected AnswerText called with the arrived text verbatim, got %q", stub.textCall.typed)
+	}
+	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 5 {
+		t.Fatalf("expected the exercise graded/edited exactly as a typed answer would be, got %+v", s.editedMsgs)
+	}
+	if len(s.sent) != 2 { // toast + next-result (KindNothingDue)
+		t.Fatalf("expected a toast message plus the next-result message, got %d sends: %v", len(s.sent), s.sent)
+	}
+	if s.sent[0] != correctToast {
+		t.Fatalf("expected the correct toast as a plain message, got %q", s.sent[0])
 	}
 }
 

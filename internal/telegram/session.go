@@ -1,9 +1,22 @@
 package telegram
 
-// Btn is one inline-keyboard button: a label and its callback payload.
+// Btn is one inline-keyboard button: either a callback button (Label +
+// Data) or a switch_inline_query_current_chat prefill button (Label, with
+// InlineQueryChat set true and Data left empty) — see buildMarkup (bot.go)
+// for how each maps onto telebot's wire types. Never set both Data and
+// InlineQueryChat on the same button.
 type Btn struct {
 	Label string
 	Data  string
+
+	// InlineQueryChat, when true, renders this as a
+	// switch_inline_query_current_chat button (empty prefill) instead of a
+	// callback button: tapping it inserts "@<bot-username> " into the
+	// current chat's input field, cursor ready, rather than firing a
+	// callback (vibe/spike-autocomplete-inline.md §3). Data is ignored when
+	// this is true — geodrill has no use yet for a non-empty prefill query,
+	// so there is no field to carry one.
+	InlineQueryChat bool
 }
 
 // Session is the minimal surface handler logic needs from a Telegram

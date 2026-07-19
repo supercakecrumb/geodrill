@@ -117,16 +117,26 @@ func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 	}
 }
 
+// autocompleteButtonLabel is the inline-query prefill button shown on a
+// ModeText exercise that supports autocomplete (Prompt.Autocomplete,
+// vibe/spike-autocomplete-inline.md): tapping it prefills
+// "@<bot-username> " (switch_inline_query_current_chat, empty query) into
+// the current chat's input field, ready for typing.
+const autocompleteButtonLabel = "⌨️ Type your answer"
+
 // sendExercise sends one ready Prompt: a photo-from-birth or text
 // message, with option buttons for ModeSingle/ModeSet or a bare "type your
-// answer" prompt (no buttons) for ModeText. A practice exercise (p.Practice)
-// gets a trailing "⏹ Stop practice" control, same as the legacy /practice
-// prompt.
+// answer" prompt (no buttons, unless Autocomplete adds its own prefill
+// button) for ModeText. A practice exercise (p.Practice) gets a trailing
+// "⏹ Stop practice" control, same as the legacy /practice prompt.
 func (b *Bot) sendExercise(s Session, p Prompt) error {
 	text := p.Text
 	var rows [][]Btn
 	if p.Mode == quiz.ModeText {
 		text += "\n\n✏️ Type your answer."
+		if p.Autocomplete {
+			rows = append(rows, []Btn{{Label: autocompleteButtonLabel, InlineQueryChat: true}})
+		}
 	} else {
 		rows = optionRows(p.ExerciseID, p.Options, p.Practice)
 	}

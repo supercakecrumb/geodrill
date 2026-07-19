@@ -17,6 +17,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/game"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/study"
+	"github.com/supercakecrumb/geodrill/internal/suggest"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
@@ -73,6 +74,15 @@ func run() error {
 	// Generators use.
 	gameEngine := game.NewEngine(store, store)
 
+	// suggestIdx powers inline-mode autocomplete answers
+	// (vibe/spike-autocomplete-inline.md): built once at startup from every
+	// country (name + flag emoji + iso2), the first suggestion source.
+	countries, err := store.ListCountries(ctx)
+	if err != nil {
+		return fmt.Errorf("list countries for autocomplete index: %w", err)
+	}
+	suggestIdx := suggest.NewFromCountries(countries)
+
 	bot, err := telegram.New(telegram.Config{
 		Token:  cfg.TelegramToken,
 		Store:  store,
@@ -87,6 +97,7 @@ func run() error {
 		Trainer:       studySvc,
 		IntroCapStore: store,
 		Game:          telegram.NewGameService(gameEngine, store, time.Now().UnixNano()),
+		Suggest:       suggestIdx,
 	})
 	if err != nil {
 		return fmt.Errorf("build bot: %w", err)

@@ -80,6 +80,11 @@ type Config struct {
 	// Game powers /game and its game zone (vibe/design-game-zone.md):
 	// today, Language Roulette.
 	Game GameService
+	// Suggest powers inline-mode autocomplete answers
+	// (vibe/spike-autocomplete-inline.md): a nil Suggest keeps
+	// telebot.OnQuery unregistered entirely, the same nil-safe convention
+	// every other optional Config field follows.
+	Suggest Suggester
 }
 
 // Bot wires telebot to geodrill's study/storage layers.
@@ -105,6 +110,9 @@ type Bot struct {
 	// before use (see game.go), the same nil-safe convention study/topics
 	// follow.
 	game GameService
+	// suggest is nil until Config.Suggest is wired — handleQuery isn't even
+	// registered in New() until it is, mirroring Trainer's OnText gate.
+	suggest Suggester
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -168,6 +176,7 @@ func New(cfg Config) (*Bot, error) {
 		trainer:       cfg.Trainer,
 		introCap:      cfg.IntroCapStore,
 		game:          cfg.Game,
+		suggest:       cfg.Suggest,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
 		gameRuns:      make(map[int64]*gameRun),
@@ -192,6 +201,17 @@ func New(cfg Config) (*Bot, error) {
 	// message the moment this field exists, even with Config.Trainer nil.
 	if cfg.Trainer != nil {
 		tb.Handle(telebot.OnText, b.wrap(b.handleText))
+	}
+	// OnQuery (inline-mode autocomplete, vibe/spike-autocomplete-inline.md)
+	// is only registered when a Suggester is wired, the same nil-safe gate
+	// as OnText above. It's registered directly against telebot.Context
+	// (not via b.wrap/Session): telebot.Query's shape has no
+	// callback/message concept for Session to adapt (see queryContext's
+	// doc, below).
+	if cfg.Suggest != nil {
+		tb.Handle(telebot.OnQuery, func(c telebot.Context) error {
+			return b.handleQuery(c)
+		})
 	}
 
 	// Populate the in-app "/" command menu (best-effort; a failure here must
@@ -590,22 +610,147 @@ func (s *tbSession) MessageText() string {
 	return s.ctx.Text()
 }
 
-// buildMarkup builds an inline-keyboard ReplyMarkup from rows. Buttons set
-// only Text and Data (no Unique): telebot's processButtons only rewrites
-// Data into the "\f<unique>|<data>" form when Unique is non-empty, so
-// leaving it empty guarantees the callback_data Telegram sends back is
+// buildMarkup builds an inline-keyboard ReplyMarkup from rows. A callback
+// button sets only Text and Data (no Unique): telebot's processButtons only
+// rewrites Data into the "\f<unique>|<data>" form when Unique is non-empty,
+// so leaving it empty guarantees the callback_data Telegram sends back is
 // exactly btn.Data, letting handleCallback's prefix-based routing parse it
-// directly.
+// directly. A Btn with InlineQueryChat set instead becomes a
+// switch_inline_query_current_chat button (empty prefill, Btn's own doc) —
+// Data is left unset on it, since Telegram (and telebot's Btn/InlineButton
+// wire shape, markup.go) treats a button as exactly one of a callback or an
+// inline-query switch, never both.
 func buildMarkup(rows [][]Btn) *telebot.ReplyMarkup {
 	markup := &telebot.ReplyMarkup{}
 	trows := make([]telebot.Row, len(rows))
 	for i, row := range rows {
 		btns := make([]telebot.Btn, len(row))
 		for j, btn := range row {
+			if btn.InlineQueryChat {
+				btns[j] = telebot.Btn{Text: btn.Label, InlineQueryChat: ""}
+				continue
+			}
 			btns[j] = telebot.Btn{Text: btn.Label, Data: btn.Data}
 		}
 		trows[i] = markup.Row(btns...)
 	}
 	markup.Inline(trows...)
 	return markup
+}
+
+// ── inline query (autocomplete, vibe/spike-autocomplete-inline.md) ──────────
+
+// maxQueryResults caps how many suggestions handleQuery returns per
+// inline-query keystroke — comfortably under Telegram's 50-result
+// server-side cap for answerInlineQuery (spike §1, not enforced anywhere in
+// the vendored telebot client); more than ~20 is noise for a human picking
+// from a dropdown list anyway.
+const maxQueryResults = 20
+
+// queryCacheTimeSeconds is QueryResponse.CacheTime: telebot's own
+// json:"cache_time,omitempty" tag means a Go zero value (0) is dropped from
+// the outgoing JSON entirely, which is indistinguishable from never setting
+// it at all — Telegram then falls back to its server-side default of 300s
+// (spike §1), the opposite of what per-keystroke, typo-tolerant suggestions
+// need. A small non-zero value is what actually reaches Telegram: 1s trades
+// away only same-keystroke-repeat caching (spike's Open Risks section
+// itself prefers "a few seconds, not 0, purely for duplicate-keystroke
+// efficiency" over a literal 0) while keeping suggestions fresh per new
+// character typed.
+const queryCacheTimeSeconds = 1
+
+// QueryResult is one inline-query suggestion, decoupled from telebot's
+// *ArticleResult so buildQueryResults' ranking/label composition is
+// unit-testable without any telebot dependency.
+type QueryResult struct {
+	// Title is the line shown in the suggestion list (flag + label, when
+	// the matched suggestion carries an emoji).
+	Title string
+	// Text is the exact string sent into the chat when the suggestion is
+	// tapped. The existing free-text grading path (handleText/
+	// Trainer.AnswerText) grades this verbatim against whatever exercise
+	// is open, indistinguishable from a hand-typed answer (spike §2) — so
+	// Text is always the bare label, never Title's flag-decorated form.
+	Text string
+}
+
+// buildQueryResults asks suggester for up to maxQueryResults matches for
+// query and renders them as QueryResults. Pure (no I/O, no telebot
+// dependency), so ranking/label composition is unit-testable without a
+// telebot.Context. A nil suggester yields no results — handleQuery's own
+// registration is already gated on a non-nil Suggester (see New), so this
+// nil check only matters for a direct unit test of this function.
+func buildQueryResults(suggester Suggester, query string) []QueryResult {
+	if suggester == nil {
+		return nil
+	}
+	matches := suggester.Match(query, maxQueryResults)
+	out := make([]QueryResult, len(matches))
+	for i, m := range matches {
+		title := m.Label
+		if m.Emoji != "" {
+			title = m.Emoji + " " + m.Label
+		}
+		out[i] = QueryResult{Title: title, Text: m.Label}
+	}
+	return out
+}
+
+// queryContext is the minimal telebot.Context surface handleQuery needs —
+// Query() and Answer() — narrowed the same way Session narrows
+// telebot.Context for every other handler in this package (this package's
+// doc comment), so handleQuery is unit-testable with a small hand-written
+// fake instead of a bot token or the network. Unlike tbSession, no adapter
+// type is needed here: a real telebot.Context's own Query()/Answer()
+// methods already match this interface exactly, so it satisfies
+// queryContext directly — telebot.Query simply has no callback/message
+// concept for Session itself to adapt (vibe/spike-autocomplete-inline.md
+// §1).
+type queryContext interface {
+	Query() *telebot.Query
+	Answer(resp *telebot.QueryResponse) error
+}
+
+// handleQuery answers an inline query (telebot.OnQuery) with up to
+// maxQueryResults typo-tolerant Suggest matches for the query text,
+// regardless of whether the querying user currently has an exercise open —
+// harmless, and keeps the UX responsive (this package's Config doc). A
+// query can only be answered once (telebot's Bot.Answer doc comment,
+// bot_raw.go) — an Answer error is logged, not returned, and a panic is
+// recovered, mirroring wrap's never-let-anything-escape contract for every
+// other handler (this one bypasses wrap/Session entirely — see
+// queryContext's doc).
+func (b *Bot) handleQuery(c queryContext) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			b.logger.Error("telegram: query handler panic", "recover", r)
+		}
+	}()
+
+	results := buildQueryResults(b.suggest, c.Query().Text)
+	articles := make(telebot.Results, len(results))
+	for i, r := range results {
+		articles[i] = &telebot.ArticleResult{
+			ResultBase: telebot.ResultBase{
+				// Content, never the legacy ArticleResult.Text shortcut
+				// (spike's Open Risks: that field predates the current Bot
+				// API schema and may be dead on modern servers).
+				Content: &telebot.InputTextMessageContent{Text: r.Text},
+			},
+			Title: r.Title,
+		}
+	}
+
+	if aerr := c.Answer(&telebot.QueryResponse{
+		Results: articles,
+		// IsPersonal: true — per-user grading context (which exercise is
+		// open) is never encoded in the result at all (spike §2), so one
+		// user's cached list must never leak to a different user typing
+		// the same query text.
+		IsPersonal: true,
+		CacheTime:  queryCacheTimeSeconds,
+	}); aerr != nil {
+		b.logger.Error("telegram: answer query", "error", aerr)
+	}
+	return nil
 }

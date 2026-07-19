@@ -85,6 +85,18 @@ type Exercise struct {
 	CorrectAnswer string
 	ContentID     *uuid.UUID
 	Source        string
+
+	// Autocomplete marks a ModeText Exercise as eligible for the "⌨️ Type
+	// your answer" inline-query prefill button
+	// (vibe/spike-autocomplete-inline.md): a generator building a
+	// text-mode exercise over a domain with a ready suggestion source
+	// (e.g. a country name, internal/suggest) can set this directly. It is
+	// independent of whether the owning topic's exercise_modes config also
+	// requests "autocomplete" for this item's turn (see
+	// internal/study.modeFromString/buildExerciseForItem, which OR's the
+	// two signals together) — either alone is sufficient to render the
+	// button. Ignored for ModeSingle/ModeSet.
+	Autocomplete bool
 }
 
 // ExerciseRequest carries everything a Generator needs to build one Exercise

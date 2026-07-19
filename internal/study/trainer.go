@@ -161,7 +161,14 @@ func (s *Service) buildExerciseForItem(ctx context.Context, user storage.User, i
 		if buildErr != nil {
 			continue
 		}
-		prompt, err := s.persistExercise(ctx, user.ID, item, ex, practice, now)
+		// Either signal is sufficient to render the "⌨️ Type your answer"
+		// inline-query prefill button (topics.Exercise.Autocomplete's doc):
+		// this turn's configured mode string was literally "autocomplete",
+		// or the generator itself flagged the built Exercise. Meaningless
+		// for anything but ModeText — sendExercise (internal/telegram)
+		// gates on Mode == quiz.ModeText before ever looking at it.
+		autocomplete := modeStr == "autocomplete" || ex.Autocomplete
+		prompt, err := s.persistExercise(ctx, user.ID, item, ex, practice, autocomplete, now)
 		if err != nil {
 			return telegram.Prompt{}, false, err
 		}
@@ -202,12 +209,19 @@ func modeRotationOrder(modes []string, reps int) []string {
 }
 
 // modeFromString maps a topics.exercise_modes string to quiz.Mode, defaulting
-// unrecognised values to ModeSingle.
+// unrecognised values to ModeSingle. "autocomplete" maps to ModeText: it is
+// presentation-only sugar over the exact same free-text grading path
+// (vibe/spike-autocomplete-inline.md's verdict is that grading never
+// special-cases how the text arrived), requesting the "⌨️ Type your answer"
+// inline-query prefill button on top of it — buildExerciseForItem is what
+// turns "was this turn's mode string literally 'autocomplete'" into
+// Prompt.Autocomplete for internal/telegram to act on; this function only
+// ever decides the underlying quiz.Mode.
 func modeFromString(m string) quiz.Mode {
 	switch m {
 	case "set":
 		return quiz.ModeSet
-	case "text":
+	case "text", "autocomplete":
 		return quiz.ModeText
 	default:
 		return quiz.ModeSingle
@@ -218,7 +232,12 @@ func modeFromString(m string) quiz.Mode {
 // exercises row, returning the ready-to-send Prompt. practice is persisted
 // on the row (exercises.practice) so the answer path (finishAnswer) can tell
 // a /practice exercise from a /train one without any extra caller state.
-func (s *Service) persistExercise(ctx context.Context, userID uuid.UUID, item storage.Item, ex topics.Exercise, practice bool, now time.Time) (telegram.Prompt, error) {
+// autocomplete is NOT persisted (there is no exercises column for it — it's
+// a presentation-only hint, recomputed fresh every time an exercise is
+// generated): it only sets the returned Prompt.Autocomplete, so
+// internal/telegram can decide whether to attach the inline-query prefill
+// button (see buildExerciseForItem's doc on how autocomplete is decided).
+func (s *Service) persistExercise(ctx context.Context, userID uuid.UUID, item storage.Item, ex topics.Exercise, practice, autocomplete bool, now time.Time) (telegram.Prompt, error) {
 	optionsJSON, correctAnswer, err := serializeExercise(ex)
 	if err != nil {
 		return telegram.Prompt{}, err
@@ -240,13 +259,14 @@ func (s *Service) persistExercise(ctx context.Context, userID uuid.UUID, item st
 	}
 
 	return telegram.Prompt{
-		Kind:       telegram.PromptKindExercise,
-		ExerciseID: exID,
-		Text:       ex.Prompt,
-		MediaPath:  ex.MediaPath,
-		Mode:       ex.Mode,
-		Options:    optionsFor(ex),
-		Practice:   practice,
+		Kind:         telegram.PromptKindExercise,
+		ExerciseID:   exID,
+		Text:         ex.Prompt,
+		MediaPath:    ex.MediaPath,
+		Mode:         ex.Mode,
+		Options:      optionsFor(ex),
+		Practice:     practice,
+		Autocomplete: autocomplete,
 	}, nil
 }
 
