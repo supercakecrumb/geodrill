@@ -15,10 +15,12 @@
 package study
 
 import (
+	"context"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
@@ -127,6 +129,58 @@ func tierComplete(p storage.TierProgress) bool {
 		return false
 	}
 	return float64(p.GoodShapeItems) >= float64(p.TotalItems)*topics.TierCompleteShare
+}
+
+// currentTierFrom derives a user's "current tier" and the highest tier that
+// exists in the item catalog from a full per-tier progress list — the shape
+// Store.RecomputeTierProgress returns: one row per tier that has ANY items
+// in the catalog (via its LEFT JOIN to user_items), whether or not this
+// particular user has touched it yet.
+//
+// Definition of "current tier" (documented here since it's a policy call,
+// same spirit as tierComplete): tiers unlock as a SET, not a ladder
+// (topics.UnlockedTiers: {0,1} ∪ {n+2 : tier n complete}) — completing tier
+// n unlocks tier n+2 independently per tier, so two tiers can be open at
+// once and finish out of order. A single scalar can't represent that set
+// exactly, so "current tier" picks the compact, honest compression: the
+// LOWEST tier that is not yet complete — i.e. the frontier the user still
+// has to work through. A brand-new user has 0 introduced items everywhere,
+// so tier 0 (not tier 1, even though {0,1} are both unlocked from the
+// start) reads as the current tier: it's the lowest thing still open. Once
+// every tier that exists is complete (everything mastered), there is no
+// "lowest incomplete" tier left, so current tier falls back to the highest
+// tier that exists.
+func currentTierFrom(progress []storage.TierProgress) (tier, maxTier int) {
+	haveIncomplete := false
+	for i, p := range progress {
+		t := int(p.Tier)
+		if i == 0 || t > maxTier {
+			maxTier = t
+		}
+		if !tierComplete(p) && (!haveIncomplete || t < tier) {
+			tier = t
+			haveIncomplete = true
+		}
+	}
+	if !haveIncomplete {
+		tier = maxTier
+	}
+	return tier, maxTier
+}
+
+// CurrentTier reports userID's current tier and the highest tier that
+// exists in the item catalog (see currentTierFrom), for /stats' "Tier X of
+// Y" line. Reuses Store.RecomputeTierProgress — the same on-the-fly
+// per-tier query the gating cache (internal/topics) is itself built from —
+// instead of adding new SQL: it already returns exactly the shape needed
+// (every existing tier, ascending, per-user introduced/good-shape counts).
+func (s *Service) CurrentTier(ctx context.Context, userID uuid.UUID) (tier, maxTier int, err error) {
+	progress, err := s.store.RecomputeTierProgress(ctx, userID)
+	if err != nil {
+		return 0, 0, err
+	}
+	tier, maxTier = currentTierFrom(progress)
+	return tier, maxTier, nil
 }
 
 // toInt16Slice converts []int (topics.Service.AllowedTiers' return type) to

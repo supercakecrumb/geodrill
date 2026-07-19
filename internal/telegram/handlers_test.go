@@ -753,6 +753,8 @@ func TestFormatStats(t *testing.T) {
 		},
 		Introduced: 30,
 		Known:      5,
+		Tier:       2,
+		MaxTier:    6,
 	}
 
 	out := formatStats(st)
@@ -763,6 +765,7 @@ func TestFormatStats(t *testing.T) {
 		"Accuracy: 83%",
 		"Streak: 4 days",
 		"Introduced: 30 · Known: 5",
+		"🎚 Tier: 2 of 6",
 		"Languages: 90% (18/20)",
 		"3 5 0 1 2 0 4",
 		"You mistake Portuguese for Spanish — 7 times (40%)",

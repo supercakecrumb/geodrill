@@ -116,6 +116,11 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.Stats, 
 		return telegram.Stats{}, err
 	}
 
+	tier, maxTier, err := s.CurrentTier(ctx, userID)
+	if err != nil {
+		return telegram.Stats{}, err
+	}
+
 	return telegram.Stats{
 		ReviewsToday: today,
 		ReviewsWeek:  week,
@@ -126,6 +131,8 @@ func (s *Service) Stats(ctx context.Context, userID uuid.UUID) (telegram.Stats, 
 		Confusion:    confusion,
 		Introduced:   introduced,
 		Known:        known,
+		Tier:         tier,
+		MaxTier:      maxTier,
 	}, nil
 }
 

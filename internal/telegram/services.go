@@ -398,6 +398,15 @@ type Stats struct {
 	Confusion    []ConfusionRow // top pairs, most-confused first
 	Introduced   int            // items with lifecycle != new
 	Known        int            // items with lifecycle == known
+
+	// Tier is the user's current tier: the lowest tier not yet complete
+	// (internal/study.currentTierFrom's gating-frontier definition — tiers
+	// unlock as a set, not a strict ladder, so this is the compact,
+	// single-number read of "how far the user has gotten"). MaxTier is the
+	// highest tier that exists in the item catalog at all, so /stats can
+	// render "Tier X of Y".
+	Tier    int
+	MaxTier int
 }
 
 // ── /settings — daily intro cap ─────────────────────────────────────────────

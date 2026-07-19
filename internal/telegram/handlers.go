@@ -695,6 +695,7 @@ func formatStats(st Stats) string {
 	}
 	b.WriteByte('\n')
 	fmt.Fprintf(&b, "Introduced: %d · Known: %d\n", st.Introduced, st.Known)
+	fmt.Fprintf(&b, "🎚 Tier: %d of %d\n", st.Tier, st.MaxTier)
 
 	if len(st.ByTopic) > 0 {
 		b.WriteString("\nBy topic:\n")
