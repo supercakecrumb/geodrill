@@ -94,10 +94,8 @@ func TestSeedAndConsistency(t *testing.T) {
 		t.Fatalf("reseed cities: %v", err)
 	}
 
-	// seeds/cities.yaml has 453 list entries but 451 distinct keys — two
-	// exact-duplicate entries (bd:dhaka, in:lucknow) collapse to one item
-	// each via the keyed upsert (see seed_test.go's TestLoadCitiesRealSeed
-	// for the byte-for-byte-duplicate-tolerance check on that data).
+	// seeds/cities.yaml has 451 entries, all with distinct keys (see
+	// seed_test.go's TestLoadCitiesRealSeed uniqueness check).
 	const wantEntries = 451
 
 	topic, found, err := store.GetTopicByPath(ctx, cities.RootSlug+"/"+cities.LeafSlug)
@@ -187,13 +185,9 @@ func TestSeedAndConsistency(t *testing.T) {
 		positions = append(positions, it.Position)
 	}
 
-	// Position values must be unique (no two items share a rank). They are
-	// NOT expected to be exactly 0..len(items)-1 with no gaps: engine.Seed
-	// assigns position = index in the population-sorted 453-entry slice
-	// (including the two exact-duplicate keys, see seed_test.go), and a
-	// duplicate key's second UpsertItem call overwrites the first with its
-	// own (later) index, "spending" one index without producing a second
-	// row — so up to 2 gaps in the 0..452 range are expected and harmless.
+	// Position values must be unique (no two items share a rank):
+	// engine.Seed assigns position = index in the population-sorted,
+	// now-deduplicated entry slice.
 	seenPos := make(map[int]bool, len(positions))
 	for _, p := range positions {
 		if seenPos[p] {

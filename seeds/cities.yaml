@@ -963,7 +963,7 @@ cities:
     country: KG
     population: 1019000
 
-  - key: tl:dushanbe
+  - key: tj:dushanbe
     name: Dushanbe
     country: TJ
     population: 863000
@@ -1208,11 +1208,6 @@ cities:
     country: PH
     population: 1776000
 
-  - key: bd:dhaka
-    name: Dhaka
-    country: BD
-    population: 10009000
-
   - key: bd:chittagong
     name: Chittagong
     country: BD
@@ -1292,11 +1287,6 @@ cities:
     name: Nagpur
     country: IN
     population: 2405000
-
-  - key: in:lucknow
-    name: Lucknow
-    country: IN
-    population: 2921000
 
   - key: in:vadodara
     name: Vadodara

@@ -17,8 +17,8 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadCitiesFile: %v", err)
 	}
-	if len(sf.Cities) != 453 {
-		t.Fatalf("len(cities) = %d, want 453", len(sf.Cities))
+	if len(sf.Cities) != 451 {
+		t.Fatalf("len(cities) = %d, want 451", len(sf.Cities))
 	}
 
 	countries, err := engine.LoadCountriesFile(countriesSeedPath())
@@ -30,23 +30,12 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 		countryISO[c.ISOA2] = true
 	}
 
-	// seeds/cities.yaml has two exact-duplicate list entries (bd:dhaka,
-	// in:lucknow — same name/country/population, apparently pasted twice
-	// during data compilation). This file is read-only for this package
-	// (a prior data-fill pass owns it), so rather than silently ignore it
-	// or hard-fail the whole seed, tolerate a duplicate key ONLY when every
-	// field byte-for-byte matches the first occurrence (harmless — Seed's
-	// keyed upsert just re-writes the same row) and fail loudly if a
-	// repeated key ever disagrees with itself (that would be a real,
-	// silently-overwriting bug, not a harmless double entry).
+	// Every key must be unique — the seeder upserts by key, so a repeated
+	// key would silently overwrite an earlier city.
 	seen := make(map[string]citySeed, len(sf.Cities))
 	for _, e := range sf.Cities {
-		if prior, ok := seen[e.Key]; ok {
-			if prior != e {
-				t.Fatalf("city key %q appears twice with conflicting data: %+v vs %+v", e.Key, prior, e)
-			}
-			t.Logf("city key %q is an exact duplicate entry (harmless, collapses to one item)", e.Key)
-			continue
+		if _, ok := seen[e.Key]; ok {
+			t.Fatalf("city key %q appears more than once", e.Key)
 		}
 		seen[e.Key] = e
 
@@ -59,11 +48,8 @@ func TestLoadCitiesRealSeed(t *testing.T) {
 		if !countryISO[e.Country] {
 			t.Fatalf("city %q references unknown country %q", e.Key, e.Country)
 		}
-		// Keys are collision-safe identifiers, not required to visually
-		// match their country field (a stray key like "tl:dushanbe" for
-		// country TJ is a harmless cosmetic quirk in the committed data,
-		// not something this test enforces — the key only needs to be
-		// unique, checked above).
+		// Keys are collision-safe <iso2>:<slug> identifiers; only shape
+		// and uniqueness (checked above) are enforced here.
 		if !strings.Contains(e.Key, ":") {
 			t.Fatalf("city key %q is not in the documented <iso2>:<slug> shape", e.Key)
 		}
