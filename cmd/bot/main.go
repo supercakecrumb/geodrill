@@ -22,6 +22,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/topics"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
+	"github.com/supercakecrumb/geodrill/internal/topics/tld"
 	"github.com/supercakecrumb/geodrill/internal/topics/words"
 )
 
@@ -65,6 +66,11 @@ func run() error {
 	topics.Register(specialchars.New())
 	topics.Register(roadside.New())
 	topics.Register(words.New())
+	// The TLD quiz is two sibling topics (both directions), each its own
+	// quiz_kind/Generator: tld->country (autocomplete country answers) and
+	// country->tld (typed free text) — vibe/design-tlds.md.
+	topics.Register(tld.NewTLDToCountry())
+	topics.Register(tld.NewCountryToTLD())
 
 	studySvc := study.New(store, sched, study.GlobalRegistry, nil, time.Now().UnixNano())
 
