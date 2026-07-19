@@ -1,7 +1,8 @@
 // Package guesslang seeds the languages/guess-the-language topic tree
 // (architecture §2.11/§3.4): the shared "languages" root, a
 // "guess-the-language" container, one group topic per seeds/decks.yaml deck
-// (e.g. "romance", "cjk", ...), and one item per language within its group.
+// (e.g. "romance", "cjk", ...), and one item per language within its group
+// — one engine.Seed call per deck, each with the full three-node path.
 //
 // The guess-the-language exercise itself no longer lives here: sentences
 // are not SRS material, so it moved into the game zone as Language
@@ -15,7 +16,6 @@ package guesslang
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -23,6 +23,7 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/content"
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // Kind is the topics.quiz_kind stamped on every group topic this package
@@ -30,7 +31,8 @@ import (
 // guess-the-language exercise moved into the game zone, internal/game —
 // vibe/design-game-zone.md): group topics are seeded with is_quizzable =
 // false, so quiz_kind here is purely descriptive provenance, not a live
-// registry lookup key.
+// registry lookup key — and this package's descriptors are seed-only
+// (QuizKind + Topic; no Parse, no Generator is ever constructed).
 const Kind = "language_id"
 
 // Topic tree constants this package seeds for (architecture §2.11/§3.4,
@@ -53,7 +55,7 @@ const (
 	// BaseTier is topics.base_tier for every group topic under
 	// languages/guess-the-language. Vestigial now that these topics are
 	// is_quizzable=false (no tier gating ever reads it), kept only because
-	// UpsertTopic requires a value.
+	// the topics row requires a value.
 	BaseTier = 1
 )
 
@@ -74,12 +76,11 @@ func seedsPath() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "..", "seeds", "decks.yaml")
 }
 
-// Seed loads seeds/decks.yaml and upserts the languages/guess-the-language
+// Seed loads seeds/decks.yaml and seeds the languages/guess-the-language
 // topic tree (architecture §2.11/§3.4): one child topic per deck group, and
-// one item per language within its group. Idempotent: topic and item
-// upserts key off (parent,slug) and (topic_id,key) respectively, so
-// re-running Seed after an edit to the yaml converges rather than
-// duplicating rows.
+// one item per language within its group. Idempotent: engine.Seed is pure
+// upserts keyed off (parent,slug) and (topic_id,key), so re-running Seed
+// after an edit to the yaml converges rather than duplicating rows.
 func Seed(ctx context.Context, store *storage.Store) error {
 	return SeedFromFile(ctx, store, seedsPath())
 }
@@ -95,22 +96,13 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 	return SeedFromData(ctx, store, sf)
 }
 
-// SeedFromData upserts topics/items from an already-loaded content.SeedFile
-// — the core logic, separated from file I/O so tests can exercise it with
+// SeedFromData seeds topics/items from an already-loaded content.SeedFile —
+// the core logic, separated from file I/O so tests can exercise it with
 // data built in-process (mirrors internal/topics/specialchars.SeedFromData).
+// Each deck becomes one engine.Seed call whose descriptor path ends in that
+// deck's group topic; the shared root/container parents are re-upserted per
+// deck (idempotent, converges to the same rows).
 func SeedFromData(ctx context.Context, store *storage.Store, sf content.SeedFile) error {
-	root, err := store.UpsertTopic(ctx, nil, RootSlug, RootName, 0, 0, "container", []string{"single"}, false, []byte(`{}`))
-	if err != nil {
-		return fmt.Errorf("guesslang: upsert %q root topic: %w", RootSlug, err)
-	}
-
-	rootID := root.ID
-	container, err := store.UpsertTopic(ctx, &rootID, ContainerSlug, ContainerName, containerPosition, 0, "container", []string{"single"}, false, []byte(`{}`))
-	if err != nil {
-		return fmt.Errorf("guesslang: upsert %q container topic: %w", ContainerSlug, err)
-	}
-	containerID := container.ID
-
 	for gi, d := range sf.Decks {
 		// is_quizzable=false (design-game-zone.md "What happens to the FSRS
 		// state of language items"): no introductions, no reviews, excluded
@@ -119,14 +111,18 @@ func SeedFromData(ctx context.Context, store *storage.Store, sf content.SeedFile
 		// themselves stay seeded — the game zone reads them directly via
 		// internal/game.LoadCatalog for their group structure, names, and
 		// keys.
-		group, err := store.UpsertTopic(ctx, &containerID, d.Slug, d.Name, gi, BaseTier, Kind, []string{"single"}, false, []byte(`{}`))
-		if err != nil {
-			return fmt.Errorf("guesslang: upsert group topic %q: %w", d.Slug, err)
+		desc := engine.Descriptor{
+			QuizKind: Kind,
+			Topic: []engine.TopicNode{
+				{Slug: RootSlug, Name: RootName},
+				{Slug: ContainerSlug, Name: ContainerName, Position: containerPosition},
+				{Slug: d.Slug, Name: d.Name, Position: gi, BaseTier: BaseTier, QuizKind: Kind, IsQuizzable: false},
+			},
 		}
 
 		// Sort language codes for deterministic item.position — Go map
 		// iteration order over d.Languages is randomized per-run and would
-		// otherwise make position (and therefore intro/browse ordering)
+		// otherwise make position (and therefore browse ordering)
 		// nondeterministic across re-seeds.
 		langs := make([]string, 0, len(d.Languages))
 		for lang := range d.Languages {
@@ -134,15 +130,17 @@ func SeedFromData(ctx context.Context, store *storage.Store, sf content.SeedFile
 		}
 		sort.Strings(langs)
 
+		items := make([]engine.ItemSeed, len(langs))
 		for ii, lang := range langs {
-			label := d.Languages[lang]
-			payload, err := json.Marshal(itemPayload{Language: lang})
-			if err != nil {
-				return fmt.Errorf("guesslang: marshal payload for %s/%s: %w", d.Slug, lang, err)
+			items[ii] = engine.ItemSeed{
+				Key:     lang,
+				Label:   d.Languages[lang],
+				Payload: itemPayload{Language: lang},
 			}
-			if _, err := store.UpsertItem(ctx, group.ID, lang, label, nil, payload, nil, ii, true); err != nil {
-				return fmt.Errorf("guesslang: upsert item %s/%s: %w", d.Slug, lang, err)
-			}
+		}
+
+		if err := engine.Seed(ctx, store, desc, engine.SeedData{Items: items}); err != nil {
+			return fmt.Errorf("guesslang: seed group %q: %w", d.Slug, err)
 		}
 	}
 	return nil

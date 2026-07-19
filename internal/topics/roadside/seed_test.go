@@ -1,64 +1,10 @@
 package roadside
 
-import "testing"
+import (
+	"testing"
 
-func TestCountryTier(t *testing.T) {
-	tests := []struct {
-		name     string
-		iso      string
-		unMember bool
-		gg       bool
-		want     int16
-	}{
-		{"tier0 core us", "US", true, true, 0},
-		{"tier0 core gb", "GB", true, true, 0},
-		{"tier0 core fr", "FR", true, true, 0},
-		{"tier0 core de", "DE", true, true, 0},
-		{"tier0 core jp", "JP", true, true, 0},
-		{"tier0 core ca", "CA", true, true, 0},
-		{"tier0 core au", "AU", true, true, 0},
-		{"tier0 core it", "IT", true, true, 0},
-		{"tier0 core es", "ES", true, true, 0},
-		{"tier1 g20 brazil", "BR", true, true, 1},
-		{"tier1 g20 india", "IN", true, true, 1},
-		{"tier1 g20 china", "CN", true, true, 1},
-		{"tier1 g20 turkey", "TR", true, false, 1},
-		{"tier1 wins even without coverage", "RU", true, false, 1},
-		{"tier2 un member with coverage", "PL", true, true, 2},
-		{"tier3 un member without coverage", "AF", true, false, 3},
-		{"tier4 non-un territory with coverage", "AI", false, true, 4},
-		{"tier4 non-un subdivision", "GB-ENG", false, true, 4},
-		{"tier4 non-un no coverage", "AQ", false, false, 4},
-		{"tier0 takes priority over g20 status", "US", true, false, 0},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := countryTier(tc.iso, tc.unMember, tc.gg)
-			if got != tc.want {
-				t.Fatalf("countryTier(%q, %v, %v) = %d, want %d", tc.iso, tc.unMember, tc.gg, got, tc.want)
-			}
-		})
-	}
-}
-
-// TestTierSetSizes guards the hardcoded tier0/tier1 membership lists against
-// accidental additions/removals: tier0 is the task-specified 9-country set,
-// tier1 is the 19 G20 country members (EU excluded, not a country) minus
-// the 8 of those 9 tier0 countries that are also G20 members (ES is not a
-// G20 country member, so 19-8=11).
-func TestTierSetSizes(t *testing.T) {
-	if len(tier0ISO) != 9 {
-		t.Fatalf("len(tier0ISO) = %d, want 9", len(tier0ISO))
-	}
-	if len(tier1ISO) != 11 {
-		t.Fatalf("len(tier1ISO) = %d, want 11", len(tier1ISO))
-	}
-	for iso := range tier1ISO {
-		if tier0ISO[iso] {
-			t.Fatalf("tier1ISO and tier0ISO both contain %q — tiers must be mutually exclusive", iso)
-		}
-	}
-}
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
+)
 
 func TestNormalizeSide(t *testing.T) {
 	tests := []struct {
@@ -99,20 +45,20 @@ func TestSideCode(t *testing.T) {
 }
 
 // TestLoadCountriesRealSeed parses the real seeds/countries.yaml (no DB
-// needed) so a structural break in the committed data fails fast without
-// requiring GEODRILL_TEST_DATABASE_URL.
+// needed, via the engine's shared loader) so a structural break in the
+// committed data fails fast without requiring GEODRILL_TEST_DATABASE_URL.
 func TestLoadCountriesRealSeed(t *testing.T) {
-	sf, err := loadCountriesFile(countriesSeedPath())
+	countries, err := engine.LoadCountriesFile(countriesSeedPath())
 	if err != nil {
-		t.Fatalf("loadCountriesFile: %v", err)
+		t.Fatalf("LoadCountriesFile: %v", err)
 	}
-	if len(sf.Countries) != 252 {
-		t.Fatalf("len(countries) = %d, want 252", len(sf.Countries))
+	if len(countries) != 252 {
+		t.Fatalf("len(countries) = %d, want 252", len(countries))
 	}
 
 	var unCount, subdivCount int
-	byISO := make(map[string]countrySeed, len(sf.Countries))
-	for _, c := range sf.Countries {
+	byISO := make(map[string]engine.CountrySeed, len(countries))
+	for _, c := range countries {
 		if c.ISOA2 == "" {
 			t.Fatalf("country %+v has empty iso_a2", c)
 		}
@@ -134,7 +80,7 @@ func TestLoadCountriesRealSeed(t *testing.T) {
 		t.Fatalf("subdivision count = %d, want 3 (GB-ENG/GB-SCT/GB-WLS)", subdivCount)
 	}
 
-	for _, c := range sf.Countries {
+	for _, c := range countries {
 		if c.Parent == "" {
 			continue
 		}
@@ -149,12 +95,12 @@ func TestLoadCountriesRealSeed(t *testing.T) {
 // reference a real country and vice versa (1:1 coverage), and every side
 // value must be a valid "left"/"right".
 func TestLoadRoadSidesRealSeed(t *testing.T) {
-	countries, err := loadCountriesFile(countriesSeedPath())
+	countries, err := engine.LoadCountriesFile(countriesSeedPath())
 	if err != nil {
-		t.Fatalf("loadCountriesFile: %v", err)
+		t.Fatalf("LoadCountriesFile: %v", err)
 	}
-	countryISO := make(map[string]bool, len(countries.Countries))
-	for _, c := range countries.Countries {
+	countryISO := make(map[string]bool, len(countries))
+	for _, c := range countries {
 		countryISO[c.ISOA2] = true
 	}
 

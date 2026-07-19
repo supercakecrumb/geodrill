@@ -1,31 +1,28 @@
-// Package roadside implements the topics.Generator for quiz_kind
-// "road_side" (architecture §6.2, topic path "roads/which-side"): a
-// country -> which side of the road they drive on single-choice quiz. Like
-// specialchars and words, it never touches storage directly (see the
-// internal/topics package doc's "content access stays out of this package"
-// contract): every item's payload caches everything BuildExercise/
-// BuildIntro need — the correct side, plus the country's flag/name/
-// un_member/gg_coverage — at seed time (see Seed in seed.go), so no
-// DB-backed country lookup is required at generation time. This is the
-// documented resolution of the task brief's "inject a country-lookup
-// interface, or cache in payload — decide, document" choice: every field
-// the generator needs is static per-country data already known at seed
-// time, so caching wins over adding a DI seam this package doesn't
-// otherwise need.
+// Package roadside is the which-side-of-the-road topic (architecture §6.2,
+// quiz_kind "road_side", topic path "roads/which-side"): a country -> which
+// side of the road they drive on single-choice quiz, expressed as an
+// engine.Descriptor with fixed options — a two-button MCQ that is ALWAYS
+// Left then Right, never shuffled (task spec: with only ever two options, a
+// stable position beats the usual shuffle-for-fairness treatment other
+// topics use).
+//
+// It never touches storage at generation time: every item's payload caches
+// everything the exercise and intro need — the correct side, plus the
+// country's flag/name/un_member/gg_coverage — at seed time (seed.go). This
+// is the documented resolution of the original "inject a country-lookup
+// interface, or cache in payload" choice: every field the generator needs
+// is static per-country data already known at seed time, so caching wins
+// over a DI seam this package doesn't otherwise need.
 package roadside
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"strings"
 
-	"github.com/supercakecrumb/engram/quiz"
-
-	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/topics"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // Kind is the topics.quiz_kind this package's Generator registers under.
@@ -38,9 +35,7 @@ var ErrMalformedPayload = errors.New("roadside: malformed item payload")
 // itemPayload is the exact JSON shape stored in items.payload for a
 // road_side item (architecture §6.2). Side is the cache of the country's
 // drives_on country_facts row and MUST match it — the design's §6.2 audit,
-// enforced by this package's integration test. Flag/Name/UNMember/
-// GGCoverage are cached at seed time so this generator never needs a
-// DB-backed country lookup (see the package doc).
+// enforced by this package's integration test.
 type itemPayload struct {
 	Side       string `json:"side"` // "L" or "R"
 	Flag       string `json:"flag"`
@@ -64,64 +59,23 @@ func parsePayload(raw []byte) (itemPayload, error) {
 	return p, nil
 }
 
-// Generator implements topics.Generator for Kind. It is stateless:
-// BuildExercise/BuildIntro read only the item they're given, so a single
-// instance is safe to share and register once.
-type Generator struct{}
-
-// New builds a road-side Generator. No dependencies are injected — see the
-// package doc for why BuildExercise/BuildIntro never need a DB-backed
-// country lookup. New does NOT self-register via init(): wiring a
-// Generator into the topics registry is deferred to cmd/bot (architecture
-// §8), same as specialchars and words.
-func New() *Generator { return &Generator{} }
-
-// Kind implements topics.Generator.
-func (g *Generator) Kind() string { return Kind }
-
-// BuildExercise implements topics.Generator (ModeSingle only): a fixed,
-// never-shuffled two-option MCQ — Left then Right, always in that order
-// (task spec: with only ever two options, a stable position beats the
-// usual shuffle-for-fairness treatment other topics use). rng and ctx are
-// accepted only for Generator-interface compliance.
-func (g *Generator) BuildExercise(_ context.Context, _ *rand.Rand, req topics.ExerciseRequest) (topics.Exercise, error) {
-	p, err := parsePayload(req.Item.Payload)
+// parseCard adapts an item payload to the engine's Card: the correct fixed
+// option key ("left"/"right"), the "🇬🇧 United Kingdom" flag+name pair as
+// the prompt subject, and the rendered intro blurb — with a parenthetical
+// note for the "interesting" cases (not a UN member, or no official
+// GeoGuessr Street View coverage).
+func parseCard(raw []byte) (engine.Card, error) {
+	p, err := parsePayload(raw)
 	if err != nil {
-		return topics.Exercise{}, fmt.Errorf("roadside: item %s: %w", req.Item.Key, err)
+		return engine.Card{}, err
 	}
 
-	correct := "left"
+	key, side := "left", "LEFT"
 	if p.Side == "R" {
-		correct = "right"
+		key, side = "right", "RIGHT"
 	}
 
-	return topics.Exercise{
-		Mode:   quiz.ModeSingle,
-		Prompt: fmt.Sprintf("%s %s — which side of the road do they drive on?", p.Flag, p.Name),
-		Options: []topics.Option{
-			{Key: "left", Label: "⬅️ Left"},
-			{Key: "right", Label: "➡️ Right"},
-		},
-		CorrectAnswer: correct,
-	}, nil
-}
-
-// BuildIntro implements topics.Generator: the teaching blurb shown before
-// an item's first exercise (architecture §5.1), with a parenthetical note
-// for the "interesting" cases the task brief calls out — not a UN member,
-// or no official GeoGuessr Street View coverage.
-func (g *Generator) BuildIntro(_ context.Context, item storage.Item) (topics.IntroCard, error) {
-	p, err := parsePayload(item.Payload)
-	if err != nil {
-		return topics.IntroCard{}, fmt.Errorf("roadside: item %s: %w", item.Key, err)
-	}
-
-	side := "LEFT"
-	if p.Side == "R" {
-		side = "RIGHT"
-	}
-	text := fmt.Sprintf("🚗 %s %s drives on the %s.", p.Flag, p.Name, side)
-
+	intro := fmt.Sprintf("🚗 %s %s drives on the %s.", p.Flag, p.Name, side)
 	var notes []string
 	if !p.UNMember {
 		notes = append(notes, "not a UN member state")
@@ -130,8 +84,34 @@ func (g *Generator) BuildIntro(_ context.Context, item storage.Item) (topics.Int
 		notes = append(notes, "no official Street View coverage")
 	}
 	if len(notes) > 0 {
-		text += " (" + strings.Join(notes, "; ") + ")"
+		intro += " (" + strings.Join(notes, "; ") + ")"
 	}
 
-	return topics.IntroCard{Text: text}, nil
+	return engine.Card{
+		Keys:    []string{key},
+		Subject: p.Flag + " " + p.Name,
+		Intro:   intro,
+	}, nil
 }
+
+// descriptor declares the whole topic for the engine: tree, parse, prompt,
+// and the fixed never-shuffled Left/Right option pair.
+var descriptor = engine.Descriptor{
+	QuizKind: Kind,
+	Topic: []engine.TopicNode{
+		{Slug: RootSlug, Name: RootName, Position: rootPosition},
+		{Slug: TopicSlug, Name: TopicName, Position: topicPosition, BaseTier: BaseTier, QuizKind: Kind, ExerciseModes: []string{"single"}, IsQuizzable: true},
+	},
+	Parse:        parseCard,
+	PromptSingle: "%s — which side of the road do they drive on?",
+	FixedOptions: []topics.Option{
+		{Key: "left", Label: "⬅️ Left"},
+		{Key: "right", Label: "➡️ Right"},
+	},
+}
+
+// New builds the road-side Generator (the generic engine one, driven by
+// this package's descriptor). New does NOT self-register via init(): wiring
+// a Generator into the topics registry is deferred to cmd/bot (architecture
+// §8), same as specialchars and words.
+func New() *engine.Generator { return engine.New(descriptor) }
