@@ -13,6 +13,7 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/topics"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // mustItem builds a storage.Item with a marshaled char_language payload, for
@@ -280,8 +281,8 @@ func TestBuildExercise_ModeMismatch(t *testing.T) {
 		if errors.Is(err, topics.ErrNoContent) {
 			t.Fatalf("mode mismatch must NOT be topics.ErrNoContent (that's reserved for malformed payload), got %v", err)
 		}
-		if !errors.Is(err, errUnsupportedMode) {
-			t.Fatalf("expected errors.Is(err, errUnsupportedMode), got %v", err)
+		if !errors.Is(err, engine.ErrUnsupportedMode) {
+			t.Fatalf("expected errors.Is(err, engine.ErrUnsupportedMode), got %v", err)
 		}
 	})
 
@@ -289,8 +290,8 @@ func TestBuildExercise_ModeMismatch(t *testing.T) {
 		item := mustItem(t, "ø", "latin", []string{"nor", "dan"}, "")
 		req := topics.ExerciseRequest{Item: item, Mode: quiz.ModeSingle}
 		_, err := gen.BuildExercise(context.Background(), newRNG(1), req)
-		if !errors.Is(err, errUnsupportedMode) {
-			t.Fatalf("expected errors.Is(err, errUnsupportedMode), got %v", err)
+		if !errors.Is(err, engine.ErrUnsupportedMode) {
+			t.Fatalf("expected errors.Is(err, engine.ErrUnsupportedMode), got %v", err)
 		}
 	})
 
@@ -298,8 +299,8 @@ func TestBuildExercise_ModeMismatch(t *testing.T) {
 		item := mustItem(t, "ø", "latin", []string{"nor", "dan"}, "")
 		req := topics.ExerciseRequest{Item: item, Mode: quiz.ModeText}
 		_, err := gen.BuildExercise(context.Background(), newRNG(1), req)
-		if !errors.Is(err, errUnsupportedMode) {
-			t.Fatalf("expected errors.Is(err, errUnsupportedMode), got %v", err)
+		if !errors.Is(err, engine.ErrUnsupportedMode) {
+			t.Fatalf("expected errors.Is(err, engine.ErrUnsupportedMode), got %v", err)
 		}
 	})
 }

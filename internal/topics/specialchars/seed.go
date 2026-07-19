@@ -2,13 +2,13 @@ package specialchars
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // defaultSeedPath is seeds/special_chars.yaml relative to the repo root
@@ -46,7 +46,7 @@ func LoadSeedFile(path string) (SeedFile, error) {
 // Seed upserts the languages/special-characters topic (architecture §6.1)
 // and its items from seeds/special_chars.yaml, resolved relative to the
 // process's working directory (matching cmd/ingest's convention: run from
-// the repo root). Idempotent — UpsertTopic/UpsertItem are upserts keyed on
+// the repo root). Idempotent — engine.Seed is pure upserts keyed on
 // (parent,slug)/(topic,key), so re-running Seed after editing the yaml just
 // updates the existing rows.
 func Seed(ctx context.Context, store *storage.Store) error {
@@ -63,31 +63,23 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 	return SeedFromData(ctx, store, sf)
 }
 
-// SeedFromData upserts topics/items from an already-loaded SeedFile — the
-// core logic, separated from file I/O so tests can exercise it with data
-// built in-process.
+// SeedFromData maps an already-loaded SeedFile onto the generic engine
+// seeder (the descriptor's Topic path plus one ItemSeed per char) —
+// separated from file I/O so tests can exercise it with data built
+// in-process.
 func SeedFromData(ctx context.Context, store *storage.Store, sf SeedFile) error {
-	root, err := store.UpsertTopic(ctx, nil, "languages", "Languages", 0, 0, "container", []string{"single"}, false, []byte(`{}`))
-	if err != nil {
-		return fmt.Errorf("upsert languages root topic: %w", err)
-	}
-
-	parentID := root.ID
-	topic, err := store.UpsertTopic(ctx, &parentID, "special-characters", "Special characters", 0, 2,
-		Kind, []string{"single", "set", "text"}, true, []byte(`{}`))
-	if err != nil {
-		return fmt.Errorf("upsert special-characters topic: %w", err)
-	}
-
+	items := make([]engine.ItemSeed, len(sf.Chars))
 	for i, c := range sf.Chars {
-		raw, err := json.Marshal(payload{Char: c.Char, Script: c.Script, Languages: c.Languages, Note: c.Note})
-		if err != nil {
-			return fmt.Errorf("marshal payload for %q: %w", c.Char, err)
-		}
 		tier := c.Tier
-		if _, err := store.UpsertItem(ctx, topic.ID, c.Char, c.Char, &tier, raw, nil, i, true); err != nil {
-			return fmt.Errorf("upsert item %q: %w", c.Char, err)
+		items[i] = engine.ItemSeed{
+			Key:     c.Char,
+			Label:   c.Char,
+			Tier:    &tier,
+			Payload: payload{Char: c.Char, Script: c.Script, Languages: c.Languages, Note: c.Note},
 		}
+	}
+	if err := engine.Seed(ctx, store, descriptor, engine.SeedData{Items: items}); err != nil {
+		return fmt.Errorf("specialchars: %w", err)
 	}
 	return nil
 }

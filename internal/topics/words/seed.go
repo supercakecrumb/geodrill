@@ -2,7 +2,6 @@ package words
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // Topic tree constants this package seeds and generates for (architecture
@@ -75,11 +75,11 @@ func loadSeedFile(path string) (seedFile, error) {
 	return sf, nil
 }
 
-// Seed loads seeds/common_words.yaml and upserts the "languages" container
+// Seed loads seeds/common_words.yaml and seeds the "languages" container
 // topic, the "languages/common-words" quiz topic, and every word item
-// (architecture §6.3). Idempotent: topic and item upserts key off
-// (parent,slug) and (topic_id,key) respectively, so re-running Seed after an
-// edit to the yaml converges rather than duplicating rows.
+// (architecture §6.3) through the generic engine seeder (the descriptor's
+// Topic path). Idempotent — engine.Seed is pure upserts, so re-running
+// after an edit to the yaml converges rather than duplicating rows.
 func Seed(ctx context.Context, store *storage.Store) error {
 	return SeedFromFile(ctx, store, seedFilePath())
 }
@@ -92,27 +92,20 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 		return err
 	}
 
-	root, err := store.UpsertTopic(ctx, nil, RootSlug, RootName, 0, 0, "container", []string{"single"}, false, []byte(`{}`))
-	if err != nil {
-		return fmt.Errorf("words: upsert root topic %q: %w", RootSlug, err)
-	}
-
-	rootID := root.ID
-	topic, err := store.UpsertTopic(ctx, &rootID, TopicSlug, TopicName, topicPosition, BaseTier, QuizKind, []string{"single"}, true, []byte(`{}`))
-	if err != nil {
-		return fmt.Errorf("words: upsert topic %q: %w", TopicSlug, err)
-	}
-
+	items := make([]engine.ItemSeed, len(sf.Words))
 	for i, w := range sf.Words {
-		key := w.Language + ":" + w.Word
-		payload, err := json.Marshal(itemPayload{Word: w.Word, Language: w.Language, Meaning: w.Meaning})
-		if err != nil {
-			return fmt.Errorf("words: marshal payload for %s: %w", key, err)
-		}
 		tier := w.Tier
-		if _, err := store.UpsertItem(ctx, topic.ID, key, w.Word, &tier, payload, nil, i, true); err != nil {
-			return fmt.Errorf("words: upsert item %s: %w", key, err)
+		items[i] = engine.ItemSeed{
+			// Keys are prefixed with the language so spellings shared across
+			// languages stay unique within the topic (e.g. pol:ulica).
+			Key:     w.Language + ":" + w.Word,
+			Label:   w.Word,
+			Tier:    &tier,
+			Payload: itemPayload{Word: w.Word, Language: w.Language, Meaning: w.Meaning},
 		}
+	}
+	if err := engine.Seed(ctx, store, descriptor, engine.SeedData{Items: items}); err != nil {
+		return fmt.Errorf("words: %w", err)
 	}
 	return nil
 }

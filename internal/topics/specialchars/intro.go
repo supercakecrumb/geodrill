@@ -1,30 +1,21 @@
 package specialchars
 
 import (
-	"context"
 	"fmt"
 	"strings"
-
-	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/topics"
 )
 
-// BuildIntro implements topics.Generator: the teaching blurb shown before an
-// item's first exercise (architecture §5.1), e.g.
-// `🔤 "ø" — used in Norwegian and Danish. o with stroke — Norwegian, Danish`.
-// Plain text — HTML-escaping is the telegram layer's job (registry.go's
-// IntroCard doc).
-func (g *Generator) BuildIntro(_ context.Context, item storage.Item) (topics.IntroCard, error) {
-	p, err := parsePayload(item.Payload)
-	if err != nil {
-		return topics.IntroCard{}, err
-	}
-
+// introText renders the teaching blurb shown before an item's first
+// exercise (architecture §5.1) — consumed by parseCard as engine.Card.Intro
+// — e.g. `🔤 "ø" — used in Norwegian and Danish. o with stroke`.
+// Plain text — HTML-escaping is the telegram layer's job (the topics
+// package's IntroCard doc).
+func introText(p payload) string {
 	text := fmt.Sprintf("🔤 “%s” — used in %s.", p.Char, languageListText(p.Languages))
 	if p.Note != "" {
 		text += " " + p.Note
 	}
-	return topics.IntroCard{Text: text}, nil
+	return text
 }
 
 // languageListText renders a natural-language "A and B" / "A, B and C" list

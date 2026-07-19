@@ -1,29 +1,29 @@
-// Package words is the common-words topic worker (architecture §6.3,
-// quiz_kind "word_language", topic languages/common-words): a word→language
+// Package words is the common-words topic (architecture §6.3, quiz_kind
+// "word_language", topic languages/common-words): a word→language
 // single-choice quiz over sign/street vocabulary ("ulica", "avenida",
-// "проспект", ...). Distractor languages are drawn from sibling items that
-// share the target word's script (Latin vs Cyrillic — derived from the
-// word's own characters, never from a static per-language table), so a
-// Cyrillic word is never quizzed against Latin-script options.
+// "проспект", ...), expressed as an engine.Descriptor. Only what is
+// genuinely this topic's lives here — the payload shape and its validation,
+// the script derivation (from the word's own characters, never a static
+// per-language table), the language-name table, and the prompt/intro texts;
+// option building, same-script distractor sampling, and seeding are the
+// generic engine's (internal/topics/engine).
+//
+// Distractor languages are drawn from sibling items that share the target
+// word's script (Latin vs Cyrillic — engine.Card.Group), so a Cyrillic word
+// is never quizzed against Latin-script options.
 //
 // word→meaning is intentionally NOT built here (architecture §6.3, §9.6): a
 // later mode/topic reuses these same items' payload.meaning field.
 package words
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
-	"sort"
 	"strings"
 	"unicode"
 
-	"github.com/supercakecrumb/engram/quiz"
-
-	"github.com/supercakecrumb/geodrill/internal/storage"
-	"github.com/supercakecrumb/geodrill/internal/topics"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // maxDistractors caps how many sibling languages join the correct answer as
@@ -74,8 +74,10 @@ func scriptOf(word string) string {
 	return "latin"
 }
 
-// languageNames maps the 23 ISO-639-3 codes in the common-words deck to
-// their English display name (architecture §6.3).
+// languageNames maps the ISO-639-3 codes in the common-words deck to their
+// English display name (architecture §6.3). Doubles as the descriptor's
+// Labels table (unknown codes fall back to the uppercased code, the
+// engine's degraded-label-beats-failure convention).
 var languageNames = map[string]string{
 	"bul": "Bulgarian",
 	"cat": "Catalan",
@@ -103,8 +105,7 @@ var languageNames = map[string]string{
 }
 
 // languageName returns the English display name for code, falling back to
-// the bare code (uppercased) when it isn't in the table — a degraded label
-// beats failing the exercise outright over an unrecognised code.
+// the bare code (uppercased) when it isn't in the table.
 func languageName(code string) string {
 	if name, ok := languageNames[code]; ok {
 		return name
@@ -112,81 +113,42 @@ func languageName(code string) string {
 	return strings.ToUpper(code)
 }
 
-// Generator implements topics.Generator for quiz_kind "word_language". It is
-// stateless: BuildExercise/BuildIntro read only from the request/item they're
-// given, so a single instance is safe to share and register once.
-type Generator struct{}
+// parseCard adapts an item payload to the engine's Card: one answer key
+// (the language), the word's script as the distractor-compatibility group,
+// the word as the prompt subject, and the rendered intro blurb
+// (architecture §5.1), e.g. 📖 "ulica" — "street" in Polish.
+func parseCard(raw []byte) (engine.Card, error) {
+	p, err := parsePayload(raw)
+	if err != nil {
+		return engine.Card{}, err
+	}
+	return engine.Card{
+		Keys:    []string{p.Language},
+		Group:   scriptOf(p.Word),
+		Subject: p.Word,
+		Intro:   fmt.Sprintf("\U0001F4D6 “%s” — “%s” in %s.", p.Word, p.Meaning, languageName(p.Language)),
+	}, nil
+}
 
-// New constructs the common-words Generator. Callers must explicitly
+// descriptor declares the whole topic for the engine: tree, parse, labels,
+// prompt, and the same-script distractor policy.
+var descriptor = engine.Descriptor{
+	QuizKind: QuizKind,
+	Topic: []engine.TopicNode{
+		{Slug: RootSlug, Name: RootName},
+		{Slug: TopicSlug, Name: TopicName, Position: topicPosition, BaseTier: BaseTier, QuizKind: QuizKind, ExerciseModes: []string{"single"}, IsQuizzable: true},
+	},
+	Parse:        parseCard,
+	Labels:       languageNames,
+	PromptSingle: "You see “%s” on a sign — what language?",
+	Distractors:  engine.DistractorPolicy{Max: maxDistractors, SameGroup: true},
+}
+
+// New constructs the common-words Generator (the generic engine one, driven
+// by this package's descriptor). Callers must explicitly
 // topics.Register(New()) — this package intentionally has no init()
 // self-registration (architecture §8: topic workers never collide by
 // registering themselves eagerly at import time).
-func New() *Generator {
-	return &Generator{}
-}
-
-// Kind implements topics.Generator.
-func (g *Generator) Kind() string { return "word_language" }
-
-// BuildExercise implements topics.Generator: a ModeSingle word→language MCQ.
-// Distractor languages are drawn deterministically (via rng) from req.
-// Siblings whose word shares req.Item's script, up to maxDistractors.
-// Candidates are canonicalized (deduped, sorted) before shuffling so the
-// result depends only on the *set* of eligible sibling languages, not on
-// req.Siblings' incoming order.
-func (g *Generator) BuildExercise(_ context.Context, rng *rand.Rand, req topics.ExerciseRequest) (topics.Exercise, error) {
-	target, err := parsePayload(req.Item.Payload)
-	if err != nil {
-		return topics.Exercise{}, fmt.Errorf("words: item %s: %w", req.Item.Key, err)
-	}
-	targetScript := scriptOf(target.Word)
-
-	seen := map[string]struct{}{target.Language: {}}
-	var candidates []string
-	for _, sib := range req.Siblings {
-		p, err := parsePayload(sib.Payload)
-		if err != nil {
-			continue // a malformed sibling shouldn't sink this exercise
-		}
-		if _, dup := seen[p.Language]; dup {
-			continue
-		}
-		if scriptOf(p.Word) != targetScript {
-			continue // same-script invariant (architecture §6.3)
-		}
-		seen[p.Language] = struct{}{}
-		candidates = append(candidates, p.Language)
-	}
-	sort.Strings(candidates)
-	rng.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
-	if len(candidates) > maxDistractors {
-		candidates = candidates[:maxDistractors]
-	}
-
-	opts := make([]topics.Option, 0, len(candidates)+1)
-	opts = append(opts, topics.Option{Key: target.Language, Label: languageName(target.Language)})
-	for _, code := range candidates {
-		opts = append(opts, topics.Option{Key: code, Label: languageName(code)})
-	}
-	rng.Shuffle(len(opts), func(i, j int) { opts[i], opts[j] = opts[j], opts[i] })
-
-	return topics.Exercise{
-		Mode:          quiz.ModeSingle,
-		Prompt:        fmt.Sprintf("You see “%s” on a sign — what language?", target.Word),
-		Options:       opts,
-		CorrectAnswer: target.Language,
-	}, nil
-}
-
-// BuildIntro implements topics.Generator: the teaching blurb shown before an
-// item's first exercise (architecture §5.1), e.g. 📖 "ulica" — "street" in
-// Polish.
-func (g *Generator) BuildIntro(_ context.Context, item storage.Item) (topics.IntroCard, error) {
-	p, err := parsePayload(item.Payload)
-	if err != nil {
-		return topics.IntroCard{}, fmt.Errorf("words: item %s: %w", item.Key, err)
-	}
-	return topics.IntroCard{
-		Text: fmt.Sprintf("\U0001F4D6 “%s” — “%s” in %s.", p.Word, p.Meaning, languageName(p.Language)),
-	}, nil
+func New() *engine.Generator {
+	return engine.New(descriptor)
 }

@@ -1,17 +1,18 @@
-// Package specialchars implements the topics.Generator for quiz_kind
-// "char_language" (architecture §6.1, topic path "languages/special-characters"):
-// letters distinctive to one language or a small subgroup of languages
-// (e.g. "ø" -> Norwegian/Danish). It never touches storage directly — see
-// the internal/topics package doc's "content access stays out of this
-// package" contract — because every char_language item carries all the
-// content it needs inline in its payload (no sentence/media sampling
-// required, unlike word- or sentence-backed topics).
+// Package specialchars is the special-characters topic (architecture §6.1,
+// quiz_kind "char_language", topic languages/special-characters): letters
+// distinctive to one language or a small subgroup of languages (e.g. "ø" ->
+// Norwegian/Danish), expressed as an engine.Descriptor. What stays here is
+// genuinely this topic's: the payload shape and validation, the language
+// alias/accepted-spellings table (alias.go), the intro list rendering
+// (intro.go), and — the one custom generation mechanic — the ModeSet
+// one-member-swap distractor-set builder below, hung on the descriptor's
+// BuildSet hook. Single-choice sampling (same-script via engine.Card.Group),
+// text mode, mode/shape dispatch, and seeding are the generic engine's
+// (internal/topics/engine).
 package specialchars
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/topics"
+	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
 
 // Kind is the topics.quiz_kind this package's Generator registers under.
@@ -33,15 +35,6 @@ const (
 	maxSingleDistractors = 3 // single-language MCQ: target + up to this many
 	maxSetDistractors    = 3 // subgroup set-choice: target set + up to this many
 )
-
-// errUnsupportedMode is returned when the caller's ExerciseRequest.Mode does
-// not match what this item's payload shape supports (single-language items
-// support ModeSingle/ModeText; subgroup items support ModeSet only,
-// architecture §6.1). This is distinct from topics.ErrNoContent: a mode/shape
-// mismatch is a caller-wiring problem (the future train service is expected
-// to only ask a mode the item's shape supports), not "try another candidate,
-// this one has no content" — so it is NOT the ErrNoContent sentinel.
-var errUnsupportedMode = errors.New("specialchars: exercise mode not supported for this item's language shape")
 
 // payload is the items.payload shape for a char_language item (architecture
 // §2.2/§6.1): {"char":"ø","script":"latin","languages":["nor","dan"],"note":"..."}.
@@ -68,106 +61,71 @@ func parsePayload(raw []byte) (payload, error) {
 	return p, nil
 }
 
-// Generator implements topics.Generator for Kind.
-type Generator struct{}
-
-// New builds a Generator. No dependencies are injected — BuildExercise and
-// BuildIntro derive everything from their arguments (the item's own payload
-// plus its siblings' payloads); char_language items need no DB-backed
-// content sampler the way a sentence- or word-based topic would. New is an
-// explicit constructor (not a package-level singleton) and does NOT
-// self-register via init(): wiring a Generator into the topics registry is
-// deferred to a later wave's cmd/bot changes, per the orchestrator brief.
-func New() *Generator { return &Generator{} }
-
-// Kind implements topics.Generator.
-func (g *Generator) Kind() string { return Kind }
-
-// BuildExercise implements topics.Generator. It dispatches on the item's
-// language-count shape (single vs subgroup) and req.Mode; see errUnsupportedMode
-// and parsePayload's doc for the two kinds of failure it can return.
-func (g *Generator) BuildExercise(_ context.Context, rng *rand.Rand, req topics.ExerciseRequest) (topics.Exercise, error) {
-	p, err := parsePayload(req.Item.Payload)
+// parseCard adapts an item payload to the engine's Card: the claimed
+// languages as answer keys (declared order — one key = single-language
+// item, several = subgroup, which the engine routes to BuildSet), the
+// script as the distractor-compatibility group, the character as the
+// prompt subject, and the rendered intro blurb (intro.go).
+func parseCard(raw []byte) (engine.Card, error) {
+	p, err := parsePayload(raw)
 	if err != nil {
-		return topics.Exercise{}, err
+		return engine.Card{}, err
 	}
-
-	if len(p.Languages) == 1 {
-		switch req.Mode {
-		case quiz.ModeSingle:
-			return buildSingleMCQ(rng, p, req.Siblings), nil
-		case quiz.ModeText:
-			return buildText(p), nil
-		default:
-			return topics.Exercise{}, fmt.Errorf("%w: mode=%d on single-language item %q", errUnsupportedMode, req.Mode, p.Char)
-		}
-	}
-
-	// Subgroup item (len(languages) > 1): set-choice only.
-	if req.Mode != quiz.ModeSet {
-		return topics.Exercise{}, fmt.Errorf("%w: mode=%d on subgroup item %q", errUnsupportedMode, req.Mode, p.Char)
-	}
-	return buildSetMCQ(rng, p, req.Siblings), nil
+	return engine.Card{
+		Keys:    p.Languages,
+		Group:   p.Script,
+		Subject: p.Char,
+		Intro:   introText(p),
+	}, nil
 }
 
-// buildSingleMCQ builds the ModeSingle "which language uses this char?" MCQ:
-// the correct language plus up to maxSingleDistractors distractors drawn
-// from other same-script languages present across sibling items' payloads.
-// Deterministic given rng: candidates are sorted before the first shuffle so
-// the same rng state + input order always produce the same output.
-func buildSingleMCQ(rng *rand.Rand, p payload, siblings []storage.Item) topics.Exercise {
-	target := p.Languages[0]
-
-	pool := sameScriptLanguages(p.Script, siblings, map[string]bool{target: true})
-	sort.Strings(pool)
-	rng.Shuffle(len(pool), func(i, j int) { pool[i], pool[j] = pool[j], pool[i] })
-	if len(pool) > maxSingleDistractors {
-		pool = pool[:maxSingleDistractors]
+// labelTable projects the alias table (alias.go) into the descriptor's
+// Labels map: ISO 639-3 code -> English display name. Codes missing from
+// the table fall back to strings.ToUpper(code) inside the engine.
+func labelTable() map[string]string {
+	out := make(map[string]string, len(languageAliases))
+	for code, a := range languageAliases {
+		out[code] = a.Name
 	}
-
-	codes := make([]string, 0, len(pool)+1)
-	codes = append(codes, target)
-	codes = append(codes, pool...)
-
-	options := make([]topics.Option, len(codes))
-	for i, code := range codes {
-		options[i] = topics.Option{Key: code, Label: languageLabel(code)}
-	}
-	rng.Shuffle(len(options), func(i, j int) { options[i], options[j] = options[j], options[i] })
-
-	return topics.Exercise{
-		Mode:          quiz.ModeSingle,
-		Prompt:        fmt.Sprintf("Which language uses “%s”?", p.Char),
-		Options:       options,
-		CorrectAnswer: target,
-	}
+	return out
 }
 
-// buildText builds the ModeText free-typed variant of the single-language
-// question: Accept holds the English name, ISO 639-3 code, and (where the
-// alias table is confident) native spellings; CorrectAnswer is the
-// canonical spelling (the English display name).
-func buildText(p payload) topics.Exercise {
-	target := p.Languages[0]
-	return topics.Exercise{
-		Mode:          quiz.ModeText,
-		Prompt:        fmt.Sprintf("Type the language that uses “%s”:", p.Char),
-		Accept:        acceptSpellings(target),
-		CorrectAnswer: languageLabel(target),
-	}
+// descriptor declares the whole topic for the engine: tree, parse, labels,
+// prompts for the single and text modes, the same-script distractor policy,
+// the accepted-spellings hook, and the custom set builder.
+var descriptor = engine.Descriptor{
+	QuizKind: Kind,
+	Topic: []engine.TopicNode{
+		{Slug: "languages", Name: "Languages"},
+		{Slug: "special-characters", Name: "Special characters", BaseTier: 2, QuizKind: Kind, ExerciseModes: []string{"single", "set", "text"}, IsQuizzable: true},
+	},
+	Parse:        parseCard,
+	Labels:       labelTable(),
+	PromptSingle: "Which language uses “%s”?",
+	PromptText:   "Type the language that uses “%s”:",
+	Distractors:  engine.DistractorPolicy{Max: maxSingleDistractors, SameGroup: true},
+	Accept:       acceptSpellings,
+	BuildSet:     buildSetMCQ,
 }
 
-// buildSetMCQ builds the ModeSet "which languages use this char?" exercise
-// (mirrors engram/quiz.GenerateSet's shape, adapted to topics.OptionSet since
-// registry.go's Exercise carries OptionSets rather than quiz.SetExercise
-// directly): the true language set plus up to maxSetDistractors same-size,
-// same-script distractor sets built by swapping one member of the target set
-// for another same-script sibling language.
-func buildSetMCQ(rng *rand.Rand, p payload, siblings []storage.Item) topics.Exercise {
-	targetKeys := quiz.CanonSet(p.Languages...)
-	targetLabel := setLabelInOrder(p.Languages)
+// New builds the special-characters Generator (the generic engine one,
+// driven by this package's descriptor). No DB dependencies — every
+// char_language item carries all the content it needs inline in its
+// payload. New does NOT self-register via init(): wiring a Generator into
+// the topics registry is deferred to cmd/bot (architecture §8).
+func New() *engine.Generator { return engine.New(descriptor) }
 
-	pool := sameScriptLanguages(p.Script, siblings, nil) // includes target's own members; filtered below per-swap
+// buildSetMCQ is the descriptor's BuildSet hook: the ModeSet "which
+// languages use this char?" exercise for subgroup items (mirrors
+// engram/quiz.GenerateSet's shape, adapted to topics.OptionSet) — the true
+// language set plus up to maxSetDistractors same-size, same-script
+// distractor sets built by swapping one member of the target set for
+// another same-script sibling language.
+func buildSetMCQ(rng *rand.Rand, card engine.Card, siblings []storage.Item) (topics.Exercise, error) {
+	targetKeys := quiz.CanonSet(card.Keys...)
+	targetLabel := setLabelInOrder(card.Keys)
+
+	pool := sameScriptLanguages(card.Group, siblings, nil) // includes target's own members; filtered below per-swap
 	sort.Strings(pool)
 
 	distractors := buildDistractorSets(rng, targetKeys, pool, maxSetDistractors)
@@ -181,10 +139,10 @@ func buildSetMCQ(rng *rand.Rand, p payload, siblings []storage.Item) topics.Exer
 
 	return topics.Exercise{
 		Mode:          quiz.ModeSet,
-		Prompt:        fmt.Sprintf("Which languages use “%s”?", p.Char),
+		Prompt:        fmt.Sprintf("Which languages use “%s”?", card.Subject),
 		OptionSets:    optionSets,
 		CorrectAnswer: strings.Join(targetKeys, ","),
-	}
+	}, nil
 }
 
 // buildDistractorSets builds up to max distinct, same-size distractor sets by
