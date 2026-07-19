@@ -1,0 +1,2 @@
+kind: Changed
+body: "Internal: topics are now driven by a universal descriptor engine (one generic exercise generator + one generic seeder, internal/topics/engine) with a shared country-tier rubric (internal/topics/countrytier); special characters, common words, road sides, and the guess-the-language seed were ported onto it behavior-preserving — no visible change, but new topics (TLDs, country profiles, flags, ...) now land as a descriptor plus a seed dataset instead of duplicated code"
