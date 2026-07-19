@@ -101,6 +101,104 @@ func TestBuildExercise_SingleMCQ_ComposesCorrectAnswer(t *testing.T) {
 	}
 }
 
+// isSlavicCyrillic reports whether code is one of seeds/decks.yaml's
+// "slavic-cyrillic" deck languages (engine.LanguageGroup("rus") ==
+// "slavic-cyrillic", etc — pinned in engine/languagegroup_test.go).
+func isSlavicCyrillic(code string) bool {
+	switch code {
+	case "rus", "ukr", "bul", "srp", "mkd":
+		return true
+	}
+	return false
+}
+
+// TestBuildExercise_SingleMCQ_LanguageGroupCloseness is the exact closeness
+// regression Aurora asked for: a Cyrillic-letter question ("ё", Russian)
+// must never offer a far-apart language as a distractor — not a Latin-script
+// Romance language (Spanish), not a Latin-script Southeast Asian one
+// (Vietnamese), not a Latin-script Nordic one (Icelandic) — only siblings
+// sharing "ё"'s slavic-cyrillic language-family group. Same-script alone
+// would not catch this: all three "far" siblings below share a script
+// ("latin") with each other but not a language family with "ё" or each
+// other, which is exactly the gap language-group grouping closes.
+func TestBuildExercise_SingleMCQ_LanguageGroupCloseness(t *testing.T) {
+	gen := New()
+	item := mustItem(t, "ё", "cyrillic", []string{"rus"}, "yo — Russian")
+	siblings := []storage.Item{
+		mustItem(t, "є", "cyrillic", []string{"ukr"}, "Ukrainian"),  // slavic-cyrillic: close, OK
+		mustItem(t, "ђ", "cyrillic", []string{"srp"}, "Serbian"),    // slavic-cyrillic: close, OK
+		mustItem(t, "ѓ", "cyrillic", []string{"mkd"}, "Macedonian"), // slavic-cyrillic: close, OK
+		mustItem(t, "ñ", "latin", []string{"spa"}, "Spanish"),       // romance — far, must never appear
+		mustItem(t, "đ", "latin", []string{"vie"}, "Vietnamese"),    // se-asia — far, must never appear
+		mustItem(t, "ð", "latin", []string{"isl"}, "Icelandic"),     // nordic — far, must never appear
+	}
+	req := topics.ExerciseRequest{Item: item, Siblings: siblings, Mode: quiz.ModeSingle}
+
+	ex, err := gen.BuildExercise(context.Background(), newRNG(1), req)
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	if len(ex.Options) < 2 {
+		t.Fatalf("expected at least one distractor drawn from the slavic-cyrillic group, got %+v", ex.Options)
+	}
+	for _, o := range ex.Options {
+		if !isSlavicCyrillic(o.Key) {
+			t.Fatalf("far-group distractor %q leaked into a Cyrillic-letter exercise: %+v", o.Key, ex.Options)
+		}
+	}
+}
+
+// TestBuildExercise_SingleMCQ_MixedGroupSiblingNeverLeaks reproduces the one
+// real data shape where a single sibling item's claimed languages straddle
+// two language families (seeds/special_chars.yaml's "ă" -> ron+vie, i.e.
+// romance + se-asia): its off-family member (Vietnamese) must never leak
+// into a romance-group target's distractor pool just because its other
+// member (Romanian) shares that group.
+func TestBuildExercise_SingleMCQ_MixedGroupSiblingNeverLeaks(t *testing.T) {
+	gen := New()
+	item := mustItem(t, "ñ", "latin", []string{"spa"}, "")
+	siblings := []storage.Item{
+		mustItem(t, "ă", "latin", []string{"ron", "vie"}, "Romanian, Vietnamese"),
+		mustItem(t, "ç", "latin", []string{"fra", "por", "cat"}, "French, Portuguese, Catalan"),
+	}
+	req := topics.ExerciseRequest{Item: item, Siblings: siblings, Mode: quiz.ModeSingle}
+
+	ex, err := gen.BuildExercise(context.Background(), newRNG(1), req)
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	for _, o := range ex.Options {
+		if o.Key == "ron" || o.Key == "vie" {
+			t.Fatalf("mixed-group sibling's member %q leaked as a distractor: %+v", o.Key, ex.Options)
+		}
+	}
+}
+
+// TestBuildExercise_SingleMCQ_SmallGroupUnderfillsWithoutCrash covers the
+// "fewer siblings than Max" fallback the engine already provides (it simply
+// caps at whatever's available — no lower-bound enforcement, no crash):
+// only one other slavic-cyrillic sibling is available here, well under
+// maxSingleDistractors (3), so the exercise must still come back with
+// exactly target + that one distractor rather than erroring.
+func TestBuildExercise_SingleMCQ_SmallGroupUnderfillsWithoutCrash(t *testing.T) {
+	gen := New()
+	item := mustItem(t, "ё", "cyrillic", []string{"rus"}, "")
+	siblings := []storage.Item{
+		mustItem(t, "є", "cyrillic", []string{"ukr"}, ""), // only same-group sibling available
+		mustItem(t, "ñ", "latin", []string{"spa"}, ""),    // different group, excluded
+	}
+	req := topics.ExerciseRequest{Item: item, Siblings: siblings, Mode: quiz.ModeSingle}
+
+	ex, err := gen.BuildExercise(context.Background(), newRNG(1), req)
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	if len(ex.Options) != 2 {
+		t.Fatalf("len(Options) = %d, want 2 (target + the 1 available same-group distractor, under Max=%d): %+v",
+			len(ex.Options), maxSingleDistractors, ex.Options)
+	}
+}
+
 func TestBuildExercise_SingleMCQ_Deterministic(t *testing.T) {
 	gen := New()
 	item := mustItem(t, "ñ", "latin", []string{"spa"}, "")

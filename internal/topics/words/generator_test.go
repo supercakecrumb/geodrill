@@ -99,6 +99,63 @@ func TestBuildExercise_SameScriptInvariant_Latin(t *testing.T) {
 	}
 }
 
+// TestBuildExercise_LanguageGroupCloseness_SlavicLatinNeverOffersFarGroups is
+// the closeness regression for the word topic: a slavic-latin target (Polish
+// "ulica") must never offer a Romance (Spanish) or Nordic (Swedish)
+// distractor, even though all three are "latin" script — the gap
+// script-only grouping left open, closed by grouping on the
+// guess-the-language language family instead (engine.LanguageGroup).
+func TestBuildExercise_LanguageGroupCloseness_SlavicLatinNeverOffersFarGroups(t *testing.T) {
+	gen := New()
+	target := mkItem("ulica", "pol", "street") // pol => slavic-latin
+	siblings := []storage.Item{
+		mkItem("silnice", "ces", "highway"), // slavic-latin: close, OK
+		mkItem("grad", "hrv", "city"),       // slavic-latin: close, OK
+		mkItem("izhod", "slv", "exit"),      // slavic-latin: close, OK
+		mkItem("zavreté", "slk", "closed"),  // slavic-latin: close, OK
+		mkItem("calle", "spa", "street"),    // romance — far, must never appear
+		mkItem("väg", "swe", "road"),        // nordic — far, must never appear
+	}
+	req := topics.ExerciseRequest{Item: target, Siblings: siblings}
+
+	ex, err := gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)), req)
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	if len(ex.Options) < 2 {
+		t.Fatalf("expected at least one distractor drawn from the slavic-latin group, got %+v", ex.Options)
+	}
+	for _, opt := range ex.Options {
+		if opt.Key == "spa" || opt.Key == "swe" {
+			t.Fatalf("far-group distractor %q leaked into a slavic-latin-target exercise: %+v", opt.Key, ex.Options)
+		}
+	}
+}
+
+// TestBuildExercise_SmallGroupUnderfillsWithoutCrash covers the "fewer
+// siblings than Max" fallback the engine already provides: se-asia is a
+// small group in this deck (only Indonesian and Vietnamese words are
+// seeded), well under maxDistractors (5), so the exercise must still come
+// back with exactly target + the one available distractor rather than
+// erroring or padding with an off-group option.
+func TestBuildExercise_SmallGroupUnderfillsWithoutCrash(t *testing.T) {
+	gen := New()
+	target := mkItem("jalan", "ind", "street/road") // ind => se-asia
+	siblings := []storage.Item{
+		mkItem("đường", "vie", "street/road"), // only other se-asia word in this fixture
+		mkItem("calle", "spa", "street"),      // different group, must be excluded
+	}
+	req := topics.ExerciseRequest{Item: target, Siblings: siblings}
+
+	ex, err := gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)), req)
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	if len(ex.Options) != 2 {
+		t.Fatalf("len(Options) = %d, want 2 (target + the 1 available same-group distractor): %+v", len(ex.Options), ex.Options)
+	}
+}
+
 func TestBuildExercise_Deterministic(t *testing.T) {
 	gen := New()
 	req := topics.ExerciseRequest{

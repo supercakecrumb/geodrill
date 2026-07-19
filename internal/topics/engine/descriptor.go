@@ -41,12 +41,15 @@ type Card struct {
 
 	// Group is the distractor-compatibility group: with
 	// DistractorPolicy.SameGroup set, distractors are drawn only from
-	// sibling items whose Card.Group equals the target's (e.g. script —
-	// "latin"/"cyrillic" — so a Cyrillic question never offers Latin-script
-	// options). Because Parse computes it, a topic can tighten its
-	// distractor pool to any "close distractors" notion — same language
-	// family, same region, same first letter — by changing only how Group
-	// is derived, with no engine change.
+	// sibling items whose Card.Group equals the target's (e.g. the
+	// guess-the-language family — "romance"/"slavic-cyrillic"/... via
+	// engine.LanguageGroup, which specialchars and words both use — so a
+	// Cyrillic question never offers a Latin/CJK option, and a Latin
+	// question stays within its own language family rather than any
+	// Latin-script language). Because Parse computes it, a topic can
+	// tighten its distractor pool to any "close distractors" notion — same
+	// language family, same region, same first letter — by changing only
+	// how Group is derived, with no engine change.
 	Group string
 
 	// Subject is the rendered subject slotted into the Descriptor's prompt

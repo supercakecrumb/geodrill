@@ -3,14 +3,17 @@
 // single-choice quiz over sign/street vocabulary ("ulica", "avenida",
 // "проспект", ...), expressed as an engine.Descriptor. Only what is
 // genuinely this topic's lives here — the payload shape and its validation,
-// the script derivation (from the word's own characters, never a static
-// per-language table), the language-name table, and the prompt/intro texts;
-// option building, same-script distractor sampling, and seeding are the
-// generic engine's (internal/topics/engine).
+// the language-name table, and the prompt/intro texts; option building,
+// same-language-group distractor sampling, and seeding are the generic
+// engine's (internal/topics/engine).
 //
-// Distractor languages are drawn from sibling items that share the target
-// word's script (Latin vs Cyrillic — engine.Card.Group), so a Cyrillic word
-// is never quizzed against Latin-script options.
+// Distractor languages are drawn from sibling items whose language shares
+// the target word's language-family group (engine.LanguageGroup —
+// engine.Card.Group), the same guess-the-language deck taxonomy
+// (seeds/decks.yaml) specialchars reuses: a Cyrillic word is never quizzed
+// against a Latin-script option (different family entirely), and a Latin
+// word stays within its own family (e.g. Romance) rather than any
+// Latin-script language (Nordic, Slavic-Latin, ...).
 //
 // word→meaning is intentionally NOT built here (architecture §6.3, §9.6): a
 // later mode/topic reuses these same items' payload.meaning field.
@@ -21,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
@@ -57,21 +59,6 @@ func parsePayload(raw []byte) (itemPayload, error) {
 		return itemPayload{}, ErrMalformedPayload
 	}
 	return p, nil
-}
-
-// scriptOf classifies a word's script from its own characters (never from a
-// per-language table): any Cyrillic letter present ⇒ "cyrillic", otherwise
-// "latin". This deck only ever contains those two scripts (architecture
-// §6.3/§4), and defaulting to "latin" correctly handles every diacritic
-// variant in the deck (Vietnamese đ/ư/ơ, Polish ł, Czech ř, ...) without
-// needing to enumerate Latin Unicode blocks.
-func scriptOf(word string) string {
-	for _, r := range word {
-		if unicode.Is(unicode.Cyrillic, r) {
-			return "cyrillic"
-		}
-	}
-	return "latin"
 }
 
 // languageNames maps the ISO-639-3 codes in the common-words deck to their
@@ -114,9 +101,10 @@ func languageName(code string) string {
 }
 
 // parseCard adapts an item payload to the engine's Card: one answer key
-// (the language), the word's script as the distractor-compatibility group,
-// the word as the prompt subject, and the rendered intro blurb
-// (architecture §5.1), e.g. 📖 "ulica" — "street" in Polish.
+// (the language), the language's family group (engine.LanguageGroup) as the
+// distractor-compatibility group, the word as the prompt subject, and the
+// rendered intro blurb (architecture §5.1), e.g. 📖 "ulica" — "street" in
+// Polish.
 func parseCard(raw []byte) (engine.Card, error) {
 	p, err := parsePayload(raw)
 	if err != nil {
@@ -124,14 +112,14 @@ func parseCard(raw []byte) (engine.Card, error) {
 	}
 	return engine.Card{
 		Keys:    []string{p.Language},
-		Group:   scriptOf(p.Word),
+		Group:   engine.LanguageGroup(p.Language),
 		Subject: p.Word,
 		Intro:   fmt.Sprintf("\U0001F4D6 “%s” — “%s” in %s.", p.Word, p.Meaning, languageName(p.Language)),
 	}, nil
 }
 
 // descriptor declares the whole topic for the engine: tree, parse, labels,
-// prompt, and the same-script distractor policy.
+// prompt, and the same-language-group distractor policy.
 var descriptor = engine.Descriptor{
 	QuizKind: QuizKind,
 	Topic: []engine.TopicNode{

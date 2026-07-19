@@ -6,9 +6,11 @@
 // alias/accepted-spellings table (alias.go), the intro list rendering
 // (intro.go), and — the one custom generation mechanic — the ModeSet
 // one-member-swap distractor-set builder below, hung on the descriptor's
-// BuildSet hook. Single-choice sampling (same-script via engine.Card.Group),
-// text mode, mode/shape dispatch, and seeding are the generic engine's
-// (internal/topics/engine).
+// BuildSet hook. Single-choice sampling (same-language-group via
+// engine.Card.Group/engine.LanguageGroup — a Cyrillic letter never offers a
+// Latin/CJK option, and a Latin letter stays within its own language family
+// rather than any Latin-script language), text mode, mode/shape dispatch,
+// and seeding are the generic engine's (internal/topics/engine).
 package specialchars
 
 import (
@@ -17,6 +19,7 @@ import (
 	"math/rand"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/supercakecrumb/engram/quiz"
 
@@ -64,8 +67,9 @@ func parsePayload(raw []byte) (payload, error) {
 // parseCard adapts an item payload to the engine's Card: the claimed
 // languages as answer keys (declared order — one key = single-language
 // item, several = subgroup, which the engine routes to BuildSet), the
-// script as the distractor-compatibility group, the character as the
-// prompt subject, and the rendered intro blurb (intro.go).
+// language-family group (distractorGroup) as the distractor-compatibility
+// group, the character as the prompt subject, and the rendered intro blurb
+// (intro.go).
 func parseCard(raw []byte) (engine.Card, error) {
 	p, err := parsePayload(raw)
 	if err != nil {
@@ -73,10 +77,65 @@ func parseCard(raw []byte) (engine.Card, error) {
 	}
 	return engine.Card{
 		Keys:    p.Languages,
-		Group:   p.Script,
+		Group:   distractorGroup(p.Languages),
 		Subject: p.Char,
 		Intro:   introText(p),
 	}, nil
+}
+
+// distractorGroup computes the char item's engine.Card.Group: the
+// guess-the-language family (engine.LanguageGroup) shared by every claimed
+// language, so single-choice distractors are drawn from the same language
+// family rather than merely the same script — a Cyrillic question must
+// never offer a far-apart Latin/CJK option, and a Latin question must not
+// offer, say, a Nordic option for a Slavic-Latin target, even though both
+// are "latin" script.
+//
+// A handful of entries legitimately straddle two language families (e.g.
+// "ă" is claimed by Romanian AND Vietnamese — romance and se-asia). Such an
+// item is never itself a single-choice target (BuildExercise routes
+// multi-key items to BuildSet, never the sampled single-choice builder),
+// but it can still be scanned as a sibling candidate source for some other
+// single-language target; picking one of its two families arbitrarily would
+// let its off-family member leak into that target's distractor pool. So a
+// straddling item's Group is mixedGroupSentinel instead — a value no
+// single-language item's own Group is ever assigned — so it never matches
+// any target's Group and is simply excluded as a distractor source (the
+// target's pool loses one potential candidate, never gains a wrong-family
+// one).
+func distractorGroup(codes []string) string {
+	if len(codes) == 0 {
+		return ""
+	}
+	g := engine.LanguageGroup(codes[0])
+	for _, c := range codes[1:] {
+		if engine.LanguageGroup(c) != g {
+			return mixedGroupSentinel
+		}
+	}
+	return g
+}
+
+// mixedGroupSentinel marks a Card whose claimed languages span more than one
+// engine.LanguageGroup family (see distractorGroup) — deliberately a value
+// engine.LanguageGroup never returns, so it can never accidentally match a
+// real single-language item's Group.
+const mixedGroupSentinel = "\x00mixed"
+
+// charScript classifies a char item's Unicode script from its own subject
+// rune — used only by buildSetMCQ's same-script subgroup-swap pool
+// (independent of Card.Group, which after distractorGroup now carries
+// language-family information, not script). Every char in this deck is
+// unambiguously Latin or Cyrillic script, and the seed's own `script` field
+// always agrees with this classification (seeds/special_chars.yaml), so
+// re-deriving it from the rune needs no payload lookup.
+func charScript(subject string) string {
+	for _, r := range subject {
+		if unicode.Is(unicode.Cyrillic, r) {
+			return "cyrillic"
+		}
+	}
+	return "latin"
 }
 
 // labelTable projects the alias table (alias.go) into the descriptor's
@@ -91,8 +150,8 @@ func labelTable() map[string]string {
 }
 
 // descriptor declares the whole topic for the engine: tree, parse, labels,
-// prompts for the single and text modes, the same-script distractor policy,
-// the accepted-spellings hook, and the custom set builder.
+// prompts for the single and text modes, the same-language-group distractor
+// policy, the accepted-spellings hook, and the custom set builder.
 var descriptor = engine.Descriptor{
 	QuizKind: Kind,
 	Topic: []engine.TopicNode{
@@ -125,7 +184,13 @@ func buildSetMCQ(rng *rand.Rand, card engine.Card, siblings []storage.Item) (top
 	targetKeys := quiz.CanonSet(card.Keys...)
 	targetLabel := setLabelInOrder(card.Keys)
 
-	pool := sameScriptLanguages(card.Group, siblings, nil) // includes target's own members; filtered below per-swap
+	// Script (not card.Group, which is now the language-family group used by
+	// single-choice sampling) is what the one-member-swap pool needs here:
+	// this deck's subgroup items are always uniform-script by construction
+	// (e.g. "č" -> ces/slk/hrv/slv is entirely Latin), so charScript(target's
+	// own subject rune) is the right, self-contained "which siblings can
+	// swap in" scope.
+	pool := sameScriptLanguages(charScript(card.Subject), siblings, nil) // includes target's own members; filtered below per-swap
 	sort.Strings(pool)
 
 	distractors := buildDistractorSets(rng, targetKeys, pool, maxSetDistractors)
