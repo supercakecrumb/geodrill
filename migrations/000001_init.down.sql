@@ -6,6 +6,7 @@ DROP VIEW IF EXISTS item_tiers;
 
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS exercises;
+DROP TABLE IF EXISTS game_stats;
 DROP TABLE IF EXISTS user_tier_progress;
 DROP TABLE IF EXISTS user_topics;
 DROP TABLE IF EXISTS media_files;

@@ -73,6 +73,14 @@ type FactDef struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
+type GameStat struct {
+	UserID       uuid.UUID
+	Game         string
+	BestStreak   int32
+	Runs         int32
+	LastPlayedAt pgtype.Timestamptz
+}
+
 type Introduction struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID

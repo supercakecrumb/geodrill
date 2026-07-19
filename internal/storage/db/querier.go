@@ -51,6 +51,7 @@ type Querier interface {
 	GetExerciseByID(ctx context.Context, id uuid.UUID) (Exercise, error)
 	GetExercisesByItem(ctx context.Context, itemID uuid.UUID) ([]GetExercisesByItemRow, error)
 	GetFactDefByKey(ctx context.Context, key string) (FactDef, error)
+	GetGameStats(ctx context.Context, arg GetGameStatsParams) (GameStat, error)
 	// internal/study.Service.AnswerIntro: resolve the item an introduction
 	// callback refers to.
 	GetIntroductionByID(ctx context.Context, id uuid.UUID) (Introduction, error)
@@ -226,6 +227,12 @@ type Querier interface {
 	// iso_a3, or a future dedicated key) before calling this.
 	UpsertCountry(ctx context.Context, arg UpsertCountryParams) (Country, error)
 	UpsertFactDef(ctx context.Context, arg UpsertFactDefParams) (FactDef, error)
+	// Records the end of one game-zone run (design doc "Persistence"):
+	// best_streak only ever grows (GREATEST against the existing row), runs
+	// increments by one, and last_played_at is stamped to when the run ended.
+	// No per-run log — reviews stays FSRS-only; run state (streak, open
+	// answer, used content ids) lives in-memory per chat in the telegram layer.
+	UpsertGameRun(ctx context.Context, arg UpsertGameRunParams) (GameStat, error)
 	UpsertItem(ctx context.Context, arg UpsertItemParams) (Item, error)
 	// Upsert a root topic (parent_id IS NULL), keyed by the topics_root_slug
 	// partial unique index.

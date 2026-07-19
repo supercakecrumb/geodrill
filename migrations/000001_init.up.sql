@@ -4,10 +4,11 @@
 -- Single init migration: users/settings, the topic/item framework
 -- (topics, countries, items, user_items, introductions, content_items,
 -- media_files, fact_defs, country_facts, user_topics, user_tier_progress),
--- and the item/mode-based exercises/reviews tables. Order matters for FK
--- resolution: users first; topics/countries before items; items before
+-- the game zone's aggregate stats (game_stats), and the item/mode-based
+-- exercises/reviews tables. Order matters for FK resolution: users first;
+-- topics/countries before items; items before
 -- user_items/introductions/exercises/reviews; content_items before
--- media_files; exercises before reviews.
+-- media_files; exercises before reviews; users before game_stats.
 
 -- Users and their settings.
 CREATE TABLE users (
@@ -174,6 +175,20 @@ CREATE TABLE user_topics (
   topic_id uuid NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
   enabled  boolean NOT NULL DEFAULT true,
   PRIMARY KEY (user_id, topic_id)
+);
+
+-- Game zone aggregate stats (game-zone design doc "Persistence"): one row
+-- per user per game key (e.g. 'language_roulette'), best streak ever
+-- reached, total runs played, and when they last played. No per-run log —
+-- reviews stays FSRS-only; run state (streak, open answer, used content
+-- ids) lives in-memory per chat in the telegram layer instead.
+CREATE TABLE game_stats (
+  user_id        uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  game           text NOT NULL,
+  best_streak    int  NOT NULL DEFAULT 0,
+  runs           int  NOT NULL DEFAULT 0,
+  last_played_at timestamptz,
+  PRIMARY KEY (user_id, game)
 );
 
 -- Tiers + global gating — per-user completion cache (recomputed

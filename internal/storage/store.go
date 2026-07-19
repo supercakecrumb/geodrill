@@ -277,6 +277,18 @@ type TierProgress struct {
 	UpdatedAt       time.Time
 }
 
+// GameStats is one user's persisted aggregate for a single game-zone game
+// key (game_stats table; game-zone design doc "Persistence" — best_streak
+// only ever grows, no per-run log). LastPlayedAt is zero if the user has
+// never played this game.
+type GameStats struct {
+	UserID       uuid.UUID
+	Game         string
+	BestStreak   int
+	Runs         int
+	LastPlayedAt time.Time
+}
+
 // ── pgtype helpers ──────────────────────────────────────────────────────────
 
 func tsTime(t pgtype.Timestamptz) time.Time {

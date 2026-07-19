@@ -994,3 +994,88 @@ func TestWithTxCommitAndRollback(t *testing.T) {
 		t.Fatalf("rollback did not revert: found=%v err=%v ui=%+v (want lifecycle still 1)", found, err, uiAfter)
 	}
 }
+
+// TestGameStats covers the game zone's aggregate persistence
+// (vibe/design-game-zone.md "Persistence"): RecordGameRun upserts one row
+// per (user, game) key, best_streak only ever grows, runs increments by
+// one per call, and GetGameStats reads it back — plus the "never played"
+// not-found case.
+func TestGameStats(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 1001, "game-stats-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+	const gameKey = "language_roulette"
+
+	// Never played: not found.
+	_, found, err := st.GetGameStats(ctx, u.ID, gameKey)
+	if err != nil {
+		t.Fatalf("get game stats (before any run): %v", err)
+	}
+	if found {
+		t.Fatalf("expected no game_stats row before the first run")
+	}
+
+	t1 := time.Now().UTC().Truncate(time.Second)
+	first, err := st.RecordGameRun(ctx, u.ID, gameKey, 5, t1)
+	if err != nil {
+		t.Fatalf("record game run (1): %v", err)
+	}
+	if first.BestStreak != 5 || first.Runs != 1 || !first.LastPlayedAt.Equal(t1) {
+		t.Fatalf("first run mismatch: %+v", first)
+	}
+
+	// A lower streak on a second run must not lower best_streak, but runs
+	// still increments and last_played_at still advances.
+	t2 := t1.Add(time.Hour)
+	second, err := st.RecordGameRun(ctx, u.ID, gameKey, 3, t2)
+	if err != nil {
+		t.Fatalf("record game run (2): %v", err)
+	}
+	if second.BestStreak != 5 {
+		t.Fatalf("expected best_streak to stay at 5 after a lower-streak run, got %d", second.BestStreak)
+	}
+	if second.Runs != 2 {
+		t.Fatalf("expected runs=2 after a second run, got %d", second.Runs)
+	}
+	if !second.LastPlayedAt.Equal(t2) {
+		t.Fatalf("expected last_played_at stamped to the second run, got %v", second.LastPlayedAt)
+	}
+
+	// A higher streak on a third run DOES raise best_streak.
+	t3 := t2.Add(time.Hour)
+	third, err := st.RecordGameRun(ctx, u.ID, gameKey, 9, t3)
+	if err != nil {
+		t.Fatalf("record game run (3): %v", err)
+	}
+	if third.BestStreak != 9 || third.Runs != 3 {
+		t.Fatalf("third run mismatch: %+v", third)
+	}
+
+	got, found, err := st.GetGameStats(ctx, u.ID, gameKey)
+	if err != nil || !found {
+		t.Fatalf("get game stats: found=%v err=%v", found, err)
+	}
+	if got.BestStreak != 9 || got.Runs != 3 || got.Game != gameKey || got.UserID != u.ID {
+		t.Fatalf("get game stats mismatch: %+v", got)
+	}
+
+	// A different game key for the same user is a separate row.
+	_, found, err = st.GetGameStats(ctx, u.ID, "some_other_game")
+	if err != nil {
+		t.Fatalf("get game stats (other game): %v", err)
+	}
+	if found {
+		t.Fatalf("expected no row for an unplayed game key")
+	}
+}

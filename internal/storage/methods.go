@@ -306,3 +306,45 @@ func (s *Store) ListAttemptsSince(ctx context.Context, userID uuid.UUID, since t
 	}
 	return out, nil
 }
+
+// ── game stats ──────────────────────────────────────────────────────────────
+
+func gameStatsFrom(g db.GameStat) GameStats {
+	return GameStats{
+		UserID:       g.UserID,
+		Game:         g.Game,
+		BestStreak:   int(g.BestStreak),
+		Runs:         int(g.Runs),
+		LastPlayedAt: tsTime(g.LastPlayedAt),
+	}
+}
+
+// RecordGameRun upserts the end of one game-zone run (game-zone design doc
+// "Persistence"): best_streak only ever grows (GREATEST against any
+// existing row), runs increments by one, and last_played_at is stamped to
+// at. Implements internal/game's StatsStore.
+func (s *Store) RecordGameRun(ctx context.Context, userID uuid.UUID, gameKey string, streak int, at time.Time) (GameStats, error) {
+	g, err := s.q.UpsertGameRun(ctx, db.UpsertGameRunParams{
+		UserID:       userID,
+		Game:         gameKey,
+		BestStreak:   int32(streak),
+		LastPlayedAt: timeTs(at),
+	})
+	if err != nil {
+		return GameStats{}, err
+	}
+	return gameStatsFrom(g), nil
+}
+
+// GetGameStats returns userID's persisted aggregate for gameKey. found=false
+// means the user has never played this game (no game_stats row yet).
+func (s *Store) GetGameStats(ctx context.Context, userID uuid.UUID, gameKey string) (GameStats, bool, error) {
+	g, err := s.q.GetGameStats(ctx, db.GetGameStatsParams{UserID: userID, Game: gameKey})
+	if IsNotFound(err) {
+		return GameStats{}, false, nil
+	}
+	if err != nil {
+		return GameStats{}, false, err
+	}
+	return gameStatsFrom(g), true, nil
+}
