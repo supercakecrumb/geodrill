@@ -74,6 +74,26 @@ chars:
     languages: [pol]
     tier: 3
     note: "z with acute — Polish"
+  - char: "ř"
+    script: latin
+    languages: [ces]
+    tier: 2
+    note: "r with caron — Czech (audited: 26.26% of Czech sentences)"
+  - char: "ľ"
+    script: latin
+    languages: [slk]
+    tier: 2
+    note: "l with caron — Slovak (audited: 12.26% of Slovak sentences)"
+  - char: "ơ"
+    script: latin
+    languages: [vie]
+    tier: 2
+    note: "o with horn — Vietnamese (audited: 9.76% of Vietnamese sentences)"
+  - char: "ư"
+    script: latin
+    languages: [vie]
+    tier: 2
+    note: "u with horn — Vietnamese (audited: 30.34% of Vietnamese sentences)"
 
   # Latin script — multi-language entries
   - char: "æ"
@@ -151,6 +171,21 @@ chars:
     languages: [por]
     tier: 2
     note: "o with tilde — Portuguese (Vietnamese also uses õ, e.g. \"rõ\"/\"theo dõi\", but only 0.44% of Vietnamese sentences — below the 0.5% claimed-language floor, so not claimed here; audited)"
+  - char: "ê"
+    script: latin
+    languages: [fra, por, vie]
+    tier: 3
+    note: "e with circumflex — French, Portuguese; also a core Vietnamese vowel (audited: 14.66% of Vietnamese sentences)"
+  - char: "â"
+    script: latin
+    languages: [fra, por, ron, vie]
+    tier: 3
+    note: "a with circumflex — French, Portuguese, Romanian; also a Vietnamese vowel (audited: 12.56% of Vietnamese sentences, e.g. \"vâng\"/\"bây giờ\")"
+  - char: "î"
+    script: latin
+    languages: [fra, ron]
+    tier: 3
+    note: "i with circumflex — French; also core Romanian (audited: 29.88% of Romanian sentences, e.g. \"în\"/\"între\")"
 
   # Cyrillic script — single-language entries
   - char: "ё"
@@ -158,6 +193,21 @@ chars:
     languages: [rus]
     tier: 1
     note: "yo — Russian"
+  - char: "ы"
+    script: cyrillic
+    languages: [rus]
+    tier: 1
+    note: "yery — Russian (audited: 45.60% of Russian sentences)"
+  - char: "э"
+    script: cyrillic
+    languages: [rus]
+    tier: 2
+    note: "backwards e — Russian (audited: 18.72% of Russian sentences; Ukrainian uses є instead)"
+  - char: "і"
+    script: cyrillic
+    languages: [ukr]
+    tier: 1
+    note: "dotted i — Ukrainian (audited: 68.68% of Ukrainian sentences; Russian uses и instead)"
   - char: "є"
     script: cyrillic
     languages: [ukr]
@@ -204,3 +254,13 @@ chars:
     languages: [srp, mkd]
     tier: 3
     note: "dze (U+045F) — Serbian, Macedonian"
+  - char: "ј"
+    script: cyrillic
+    languages: [srp, mkd]
+    tier: 2
+    note: "je (U+0458) — Serbian, Macedonian (audited: 56.50% srp / 30.04% mkd; Russian/Ukrainian/Bulgarian have no Cyrillic ј)"
+  - char: "ъ"
+    script: cyrillic
+    languages: [bul, rus]
+    tier: 2
+    note: "er goljam — Bulgarian vowel (audited: 34.60% of Bulgarian sentences); also Russian's hard sign, rarer (audited: 0.58% of Russian sentences)"

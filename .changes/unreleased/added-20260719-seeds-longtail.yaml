@@ -1,0 +1,2 @@
+kind: Added
+body: "Enriched the special-characters (39 -> 51) and common-words (79 -> 124) language quiz datasets with a corpus-audited long tail — Vietnamese horns (ơ ư) and circumflex vowels, Czech ř, Slovak ľ, Russian ы/э, Ukrainian і, Serbian/Macedonian ј, Bulgarian ъ, plus church/school/market/bridge/square/station/open vocabulary across a dozen languages. Every new claim independently clears both corpus-audit checks (frequency floor + cross-language collision)"

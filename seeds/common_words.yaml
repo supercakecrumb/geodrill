@@ -1,7 +1,10 @@
 # Common GeoGuessr words per language. Audited against the ingested Tatoeba
 # corpus (internal/topics/words/audit_test.go, TestAuditWordsAgainstCorpus,
-# WORDS_AUDIT_DATABASE_URL) — 136 -> 79 entries after pruning. See that test's
-# doc comment for the frequency-floor/collision methodology, and the
+# WORDS_AUDIT_DATABASE_URL) — 136 -> 79 entries after the first prune, then
+# enriched with an audited long tail (church/school/market/bridge/square/
+# station/open + a few directions) to 124 entries, every survivor still
+# clearing both audit checks against the live corpus. See that test's doc
+# comment for the frequency-floor/collision methodology, and the
 # corresponding "Add corpus audit + prune common-words seed" commit message
 # for the full per-duplicate resolution report.
 #
@@ -34,6 +37,18 @@ words:
   - word: "tancat"
     language: cat
     meaning: "closed"
+    tier: 2
+  - word: "obert"
+    language: cat
+    meaning: "open"
+    tier: 2
+  - word: "plaça"
+    language: cat
+    meaning: "square"
+    tier: 2
+  - word: "ciutat"
+    language: cat
+    meaning: "city"
     tier: 2
   - word: "cesta"
     language: ces
@@ -75,6 +90,14 @@ words:
     language: fin
     meaning: "road"
     tier: 1
+  - word: "koulu"
+    language: fin
+    meaning: "school"
+    tier: 2
+  - word: "auki"
+    language: fin
+    meaning: "open"
+    tier: 2
   - word: "fermé"
     language: fra
     meaning: "closed"
@@ -90,6 +113,26 @@ words:
   - word: "sud"
     language: fra
     meaning: "south"
+    tier: 2
+  - word: "église"
+    language: fra
+    meaning: "church"
+    tier: 2
+  - word: "école"
+    language: fra
+    meaning: "school"
+    tier: 2
+  - word: "marché"
+    language: fra
+    meaning: "market"
+    tier: 2
+  - word: "ouvert"
+    language: fra
+    meaning: "open"
+    tier: 2
+  - word: "gare"
+    language: fra
+    meaning: "station"
     tier: 2
   - word: "chiuso"
     language: ita
@@ -111,6 +154,26 @@ words:
     language: ita
     meaning: "avenue"
     tier: 1
+  - word: "chiesa"
+    language: ita
+    meaning: "church"
+    tier: 2
+  - word: "scuola"
+    language: ita
+    meaning: "school"
+    tier: 2
+  - word: "mercato"
+    language: ita
+    meaning: "market"
+    tier: 2
+  - word: "aperto"
+    language: ita
+    meaning: "open"
+    tier: 2
+  - word: "stazione"
+    language: ita
+    meaning: "station"
+    tier: 2
   - word: "jalan"
     language: ind
     meaning: "street/road"
@@ -127,6 +190,22 @@ words:
     language: ind
     meaning: "north"
     tier: 2
+  - word: "sekolah"
+    language: ind
+    meaning: "school"
+    tier: 2
+  - word: "buka"
+    language: ind
+    meaning: "open"
+    tier: 2
+  - word: "selatan"
+    language: ind
+    meaning: "south"
+    tier: 2
+  - word: "timur"
+    language: ind
+    meaning: "east"
+    tier: 2
   - word: "gata"
     language: isl
     meaning: "street"
@@ -139,6 +218,18 @@ words:
     language: isl
     meaning: "road"
     tier: 1
+  - word: "borg"
+    language: isl
+    meaning: "city"
+    tier: 2
+  - word: "kirkja"
+    language: isl
+    meaning: "church"
+    tier: 2
+  - word: "opið"
+    language: isl
+    meaning: "open"
+    tier: 2
   - word: "път"
     language: bul
     meaning: "road"
@@ -146,6 +237,10 @@ words:
   - word: "спирка"
     language: bul
     meaning: "stop"
+    tier: 2
+  - word: "гара"
+    language: bul
+    meaning: "station"
     tier: 2
   - word: "пат"
     language: mkd
@@ -163,6 +258,10 @@ words:
     language: nor
     meaning: "road"
     tier: 1
+  - word: "åpen"
+    language: nor
+    meaning: "open"
+    tier: 2
   - word: "droga"
     language: pol
     meaning: "road"
@@ -183,6 +282,14 @@ words:
     language: pol
     meaning: "closed"
     tier: 2
+  - word: "szkoła"
+    language: pol
+    meaning: "school"
+    tier: 2
+  - word: "stacja"
+    language: pol
+    meaning: "station"
+    tier: 2
   - word: "cidade"
     language: por
     meaning: "city"
@@ -202,6 +309,14 @@ words:
   - word: "sul"
     language: por
     meaning: "south"
+    tier: 2
+  - word: "igreja"
+    language: por
+    meaning: "church"
+    tier: 2
+  - word: "estação"
+    language: por
+    meaning: "station"
     tier: 2
   - word: "închis"
     language: ron
@@ -275,6 +390,34 @@ words:
     language: spa
     meaning: "exit"
     tier: 2
+  - word: "iglesia"
+    language: spa
+    meaning: "church"
+    tier: 2
+  - word: "escuela"
+    language: spa
+    meaning: "school"
+    tier: 2
+  - word: "puente"
+    language: spa
+    meaning: "bridge"
+    tier: 2
+  - word: "abierto"
+    language: spa
+    meaning: "open"
+    tier: 2
+  - word: "plaza"
+    language: spa
+    meaning: "square"
+    tier: 2
+  - word: "estación"
+    language: spa
+    meaning: "station"
+    tier: 2
+  - word: "oeste"
+    language: spa
+    meaning: "west"
+    tier: 2
   - word: "stängd"
     language: swe
     meaning: "closed"
@@ -283,10 +426,22 @@ words:
     language: swe
     meaning: "road"
     tier: 1
+  - word: "öppet"
+    language: swe
+    meaning: "open"
+    tier: 2
   - word: "grad"
     language: hrv
     meaning: "city"
     tier: 1
+  - word: "crkva"
+    language: hrv
+    meaning: "church"
+    tier: 2
+  - word: "otvoreno"
+    language: hrv
+    meaning: "open"
+    tier: 2
   - word: "izhod"
     language: slv
     meaning: "exit"
@@ -294,6 +449,10 @@ words:
   - word: "zavreté"
     language: slk
     meaning: "closed"
+    tier: 2
+  - word: "otvorené"
+    language: slk
+    meaning: "open"
     tier: 2
   - word: "đóng"
     language: vie
@@ -314,6 +473,30 @@ words:
   - word: "trạm"
     language: vie
     meaning: "station"
+    tier: 2
+  - word: "cầu"
+    language: vie
+    meaning: "bridge"
+    tier: 2
+  - word: "trường"
+    language: vie
+    meaning: "school"
+    tier: 2
+  - word: "mở"
+    language: vie
+    meaning: "open"
+    tier: 2
+  - word: "thành phố"
+    language: vie
+    meaning: "city"
+    tier: 2
+  - word: "nhà thờ"
+    language: vie
+    meaning: "church"
+    tier: 2
+  - word: "chợ"
+    language: vie
+    meaning: "market"
     tier: 2
   - word: "вихід"
     language: ukr
