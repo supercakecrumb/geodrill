@@ -10,7 +10,6 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/topics"
-	"github.com/supercakecrumb/geodrill/internal/topics/guesslang"
 )
 
 func TestLowestLockedTier(t *testing.T) {
@@ -66,9 +65,15 @@ func (r fakeRegistry) Get(kind string) (topics.Generator, bool) {
 }
 
 func TestHasTips(t *testing.T) {
+	// hasTips is now a plain, generic check with no slug/quiz_kind
+	// special-casing (guess-the-language no longer registers a Generator
+	// at all — its exercise, and the tips content that gated per-deck,
+	// moved into the game zone, internal/game, vibe/design-game-zone.md):
+	// HasTips is true exactly when the registered Generator for a topic's
+	// quiz_kind implements topics.TipProvider.
 	reg := fakeRegistry{
 		"road_side":     fakeGenerator{kind: "road_side"},
-		guesslang.Kind:  fakeTippedGenerator{fakeGenerator{kind: guesslang.Kind}},
+		"tipped_kind":   fakeTippedGenerator{fakeGenerator{kind: "tipped_kind"}},
 		"char_language": fakeGenerator{kind: "char_language"},
 	}
 	svc := &Service{reg: reg}
@@ -78,35 +83,93 @@ func TestHasTips(t *testing.T) {
 		t.Fatalf("a generator with no TipProvider capability must not report HasTips")
 	}
 
-	// language_id (guesslang.Kind) is special-cased: tips.DeckHasTips gates
-	// it per-slug (only the curated "romance" deck has tips today).
-	romance := storage.Topic{ID: uuid.New(), Slug: "romance", QuizKind: guesslang.Kind, IsQuizzable: true}
-	if !svc.hasTips(romance, topicTree{}) {
-		t.Fatalf("romance deck is curated with tips and should report HasTips=true")
+	tipped := storage.Topic{ID: uuid.New(), Slug: "tipped", QuizKind: "tipped_kind", IsQuizzable: true}
+	if !svc.hasTips(tipped, topicTree{}) {
+		t.Fatalf("a generator implementing TipProvider should report HasTips=true")
 	}
-	cjk := storage.Topic{ID: uuid.New(), Slug: "cjk", QuizKind: guesslang.Kind, IsQuizzable: true}
-	if svc.hasTips(cjk, topicTree{}) {
-		t.Fatalf("cjk deck has no curated tips and should report HasTips=false")
+	untipped := storage.Topic{ID: uuid.New(), Slug: "untipped", QuizKind: "char_language", IsQuizzable: true}
+	if svc.hasTips(untipped, topicTree{}) {
+		t.Fatalf("a generator without TipProvider should report HasTips=false")
 	}
 
 	// A container topic aggregates: true if ANY descendant has tips.
-	// buildTopicTree keys by parent_id; romance/cjk need a ParentID pointing
-	// at containerID to be found as its children.
+	// buildTopicTree keys by parent_id; tipped/untipped need a ParentID
+	// pointing at containerID to be found as its children.
 	containerID := uuid.New()
 	container := storage.Topic{ID: containerID, QuizKind: "container", IsQuizzable: false}
-	romanceChild := romance
-	romanceChild.ParentID = &containerID
-	cjkChild := cjk
-	cjkChild.ParentID = &containerID
-	tree := buildTopicTree([]storage.Topic{container, romanceChild, cjkChild})
+	tippedChild := tipped
+	tippedChild.ParentID = &containerID
+	untippedChild := untipped
+	untippedChild.ParentID = &containerID
+	tree := buildTopicTree([]storage.Topic{container, tippedChild, untippedChild})
 
 	if !svc.hasTips(container, tree) {
-		t.Fatalf("container with a tipped descendant (romance) should report HasTips=true")
+		t.Fatalf("container with a tipped descendant should report HasTips=true")
 	}
 
-	onlyCJKTree := buildTopicTree([]storage.Topic{container, cjkChild})
-	if svc.hasTips(container, onlyCJKTree) {
+	onlyUntippedTree := buildTopicTree([]storage.Topic{container, untippedChild})
+	if svc.hasTips(container, onlyUntippedTree) {
 		t.Fatalf("container with only non-tipped descendants should report HasTips=false")
+	}
+}
+
+// ── filterVisibleTopics / hasQuizzableDescendant ────────────────────────
+//
+// The /topics browser's generic "hide subtrees with no quizzable
+// descendants" rule (vibe/design-game-zone.md) — no slug switches: a
+// container whose entire subtree is is_quizzable=false (e.g.
+// languages/guess-the-language once its exercise moved into the game zone)
+// must disappear from a topic listing.
+
+func TestHasQuizzableDescendant(t *testing.T) {
+	quizzable := storage.Topic{ID: uuid.New(), IsQuizzable: true}
+	if !hasQuizzableDescendant(quizzable, topicTree{}) {
+		t.Fatalf("a quizzable topic itself should count, regardless of children")
+	}
+
+	emptyContainer := storage.Topic{ID: uuid.New(), IsQuizzable: false}
+	if hasQuizzableDescendant(emptyContainer, topicTree{}) {
+		t.Fatalf("a non-quizzable topic with no children should report false")
+	}
+
+	containerID := uuid.New()
+	container := storage.Topic{ID: containerID, IsQuizzable: false}
+	nonQuizzableChild := storage.Topic{ID: uuid.New(), ParentID: &containerID, IsQuizzable: false}
+	tree := buildTopicTree([]storage.Topic{container, nonQuizzableChild})
+	if hasQuizzableDescendant(container, tree) {
+		t.Fatalf("a container whose only child is non-quizzable should report false")
+	}
+
+	quizzableChild := storage.Topic{ID: uuid.New(), ParentID: &containerID, IsQuizzable: true}
+	treeWithQuizzableChild := buildTopicTree([]storage.Topic{container, nonQuizzableChild, quizzableChild})
+	if !hasQuizzableDescendant(container, treeWithQuizzableChild) {
+		t.Fatalf("a container with at least one quizzable descendant should report true")
+	}
+}
+
+func TestFilterVisibleTopics_HidesSubtreesWithNoQuizzableDescendants(t *testing.T) {
+	languagesID := uuid.New()
+	languages := storage.Topic{ID: languagesID, Name: "Languages", IsQuizzable: false}
+
+	specialCharsID := uuid.New()
+	specialChars := storage.Topic{ID: specialCharsID, Name: "Special characters", ParentID: &languagesID, IsQuizzable: true}
+
+	guessLangID := uuid.New()
+	guessLang := storage.Topic{ID: guessLangID, Name: "Guess the language", ParentID: &languagesID, IsQuizzable: false}
+	// Every group topic under guess-the-language is also is_quizzable=false
+	// now (design doc): its whole subtree has no quizzable descendant at all.
+	romanceGroup := storage.Topic{ID: uuid.New(), Name: "Romance", ParentID: &guessLangID, IsQuizzable: false}
+
+	tree := buildTopicTree([]storage.Topic{languages, specialChars, guessLang, romanceGroup})
+
+	visibleRoots := filterVisibleTopics([]storage.Topic{languages}, tree)
+	if len(visibleRoots) != 1 {
+		t.Fatalf("expected Languages to stay visible (it has a quizzable descendant), got %+v", visibleRoots)
+	}
+
+	visibleChildren := filterVisibleTopics(tree.children(languagesID), tree)
+	if len(visibleChildren) != 1 || visibleChildren[0].ID != specialCharsID {
+		t.Fatalf("expected only special-characters visible under Languages (guess-the-language hidden), got %+v", visibleChildren)
 	}
 }
 

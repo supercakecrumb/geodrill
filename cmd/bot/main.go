@@ -14,11 +14,11 @@ import (
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/config"
+	"github.com/supercakecrumb/geodrill/internal/game"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/study"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
-	"github.com/supercakecrumb/geodrill/internal/topics/guesslang"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
 	"github.com/supercakecrumb/geodrill/internal/topics/words"
@@ -56,17 +56,22 @@ func run() error {
 	sched := engram.NewScheduler(engram.WithRetention(cfg.FSRSRetention))
 
 	// Register every topic Generator once at startup, keyed by quiz_kind
-	// (architecture §8): this is the only place that imports all four topic
-	// packages by name, so no topic worker or internal/study ever switches
-	// on a slug. guesslang.New(store) works because *storage.Store already
-	// satisfies its narrow ContentSampler interface directly (see that
-	// package's New doc) — no adapter needed.
-	topics.Register(guesslang.New(store))
+	// (architecture §8): this is the only place that imports every topic
+	// package by name, so no topic worker or internal/study ever switches
+	// on a slug. guesslang no longer registers a Generator here — its
+	// exercise moved into the game zone (internal/game, wired separately
+	// below) — vibe/design-game-zone.md.
 	topics.Register(specialchars.New())
 	topics.Register(roadside.New())
 	topics.Register(words.New())
 
 	studySvc := study.New(store, sched, study.GlobalRegistry, nil, time.Now().UnixNano())
+
+	// gameEngine powers /game's Language Roulette (internal/game.Engine):
+	// *storage.Store satisfies both its ContentSampler and StatsStore
+	// dependencies directly, the same "no adapter needed" pattern the topic
+	// Generators use.
+	gameEngine := game.NewEngine(store, store)
 
 	bot, err := telegram.New(telegram.Config{
 		Token:  cfg.TelegramToken,
@@ -81,6 +86,7 @@ func run() error {
 		TopicService:  studySvc,
 		Trainer:       studySvc,
 		IntroCapStore: store,
+		Game:          telegram.NewGameService(gameEngine, store, time.Now().UnixNano()),
 	})
 	if err != nil {
 		return fmt.Errorf("build bot: %w", err)

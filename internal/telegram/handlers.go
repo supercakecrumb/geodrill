@@ -343,7 +343,7 @@ func (b *Bot) handleHelp(ctx context.Context, s Session) error {
 // place — the same in-place-edit convention rerenderSettings uses for
 // /settings.
 func (b *Bot) handleHelpCallback(ctx context.Context, s Session, data string) error {
-	text, rows := helpSection(data, b.study != nil, b.topics != nil)
+	text, rows := helpSection(data, b.study != nil, b.topics != nil, b.game != nil)
 	if err := s.EditMessage(s.MessageID(), text, rows); err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func (b *Bot) handleHelpCallback(ctx context.Context, s Session, data string) er
 // help:cmds — including help:root and any unrecognized value — renders the
 // root menu, so a stale or malformed tap always falls back to something
 // sensible instead of erroring.
-func helpSection(data string, hasStudy, hasTopics bool) (string, [][]Btn) {
+func helpSection(data string, hasStudy, hasTopics, hasGame bool) (string, [][]Btn) {
 	switch data {
 	case dataHelpFSRS:
 		return helpFSRSText, helpBackRow()
@@ -364,7 +364,7 @@ func helpSection(data string, hasStudy, hasTopics bool) (string, [][]Btn) {
 	case dataHelpTiers:
 		return helpTiersText, helpBackRow()
 	case dataHelpCmds:
-		return helpCommandsText(hasStudy, hasTopics), helpBackRow()
+		return helpCommandsText(hasStudy, hasTopics, hasGame), helpBackRow()
 	default:
 		return helpRootText, helpRootRows()
 	}
@@ -387,10 +387,10 @@ func helpBackRow() [][]Btn {
 }
 
 // helpCommandsText renders the "🧭 Commands" section: the always-available
-// commands, plus /study and /topics only when their services are wired
-// (mirroring the retired helpTextFor's hasStudy/hasTopics gating, so /help
-// never advertises a command that would just reply "🚧 coming soon").
-func helpCommandsText(hasStudy, hasTopics bool) string {
+// commands, plus /study, /topics, and /game only when their services are
+// wired (mirroring the retired helpTextFor's hasStudy/hasTopics gating, so
+// /help never advertises a command that would just reply "🚧 coming soon").
+func helpCommandsText(hasStudy, hasTopics, hasGame bool) string {
 	var b strings.Builder
 	b.WriteString("🧭 Commands\n\n")
 	b.WriteString("/train — next due review, scheduled by FSRS\n")
@@ -400,6 +400,9 @@ func helpCommandsText(hasStudy, hasTopics bool) string {
 	}
 	if hasTopics {
 		b.WriteString("/topics — browse topics, tiers, and your progress; toggle what you study\n")
+	}
+	if hasGame {
+		b.WriteString("/game — the game zone: quick, ungraded rounds (Language Roulette) that don't touch your schedule\n")
 	}
 	b.WriteString("/stats — reviews, accuracy, streak, due forecast, and your top mix-ups\n")
 	b.WriteString("/settings — daily new-item cap, button style, and reminders\n")
@@ -483,6 +486,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleStartTrainCallback(ctx, s)
 	case strings.HasPrefix(data, "help:"):
 		return b.handleHelpCallback(ctx, s, data)
+	case strings.HasPrefix(data, "game:"):
+		return b.handleGameCallback(ctx, s, data)
 	default: // includes DataNoop and any unrecognized payload
 		return s.Respond("")
 	}

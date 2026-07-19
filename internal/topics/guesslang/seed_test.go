@@ -124,8 +124,8 @@ func TestSeedIntegration(t *testing.T) {
 		if group.BaseTier != BaseTier {
 			t.Fatalf("group topic %q base_tier = %d, want %d", d.Slug, group.BaseTier, BaseTier)
 		}
-		if !group.IsQuizzable {
-			t.Fatalf("group topic %q should be quizzable", d.Slug)
+		if group.IsQuizzable {
+			t.Fatalf("group topic %q should be is_quizzable=false (guess-the-language moved into the game zone)", d.Slug)
 		}
 		if len(group.ExerciseModes) != 1 || group.ExerciseModes[0] != "single" {
 			t.Fatalf("group topic %q exercise_modes = %v, want [single]", d.Slug, group.ExerciseModes)

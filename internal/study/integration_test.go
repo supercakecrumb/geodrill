@@ -84,15 +84,16 @@ func freshSchema(t *testing.T, dsn string) {
 	}
 }
 
-// registerGeneratorsOnce mirrors cmd/bot's startup wiring exactly (the four
-// topic packages, keyed by quiz_kind). Guarded so re-running tests in the
-// same process (e.g. `go test -count=2`) never hits topics.Register's
+// registerGeneratorsOnce mirrors cmd/bot's startup wiring exactly (the
+// three topic packages with a live Generator, keyed by quiz_kind — guesslang
+// no longer registers one: its exercise moved into the game zone,
+// internal/game, vibe/design-game-zone.md). Guarded so re-running tests in
+// the same process (e.g. `go test -count=2`) never hits topics.Register's
 // duplicate-registration panic.
 var registerOnce sync.Once
 
 func registerGenerators(store *storage.Store) {
 	registerOnce.Do(func() {
-		topics.Register(guesslang.New(store))
 		topics.Register(specialchars.New())
 		topics.Register(roadside.New())
 		topics.Register(words.New())
@@ -696,7 +697,17 @@ func TestFullLoop(t *testing.T) {
 		t.Fatalf("unexpected breadcrumb for a root topic: %+v", languagesView.Breadcrumb)
 	}
 	if len(languagesView.Children) == 0 {
-		t.Fatalf("expected child topics under Languages (special-characters, guess-the-language, common-words)")
+		t.Fatalf("expected child topics under Languages (special-characters, common-words)")
+	}
+	// guess-the-language is seeded entirely is_quizzable=false now (its
+	// exercise moved into the game zone, internal/game): the /topics
+	// browser's generic "hide subtrees with no quizzable descendants" rule
+	// (vibe/design-game-zone.md) must make it disappear from the listing
+	// with no slug-based special-casing.
+	for _, c := range languagesView.Children {
+		if c.Name == guesslang.ContainerName {
+			t.Fatalf("expected the guess-the-language subtree hidden (no quizzable descendants), got it listed: %+v", c)
+		}
 	}
 
 	var quizzableChild *telegram.TopicRow

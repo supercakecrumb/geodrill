@@ -23,6 +23,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/supercakecrumb/engram"
 	"github.com/supercakecrumb/engram/quiz"
+
+	"github.com/supercakecrumb/geodrill/internal/game"
 )
 
 // ── /study — introductions (architecture §5.1) ──────────────────────────────
@@ -362,6 +364,30 @@ type Stats struct {
 }
 
 // ── /settings — daily intro cap ─────────────────────────────────────────────
+
+// ── /game — the game zone (vibe/design-game-zone.md) ────────────────────
+
+// GameService is the game zone's engine surface (internal/telegram/game.go
+// is its only caller). Implemented by NewGameService over
+// internal/game.Engine — game.Language/game.Round are internal/game's own
+// domain types, reused directly here (the same way this file already
+// reuses engram/quiz.Mode) rather than redeclared as a parallel shape.
+type GameService interface {
+	// Catalog returns the current Language Roulette catalog — every seeded
+	// language, grouped by deck (internal/game.LoadCatalog). Load once per
+	// run and reuse across its rounds; the topic tree rarely changes at
+	// runtime.
+	Catalog(ctx context.Context) ([]game.Language, error)
+	// NextRound builds one round for a run in progress: streak drives the
+	// difficulty ramp (design doc table) and used is the set of content
+	// ids already shown this run (no repeats). ok=false means no content
+	// is available at all right now.
+	NextRound(ctx context.Context, userID uuid.UUID, catalog []game.Language, streak int, used map[uuid.UUID]bool) (game.Round, bool, error)
+	// FinishRun persists the end of a run (best streak only ever grows,
+	// runs increments by one) and returns the updated aggregate for the
+	// "final streak, personal best, runs played" closer.
+	FinishRun(ctx context.Context, userID uuid.UUID, streak int, at time.Time) (bestStreak, runs int, err error)
+}
 
 // IntroCapStore is the narrow settings surface for the daily intro cap
 // (architecture §2.10 users.daily_intro_cap). It is kept separate from

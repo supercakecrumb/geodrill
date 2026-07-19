@@ -77,6 +77,9 @@ type Config struct {
 	Trainer Trainer
 	// IntroCapStore powers the /settings daily intro-cap row.
 	IntroCapStore IntroCapStore
+	// Game powers /game and its game zone (vibe/design-game-zone.md):
+	// today, Language Roulette.
+	Game GameService
 }
 
 // Bot wires telebot to geodrill's study/storage layers.
@@ -98,12 +101,19 @@ type Bot struct {
 	// registration still checks it for nil (bot.go's New).
 	trainer  Trainer
 	introCap IntroCapStore
+	// game is nil until Config.Game is wired — every call site checks it
+	// before use (see game.go), the same nil-safe convention study/topics
+	// follow.
+	game GameService
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
 
 	practiceMu    sync.Mutex
 	practiceStart map[int64]time.Time // telegram user id -> current /practice session start
+
+	gameMu   sync.Mutex
+	gameRuns map[int64]*gameRun // telegram user id -> current /game run state (design doc "Persistence": run state is in-memory per chat)
 }
 
 // markPracticeStart records (or resets) the start of a user's /practice
@@ -157,8 +167,10 @@ func New(cfg Config) (*Bot, error) {
 		topics:        cfg.TopicService,
 		trainer:       cfg.Trainer,
 		introCap:      cfg.IntroCapStore,
+		game:          cfg.Game,
 		remindState:   make(map[uuid.UUID]reminderState),
 		practiceStart: make(map[int64]time.Time),
+		gameRuns:      make(map[int64]*gameRun),
 	}
 
 	tb.Handle("/start", b.wrap(b.handleStart))
@@ -171,6 +183,7 @@ func New(cfg Config) (*Bot, error) {
 	tb.Handle("/study", b.wrap(b.handleStudy))
 	tb.Handle("/introduce", b.wrap(b.handleStudy)) // alias that fetches more intro cards on demand (decision 2)
 	tb.Handle("/topics", b.wrap(b.handleTopics))
+	tb.Handle("/game", b.wrap(b.handleGame))
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
 	// OnText (free-typed answers) is only registered when Trainer is
 	// wired: the legacy bot never listened for plain text at all, and
@@ -197,6 +210,7 @@ var botCommands = []telebot.Command{
 	{Text: "study", Description: "Introduce new items"},
 	{Text: "topics", Description: "Browse topics, tiers & progress"},
 	{Text: "decks", Description: "Now points to /topics"},
+	{Text: "game", Description: "Play a quick game (no scheduling)"},
 	{Text: "settings", Description: "Daily cap, reminders, button style"},
 	{Text: "stats", Description: "Your progress and mix-ups"},
 	{Text: "help", Description: "How geodrill works"},

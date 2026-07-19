@@ -10,9 +10,7 @@ import (
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
-	"github.com/supercakecrumb/geodrill/internal/tips"
 	"github.com/supercakecrumb/geodrill/internal/topics"
-	"github.com/supercakecrumb/geodrill/internal/topics/guesslang"
 )
 
 var _ telegram.TopicService = (*Service)(nil)
@@ -32,6 +30,7 @@ func (s *Service) Root(ctx context.Context, userID uuid.UUID) ([]telegram.TopicR
 		return nil, err
 	}
 	tree := buildTopicTree(all)
+	roots = filterVisibleTopics(roots, tree)
 
 	rows := make([]telegram.TopicRow, len(roots))
 	for i, t := range roots {
@@ -111,6 +110,7 @@ func (s *Service) Children(ctx context.Context, userID, topicID uuid.UUID) (tele
 	}
 	tree := buildTopicTree(all)
 	allowedSet := allowedTierSet(allowed)
+	children = filterVisibleTopics(children, tree)
 
 	rows := make([]telegram.TopicRow, len(children))
 	for i, c := range children {
@@ -175,6 +175,37 @@ func buildTopicTree(all []storage.Topic) topicTree {
 
 func (t topicTree) children(id uuid.UUID) []storage.Topic { return t.byParent[id] }
 
+// filterVisibleTopics keeps only topics whose subtree has at least one
+// quizzable topic (itself or some descendant) — the /topics browser's
+// generic "hide subtrees with no quizzable descendants" rule
+// (vibe/design-game-zone.md): when every topic under a container is
+// is_quizzable=false (e.g. languages/guess-the-language, whose exercise
+// moved into the game zone), that whole subtree simply disappears from the
+// listing, with no slug-based special-casing anywhere in this package.
+func filterVisibleTopics(topics []storage.Topic, tree topicTree) []storage.Topic {
+	out := make([]storage.Topic, 0, len(topics))
+	for _, t := range topics {
+		if hasQuizzableDescendant(t, tree) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// hasQuizzableDescendant reports whether t itself is quizzable, or (for a
+// container) any topic in its subtree is.
+func hasQuizzableDescendant(t storage.Topic, tree topicTree) bool {
+	if t.IsQuizzable {
+		return true
+	}
+	for _, c := range tree.children(t.ID) {
+		if hasQuizzableDescendant(c, tree) {
+			return true
+		}
+	}
+	return false
+}
+
 // topicRow builds one TopicRow for t: subtree progress, the lowest locked
 // tier under it (if any), and whether it (or, for a container, any
 // descendant) has a TipProvider.
@@ -226,14 +257,11 @@ func lowestLockedTier(tiersUsed []int16, allowed map[int16]bool) (anyLocked bool
 
 // hasTips reports whether t (a quizzable topic) or, for a container, ANY
 // descendant quizzable topic has a recognition-tip TipProvider (architecture
-// §5.2's "▸ Languages 💡 tips" — the root container shows the badge because
-// its guess-the-language/romance descendant has tips). language_id
-// (guesslang.Kind) is special-cased per architecture §3.4/§6: every
-// guess-the-language group topic shares the SAME Generator/TipProvider, so
-// the generator-level check alone can't tell Romance (curated + audited)
-// apart from a group with no curated tells yet — only
-// tips.DeckHasTips(topic.Slug) can, since a group topic's slug IS its
-// deck slug (guesslang.SeedFromData).
+// §5.2's "▸ Languages 💡 tips"). guess-the-language no longer registers a
+// Generator at all (its exercise moved into the game zone,
+// vibe/design-game-zone.md, and its tips content moved with it into
+// internal/game), so this is now a plain, generic check with no
+// slug/quiz_kind special-casing.
 func (s *Service) hasTips(t storage.Topic, tree topicTree) bool {
 	if !t.IsQuizzable {
 		for _, c := range tree.children(t.ID) {
@@ -247,11 +275,6 @@ func (s *Service) hasTips(t storage.Topic, tree topicTree) bool {
 	if !ok {
 		return false
 	}
-	if _, ok := gen.(topics.TipProvider); !ok {
-		return false
-	}
-	if t.QuizKind == guesslang.Kind {
-		return tips.DeckHasTips(t.Slug)
-	}
-	return true
+	_, ok = gen.(topics.TipProvider)
+	return ok
 }
