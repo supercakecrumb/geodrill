@@ -87,12 +87,33 @@ type Config struct {
 	Suggest Suggester
 }
 
+// mediaStore is the narrow slice of *storage.Store SendPhoto needs to cache
+// a photo's Telegram file_id after first upload (architecture §2.8 decision
+// 6): look up media_files by local_path, and write back the file_id
+// Telegram returns from the first send so later sends reuse it instead of
+// re-uploading. Declared locally (the topics-package convention) so
+// tbSession depends on an interface, not *storage.Store directly —
+// *storage.Store satisfies it already (internal/storage/media.go).
+type mediaStore interface {
+	GetMediaByLocalPath(ctx context.Context, localPath string) (storage.MediaFile, bool, error)
+	SetMediaTelegramFileID(ctx context.Context, mediaID uuid.UUID, fileID string) error
+}
+
 // Bot wires telebot to geodrill's study/storage layers.
 type Bot struct {
 	tb     *telebot.Bot
 	store  userStore
 	logger *slog.Logger
 	now    func() time.Time
+
+	// media powers SendPhoto's file_id cache (mediaStore's doc comment). Set
+	// from Config.Store, which already satisfies mediaStore directly — the
+	// same "nil is fine, caching just falls back to always sending from
+	// disk" tolerance every other optional Bot field follows, in case a
+	// caller ever constructs a Bot without a Store (existing telegram
+	// package tests build fakeSession/Session directly and never exercise
+	// tbSession at all, so they're unaffected either way).
+	media mediaStore
 
 	// study is nil until a later wave wires Config.StudyService — every
 	// call site checks it before use (see study.go).
@@ -145,6 +166,7 @@ func New(cfg Config) (*Bot, error) {
 	b := &Bot{
 		tb:          tb,
 		store:       cfg.Store,
+		media:       cfg.Store,
 		logger:      logger,
 		now:         now,
 		study:       cfg.StudyService,
@@ -222,7 +244,7 @@ func (b *Bot) wrap(h func(context.Context, Session) error) telebot.HandlerFunc {
 			}
 		}()
 
-		s := &tbSession{bot: b.tb, ctx: c}
+		s := &tbSession{bot: b.tb, ctx: c, media: b.media, logger: b.logger}
 		if herr := h(context.Background(), s); herr != nil {
 			b.logger.Error("telegram: handler error", "error", herr)
 		}
@@ -462,8 +484,10 @@ func (b *Bot) setReminderState(userID uuid.UUID, st reminderState) {
 // tbSession adapts a telebot.Context (plus the *telebot.Bot, needed for the
 // send/edit calls that must return the sent message id) to Session.
 type tbSession struct {
-	bot *telebot.Bot
-	ctx telebot.Context
+	bot    *telebot.Bot
+	ctx    telebot.Context
+	media  mediaStore
+	logger *slog.Logger
 }
 
 func (s *tbSession) UserID() int64 {
@@ -537,12 +561,48 @@ func (s *tbSession) EditMessage(messageID int64, text string, rows [][]Btn) erro
 // is sent with ModeHTML — the same parse mode EditCaption edits it with
 // later, so a card never changes rendering between its initial send and an
 // in-place edit (see the Session.SendPhoto doc comment).
+//
+// File_id caching (architecture §2.8 decision 6): the FIRST send for a
+// given local path uploads from disk and caches the Telegram file_id
+// Telegram returns into media_files; every SUBSEQUENT send for the same
+// path reuses that cached file_id (telebot.File{FileID: ...}) instead of
+// re-uploading the file from disk. A nil media store, a lookup error, or a
+// path with no media_files row (asset not ingested yet) all fall back to
+// the original always-send-from-disk behavior — caching is a pure
+// optimization, never a correctness requirement, so any failure along this
+// path is logged (when a logger is available) rather than surfaced to the
+// caller.
 func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error) {
-	photo := &telebot.Photo{File: telebot.FromDisk(path), Caption: caption}
+	file := telebot.FromDisk(path)
+	var mediaID uuid.UUID
+	cached := false
+
+	if s.media != nil {
+		if mf, ok, err := s.media.GetMediaByLocalPath(context.Background(), path); err != nil {
+			if s.logger != nil {
+				s.logger.Warn("telegram: media file_id lookup failed", "path", path, "error", err)
+			}
+		} else if ok {
+			mediaID = mf.ID
+			if mf.TelegramFileID != "" {
+				file = telebot.File{FileID: mf.TelegramFileID}
+				cached = true
+			}
+		}
+	}
+
+	photo := &telebot.Photo{File: file, Caption: caption}
 	msg, err := s.bot.Send(s.ctx.Chat(), photo, buildMarkup(rows), telebot.ModeHTML)
 	if err != nil {
 		return 0, err
 	}
+
+	if !cached && mediaID != uuid.Nil && msg.Photo != nil && msg.Photo.FileID != "" {
+		if serr := s.media.SetMediaTelegramFileID(context.Background(), mediaID, msg.Photo.FileID); serr != nil && s.logger != nil {
+			s.logger.Warn("telegram: cache media file_id failed", "path", path, "error", serr)
+		}
+	}
+
 	return int64(msg.ID), nil
 }
 
