@@ -550,15 +550,35 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 		return telegram.AnswerResult{Stale: true}, nil
 	}
 
-	text := ex.Prompt
-	if tip := s.tipFor(ctx, itemID, ex, chosen, correct); tip != "" {
-		text += "\n\n💡 " + tip
-	}
+	tip := s.tipFor(ctx, itemID, ex, chosen, correct)
 	return telegram.AnswerResult{
 		Correct: correct,
-		Text:    text,
+		Text:    answerText(ex, correct, tip),
 		Options: gradedOptions,
 	}, nil
+}
+
+// answerText composes the AnswerResult.Text shown after grading: the
+// original prompt, then (on a wrong TEXT-mode answer only) a labeled
+// correct-answer line, then any post-answer tip. ModeText exercises render
+// no option buttons, so — unlike ModeSingle/ModeSet, where the correct
+// option is already highlighted with ✅ via markFor — a wrong typed/
+// autocomplete answer would otherwise give no indication of the right
+// answer at all. ex.CorrectAnswer is already the display-ready spelling for
+// ModeText (registry.go's Exercise doc: "CorrectAnswer is the canonical
+// spelling"; serializeExercise persists it verbatim, unlike ModeSingle/
+// ModeSet where it's an internal key), so it's used as-is here — no need to
+// dig a Label out of Options. Pure — no I/O — so this composition is
+// unit-testable without a database.
+func answerText(ex storage.Exercise, correct bool, tip string) string {
+	text := ex.Prompt
+	if !correct && quiz.Mode(ex.Mode) == quiz.ModeText {
+		text += fmt.Sprintf("\n\n✅ Correct answer: %s", ex.CorrectAnswer)
+	}
+	if tip != "" {
+		text += "\n\n💡 " + tip
+	}
+	return text
 }
 
 // tipFor asks the item's topic generator for a post-answer recognition tip

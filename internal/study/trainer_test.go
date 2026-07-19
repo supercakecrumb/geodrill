@@ -2,6 +2,7 @@ package study
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/supercakecrumb/engram/quiz"
@@ -193,6 +194,44 @@ func TestMatchTypedTextTolerance(t *testing.T) {
 	}
 	if empty {
 		t.Fatalf("empty input must never match")
+	}
+}
+
+func TestAnswerTextRevealsCorrectAnswerOnWrongTextMode(t *testing.T) {
+	ex := storage.Exercise{
+		Mode:          int16(quiz.ModeText),
+		Prompt:        "What is the capital of Australia?",
+		CorrectAnswer: "Canberra",
+	}
+
+	wrong := answerText(ex, false, "")
+	if !strings.Contains(wrong, "✅ Correct answer: Canberra") {
+		t.Fatalf("expected a wrong text-mode answer to reveal the correct answer, got %q", wrong)
+	}
+
+	right := answerText(ex, true, "")
+	if strings.Contains(right, "Correct answer:") {
+		t.Fatalf("a correct answer must not show the correct-answer line, got %q", right)
+	}
+
+	// A tip (when present) still follows the correct-answer line.
+	wrongWithTip := answerText(ex, false, "some tip")
+	wantOrder := strings.Index(wrongWithTip, "Correct answer:")
+	tipOrder := strings.Index(wrongWithTip, "💡 some tip")
+	if wantOrder == -1 || tipOrder == -1 || wantOrder > tipOrder {
+		t.Fatalf("expected correct-answer line before the tip, got %q", wrongWithTip)
+	}
+}
+
+func TestAnswerTextChoiceModeReliesOnOptionMarks(t *testing.T) {
+	// Choice-mode (ModeSingle/ModeSet) exercises already highlight the
+	// correct option via ✅ marks (gradeIndexed/markFor) — the text-line gap
+	// this closes is ModeText-only (no option buttons to highlight), so a
+	// wrong choice-mode answer gets no "Correct answer:" line.
+	ex := storage.Exercise{Mode: int16(quiz.ModeSingle), Prompt: "Which language uses \"ñ\"?", CorrectAnswer: "spa"}
+	wrong := answerText(ex, false, "")
+	if strings.Contains(wrong, "Correct answer:") {
+		t.Fatalf("choice-mode exercises should rely on the existing ✅ option mark, not the text line, got %q", wrong)
 	}
 }
 
