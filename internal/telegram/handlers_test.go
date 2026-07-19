@@ -271,6 +271,8 @@ func TestSettingsRows(t *testing.T) {
 	assertHasBtn(t, all, Btn{Label: "-5", Data: "cap:dec5"})
 	assertHasBtn(t, all, Btn{Label: "cap: 7", Data: "noop"})
 	assertHasBtn(t, all, Btn{Label: "+5", Data: "cap:inc5"})
+	assertNoBtnData(t, all, "cap:dec")
+	assertNoBtnData(t, all, "cap:inc")
 	assertHasBtn(t, all, Btn{Label: "🔤 Flag + name", Data: "style:cycle"})
 	assertHasBtn(t, all, Btn{Label: "🔔 reminders: on", Data: "rem:toggle"})
 	assertHasBtn(t, all, Btn{Label: "at 09:00", Data: "noop"})
@@ -278,6 +280,7 @@ func TestSettingsRows(t *testing.T) {
 	assertHasBtn(t, all, Btn{Label: "+1h 🕙", Data: "rhour:inc"})
 	assertHasBtn(t, all, Btn{Label: "🔁 follow-up: on", Data: "fup:toggle"})
 	assertHasBtn(t, all, Btn{Label: "⏱ follow-up after 60 min", Data: "fupdelay:cycle"})
+	assertHasBtn(t, all, Btn{Label: "⬅️ Menu", Data: dataMenuOpen})
 
 	// Off states flip the labels.
 	user.RemindersEnabled = false
@@ -295,10 +298,10 @@ func TestSettingsRows_IntroCapRow(t *testing.T) {
 		all = append(all, row...)
 	}
 	assertHasBtn(t, all, Btn{Label: "🎯 -5", Data: "icap:dec5"})
-	assertHasBtn(t, all, Btn{Label: "🎯 -1", Data: "icap:dec"})
 	assertHasBtn(t, all, Btn{Label: "intro cap: 12", Data: "noop"})
-	assertHasBtn(t, all, Btn{Label: "🎯 +1", Data: "icap:inc"})
 	assertHasBtn(t, all, Btn{Label: "🎯 +5", Data: "icap:inc5"})
+	assertNoBtnData(t, all, "icap:dec")
+	assertNoBtnData(t, all, "icap:inc")
 }
 
 // stubIntroCapStore implements IntroCapStore in memory.
@@ -334,23 +337,23 @@ func TestHandleIntroCapChange_AdjustsAndRerenders(t *testing.T) {
 	stub := &stubIntroCapStore{cap: 10}
 	b.introCap = stub
 
-	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc5"}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
-	if stub.cap != 11 {
-		t.Fatalf("expected icap:inc to raise the cap to 11, got %d", stub.cap)
+	if stub.cap != 15 {
+		t.Fatalf("expected icap:inc5 to raise the cap to 15, got %d", stub.cap)
 	}
 	if len(s.edits) != 1 {
 		t.Fatalf("expected the settings keyboard re-rendered in place, got %d edits", len(s.edits))
 	}
 
-	s.data = "icap:dec"
+	s.data = "icap:dec5"
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
 	if stub.cap != 10 {
-		t.Fatalf("expected icap:dec to lower the cap back to 10, got %d", stub.cap)
+		t.Fatalf("expected icap:dec5 to lower the cap back to 10, got %d", stub.cap)
 	}
 }
 
@@ -360,7 +363,7 @@ func TestHandleIntroCapChange_ClampsToBounds(t *testing.T) {
 	stub := &stubIntroCapStore{cap: maxIntroCap}
 	b.introCap = stub
 
-	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc5"}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -438,7 +441,7 @@ func TestHandleIntroCapChange_ClampsAtMinimum(t *testing.T) {
 
 func TestHandleIntroCapChange_NilStoreIsInert(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
-	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc"}
+	s := &fakeSession{userID: 1, messageID: 42, data: "icap:inc5"}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -458,6 +461,19 @@ func assertHasBtn(t *testing.T, btns []Btn, want Btn) {
 		}
 	}
 	t.Fatalf("expected button %+v among %+v", want, btns)
+}
+
+// assertNoBtnData fails if any button among btns carries the exact callback
+// data — used to assert the retired ±1 cap/intro-cap buttons are gone
+// (data is matched exactly so e.g. "cap:inc" doesn't false-positive on the
+// still-present "cap:inc5").
+func assertNoBtnData(t *testing.T, btns []Btn, data string) {
+	t.Helper()
+	for _, b := range btns {
+		if b.Data == data {
+			t.Fatalf("did not expect a button with data %q among %+v", data, btns)
+		}
+	}
 }
 
 // ── style:cycle callback ─────────────────────────────────────────────────
@@ -515,6 +531,41 @@ func TestHandleCapChange_StepsOfFive(t *testing.T) {
 	}
 	if st.user.DailyNewCap != 10 {
 		t.Fatalf("expected cap:dec5 to lower the cap by 5 back to 10, got %d", st.user.DailyNewCap)
+	}
+}
+
+// TestHandleCallback_RetiredCapStepCallbacksAreGone covers Feature 2's
+// removal of the ±1 cap/intro-cap callback cases: "cap:inc", "cap:dec",
+// "icap:inc", "icap:dec" no longer appear in settingsRows (TestSettingsRows/
+// TestSettingsRows_IntroCapRow), and this test confirms the dispatch side
+// too — a tap with one of those payloads must fall through to the inert
+// default branch (a single empty ack, no cap mutated, no re-render) instead
+// of being handled.
+func TestHandleCallback_RetiredCapStepCallbacksAreGone(t *testing.T) {
+	for _, data := range []string{"cap:inc", "cap:dec", "icap:inc", "icap:dec"} {
+		t.Run(data, func(t *testing.T) {
+			st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC", DailyNewCap: 10}}
+			b := newTestBot(st)
+			introCap := &stubIntroCapStore{cap: 10}
+			b.introCap = introCap
+
+			s := &fakeSession{userID: 1, messageID: 42, data: data}
+			if err := b.handleCallback(context.Background(), s); err != nil {
+				t.Fatalf("handleCallback(%q): %v", data, err)
+			}
+			if len(s.responses) != 1 || s.responses[0] != "" {
+				t.Fatalf("data %q: expected a single inert ack, got %v", data, s.responses)
+			}
+			if len(s.edits) != 0 {
+				t.Fatalf("data %q: expected no re-render for a retired callback, got %d edits", data, len(s.edits))
+			}
+			if st.user.DailyNewCap != 10 {
+				t.Fatalf("data %q: expected the daily cap untouched, got %d", data, st.user.DailyNewCap)
+			}
+			if introCap.cap != 10 {
+				t.Fatalf("data %q: expected the intro cap untouched, got %d", data, introCap.cap)
+			}
+		})
 	}
 }
 

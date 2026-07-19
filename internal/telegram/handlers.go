@@ -521,18 +521,10 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleTopicCallback(ctx, s, data)
 	case strings.HasPrefix(data, dataAnswerPrefix):
 		return b.handleAnswerCallback(ctx, s, data)
-	case data == "cap:inc":
-		return b.handleCapChange(ctx, s, 1)
-	case data == "cap:dec":
-		return b.handleCapChange(ctx, s, -1)
 	case data == "cap:inc5":
 		return b.handleCapChange(ctx, s, 5)
 	case data == "cap:dec5":
 		return b.handleCapChange(ctx, s, -5)
-	case data == "icap:inc":
-		return b.handleIntroCapChange(ctx, s, 1)
-	case data == "icap:dec":
-		return b.handleIntroCapChange(ctx, s, -1)
 	case data == "icap:inc5":
 		return b.handleIntroCapChange(ctx, s, 5)
 	case data == "icap:dec5":
@@ -615,28 +607,27 @@ func (b *Bot) loadOrCreateUser(ctx context.Context, s Session) (storage.User, er
 
 // ── pure, unit-tested formatting ─────────────────────────────────────────
 
-// settingsRows renders the /settings keyboard: the daily new-skill cap stepper,
-// the label-style cycle, and the reminder controls (on/off, local hour, and
-// the follow-up nudge's own on/off + delay). Each control group sits on its own
-// row so labels aren't squeezed or truncated.
+// settingsRows renders the /settings keyboard: the daily new-skill cap
+// stepper, the label-style cycle, and the reminder controls (on/off, local
+// hour, and the follow-up nudge's own on/off + delay), closing with a
+// «⬅️ Menu» row back to the hub (hub-and-spoke rule). Each control group sits
+// on its own row so labels aren't squeezed or truncated. The cap steppers
+// only offer ±5 — a ±1 step added noise without meaningfully finer control
+// over caps that already range up to 500/200.
 func settingsRows(user storage.User, introCap *int) [][]Btn {
 	rows := make([][]Btn, 0, 7)
 
-	// Daily new-skill cap: -5 / -1 / value / +1 / +5.
+	// Daily new-skill cap: -5 / value / +5.
 	rows = append(rows, []Btn{
 		{Label: "-5", Data: "cap:dec5"},
-		{Label: "-1", Data: "cap:dec"},
 		{Label: fmt.Sprintf("cap: %d", user.DailyNewCap), Data: "noop"},
-		{Label: "+1", Data: "cap:inc"},
 		{Label: "+5", Data: "cap:inc5"},
 	})
 
 	if introCap != nil {
 		rows = append(rows, []Btn{
 			{Label: "🎯 -5", Data: "icap:dec5"},
-			{Label: "🎯 -1", Data: "icap:dec"},
 			{Label: fmt.Sprintf("intro cap: %d", *introCap), Data: "noop"},
-			{Label: "🎯 +1", Data: "icap:inc"},
 			{Label: "🎯 +5", Data: "icap:inc5"},
 		})
 	}
@@ -667,6 +658,8 @@ func settingsRows(user storage.User, introCap *int) [][]Btn {
 	rows = append(rows, []Btn{
 		{Label: fmt.Sprintf("⏱ follow-up after %d min", user.FollowUpDelayMin), Data: "fupdelay:cycle"},
 	})
+
+	rows = append(rows, []Btn{{Label: "⬅️ Menu", Data: dataMenuOpen}})
 
 	return rows
 }
