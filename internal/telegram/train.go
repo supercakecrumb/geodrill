@@ -69,19 +69,15 @@ func (b *Bot) sendNextTrain(ctx context.Context, s Session, user storage.User) e
 // sendPrompt renders a Prompt result, mirroring sendNextResult's
 // Kind switch for the exercise path. Every non-exercise branch is /train's
 // terminal/idle screen (hub-and-spoke rule): none carried a keyboard
-// before, so a one-button «⬅️ Menu» keyboard is the minimal fix — the
-// message text/copy itself is untouched.
+// before, so a one-button «⬅️ Menu» keyboard is the minimal fix. The
+// PromptKindNothingDue branch also carries real progress stats
+// (nothingDueText) instead of a bare "nothing due" line.
 func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 	switch p.Kind {
 	case PromptKindExercise:
 		return b.sendExercise(s, p)
 	case PromptKindNothingDue:
-		if !p.DueAt.IsZero() {
-			loc := locationFor(user)
-			_, err := s.SendKeyboard(fmt.Sprintf("Nothing due right now. Come back at %s.", p.DueAt.In(loc).Format("15:04")), menuBackRow())
-			return err
-		}
-		_, err := s.SendKeyboard(allCaughtUpText, menuBackRow())
+		_, err := s.SendKeyboard(nothingDueText(user, p), menuBackRow())
 		return err
 	case PromptKindNoContent:
 		_, err := s.SendKeyboard(noContentText, menuBackRow())
@@ -90,6 +86,25 @@ func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 		_, err := s.SendKeyboard(fallbackText, menuBackRow())
 		return err
 	}
+}
+
+// nothingDueText renders /train's "nothing due" idle screen: the review-
+// pipeline stats Prompt.Summary carries, plus either a self-explanatory
+// next-review time (DueAt localized to user's timezone — the same
+// locationFor call the old one-liner used) or, when DueAt is zero (nothing
+// scheduled AND nothing left to learn — see study.Service.NextExercise),
+// a plain "all caught up" closer instead of a bogus time.
+func nothingDueText(user storage.User, p Prompt) string {
+	stats := fmt.Sprintf("Reviewed today: %d\n%d reviews scheduled\n%d left to learn",
+		p.Summary.ReviewsToday, p.Summary.ReviewsScheduled, p.Summary.LeftToLearn)
+
+	if p.DueAt.IsZero() {
+		return "You're all caught up — nothing scheduled and nothing new to learn right now.\n\n" + stats
+	}
+
+	loc := locationFor(user)
+	nextAt := p.DueAt.In(loc).Format("15:04")
+	return fmt.Sprintf("Nothing due right now.\n\n%s\n\nYour next review unlocks at %s (that's when your soonest item is scheduled to come back).", stats, nextAt)
 }
 
 // autocompleteButtonLabel is the inline-query prefill button shown on a

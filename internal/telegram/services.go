@@ -226,6 +226,12 @@ type Prompt struct {
 	Options   []Option  // populated for ModeSingle/ModeSet; empty for ModeText
 	DueAt     time.Time // set when Kind == PromptKindNothingDue and a future due exists
 
+	// Summary is the review-pipeline snapshot shown on /train's "nothing
+	// due" idle screen (architecture: the empty-state screen should read
+	// as real progress, not a dead end). Populated when
+	// Kind == PromptKindNothingDue; zero value elsewhere.
+	Summary DueSummary
+
 	// Autocomplete is true when this ModeText exercise should render the
 	// "⌨️ Type your answer" inline-query prefill button
 	// (vibe/spike-autocomplete-inline.md) alongside its bare "Type your
@@ -234,6 +240,27 @@ type Prompt struct {
 	// topics.Exercise.Autocomplete flag (see study.modeFromString /
 	// buildExerciseForItem). Ignored outside ModeText.
 	Autocomplete bool
+}
+
+// DueSummary is a compact snapshot of a user's review pipeline, attached to
+// a NothingDue Prompt so /train's idle screen can show real progress
+// (reviews already done, what's still coming up, what's left to learn)
+// instead of a bare "nothing due" message. Every count here is computed by
+// internal/study by reusing the same underlying storage counts /stats
+// already reports (Stats.ReviewsToday) plus the /study introduction
+// candidate count (Service.candidatesFor) — no new queries.
+type DueSummary struct {
+	// ReviewsToday is how many reviews the user has logged so far today,
+	// in their own timezone (the same count as Stats.ReviewsToday).
+	ReviewsToday int
+	// ReviewsScheduled is how many Introduced/Reviewing cards are in the
+	// pipeline but not yet due (i.e. scheduled for a later time today or
+	// beyond) — the "coming up" figure.
+	ReviewsScheduled int
+	// LeftToLearn is how many active, tier-unlocked items this user has
+	// not yet introduced — the same candidate count /study's IntroSummary
+	// reports as "available".
+	LeftToLearn int
 }
 
 // Mark is the visual state of a graded answer option (formerly the legacy

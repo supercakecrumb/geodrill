@@ -102,7 +102,6 @@ const welcomeText = "Hi! I'm geodrill — I'll show you short sentences in diffe
 	"All decks start disabled. Pick at least one below, then send /train to begin."
 
 const noContentText = "The content for your due skills hasn't been ingested yet. Try again later, or enable a different deck via /decks."
-const allCaughtUpText = "You're all caught up for now."
 const fallbackText = "Something went wrong on my end. Please try again in a moment."
 const staleToast = "⏳ already answered"
 const correctToast = "✅ correct"

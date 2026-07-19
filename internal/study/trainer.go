@@ -73,14 +73,56 @@ func (s *Service) NextExercise(ctx context.Context, userID uuid.UUID) (telegram.
 		return telegram.Prompt{}, err
 	}
 	if len(due) == 0 {
-		return telegram.Prompt{Kind: telegram.PromptKindNothingDue, DueAt: dueAt}, nil
+		summary, err := s.dueSummary(ctx, user, now, len(due))
+		if err != nil {
+			return telegram.Prompt{}, err
+		}
+		return telegram.Prompt{Kind: telegram.PromptKindNothingDue, DueAt: dueAt, Summary: summary}, nil
 	}
 	// due was non-empty but every candidate was filtered out (disabled
 	// topics) or failed to build an exercise for every configured mode.
 	if dueAt.IsZero() {
 		return telegram.Prompt{Kind: telegram.PromptKindNoContent}, nil
 	}
-	return telegram.Prompt{Kind: telegram.PromptKindNothingDue, DueAt: dueAt}, nil
+	summary, err := s.dueSummary(ctx, user, now, len(due))
+	if err != nil {
+		return telegram.Prompt{}, err
+	}
+	return telegram.Prompt{Kind: telegram.PromptKindNothingDue, DueAt: dueAt, Summary: summary}, nil
+}
+
+// dueSummary builds telegram.DueSummary — the compact progress snapshot
+// attached to a NothingDue Prompt — by reusing counts that already exist
+// elsewhere in this package rather than issuing new SQL: CountReviewsSince
+// is the same call Stats uses for Stats.ReviewsToday; ListUserItemCardsInFSRS
+// is the same call Stats uses for its due forecast (its length, minus
+// dueCount — the caller's already-fetched due-right-now count — is the
+// pipeline's "scheduled but not due yet" figure); candidatesFor is the exact
+// candidate set /study's IntroSummary reports as "available" (tier-unlocked,
+// not yet introduced).
+func (s *Service) dueSummary(ctx context.Context, user storage.User, now time.Time, dueCount int) (telegram.DueSummary, error) {
+	loc := locationFor(user)
+	reviewsToday, err := s.store.CountReviewsSince(ctx, user.ID, startOfDay(now, loc))
+	if err != nil {
+		return telegram.DueSummary{}, err
+	}
+
+	cards, err := s.store.ListUserItemCardsInFSRS(ctx, user.ID)
+	if err != nil {
+		return telegram.DueSummary{}, err
+	}
+	scheduled := max0(len(cards) - dueCount)
+
+	candidates, err := s.candidatesFor(ctx, user.ID)
+	if err != nil {
+		return telegram.DueSummary{}, err
+	}
+
+	return telegram.DueSummary{
+		ReviewsToday:     reviewsToday,
+		ReviewsScheduled: scheduled,
+		LeftToLearn:      len(candidates),
+	}, nil
 }
 
 // earliestFutureDue scans every Introduced/Reviewing item for userID (not

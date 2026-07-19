@@ -145,19 +145,73 @@ func TestHandleStats_RendersViewModel(t *testing.T) {
 }
 
 // TestSendPrompt_NothingDueUsesUserTimezone covers /train's "nothing due"
-// terminal screen: the localized due time (unchanged) plus a one-button
-// «⬅️ Menu» keyboard (hub-and-spoke rule — it had no keyboard at all
-// before).
+// terminal screen: the localized due time (still respected), the reworded
+// self-explanatory next-review line, the progress stats Prompt.Summary
+// carries, and a one-button «⬅️ Menu» keyboard (hub-and-spoke rule — it had
+// no keyboard at all before).
 func TestSendPrompt_NothingDueUsesUserTimezone(t *testing.T) {
 	user := storage.User{Timezone: "America/New_York"}
 	due := time.Date(2026, 7, 18, 20, 0, 0, 0, time.UTC) // 16:00 in America/New_York
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	if err := b.sendPrompt(s, user, Prompt{Kind: PromptKindNothingDue, DueAt: due}); err != nil {
+	p := Prompt{
+		Kind:  PromptKindNothingDue,
+		DueAt: due,
+		Summary: DueSummary{
+			ReviewsToday:     4,
+			ReviewsScheduled: 12,
+			LeftToLearn:      7,
+		},
+	}
+	if err := b.sendPrompt(s, user, p); err != nil {
 		t.Fatalf("sendPrompt: %v", err)
 	}
-	if len(s.keyboards) != 1 || !strings.Contains(s.keyboards[0].text, "16:00") {
-		t.Fatalf("expected the due time localized to 16:00, got %+v", s.keyboards)
+	if len(s.keyboards) != 1 {
+		t.Fatalf("expected one message sent, got %+v", s.keyboards)
+	}
+	text := s.keyboards[0].text
+	for _, want := range []string{
+		"Reviewed today: 4",
+		"12 reviews scheduled",
+		"7 left to learn",
+		"Your next review unlocks at 16:00",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("expected text to contain %q, got %q", want, text)
+		}
+	}
+	if len(s.keyboards[0].rows) != 1 || s.keyboards[0].rows[0][0].Data != dataMenuOpen {
+		t.Fatalf("expected a single «⬅️ Menu» button, got %+v", s.keyboards[0].rows)
+	}
+}
+
+// TestSendPrompt_NothingDueAllCaughtUp covers the DueAt-zero branch: nothing
+// scheduled AND nothing left to learn (study.Service.NextExercise only
+// returns a zero DueAt in that case) — the message must say so plainly and
+// must NOT print a bogus "come back at 00:00" time.
+func TestSendPrompt_NothingDueAllCaughtUp(t *testing.T) {
+	user := storage.User{Timezone: "America/New_York"}
+	s := &fakeSession{}
+	b := newTestBot(&stubStore{})
+	p := Prompt{
+		Kind:    PromptKindNothingDue,
+		Summary: DueSummary{ReviewsToday: 9},
+	}
+	if err := b.sendPrompt(s, user, p); err != nil {
+		t.Fatalf("sendPrompt: %v", err)
+	}
+	if len(s.keyboards) != 1 {
+		t.Fatalf("expected one message sent, got %+v", s.keyboards)
+	}
+	text := s.keyboards[0].text
+	if !strings.Contains(text, "all caught up") {
+		t.Fatalf("expected an all-caught-up message, got %q", text)
+	}
+	if !strings.Contains(text, "Reviewed today: 9") {
+		t.Fatalf("expected the reviewed-today stat, got %q", text)
+	}
+	if strings.Contains(text, "unlocks at") || strings.Contains(text, "Come back at") {
+		t.Fatalf("expected no bogus next-review time when DueAt is zero, got %q", text)
 	}
 	if len(s.keyboards[0].rows) != 1 || s.keyboards[0].rows[0][0].Data != dataMenuOpen {
 		t.Fatalf("expected a single «⬅️ Menu» button, got %+v", s.keyboards[0].rows)
