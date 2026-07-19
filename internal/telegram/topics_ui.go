@@ -124,15 +124,78 @@ func parseTopicToggleCallback(data string) (topicID uuid.UUID, enable bool, ok b
 	return uuid.UUID{}, false, false
 }
 
-// handleTopicToggle applies a topen:/topoff: tap: flips the topic's
-// user_topics.enabled flag via TopicService.SetTopicEnabled, then
-// re-renders the SAME topic view in place (mirroring handleTopicCallback's
-// edit-in-place pattern) so the toggle row and the row's own ✅/⬜ prefix
-// reflect the new state immediately.
+// ── topen:g:/topoff:g: callback (group-level enable/disable toggle) ─────
+
+// dataTopicGroupEnablePrefix / dataTopicGroupDisablePrefix are the callback
+// prefixes for a container TopicView's group-level toggle:
+// "topen:g:<topic-uuid>" / "topoff:g:<topic-uuid>". These deliberately
+// nest under the same "topen:"/"topoff:" prefixes the single-topic toggle
+// uses (dataTopicEnablePrefix/dataTopicDisablePrefix above) — the callback
+// router already dispatches anything starting with "topen:"/"topoff:" to
+// handleTopicToggle, so the group toggle rides that same wiring instead of
+// needing a new callback prefix registered elsewhere; handleTopicToggle
+// below tells the two apart by trying the more specific "g:" parse first.
+const (
+	dataTopicGroupEnablePrefix  = "topen:g:"
+	dataTopicGroupDisablePrefix = "topoff:g:"
+)
+
+// topicGroupToggleCallbackData builds one group-toggle button's payload:
+// enable=true requests topen:g:, enable=false requests topoff:g:.
+func topicGroupToggleCallbackData(topicID uuid.UUID, enable bool) string {
+	prefix := dataTopicGroupDisablePrefix
+	if enable {
+		prefix = dataTopicGroupEnablePrefix
+	}
+	return prefix + topicID.String()
+}
+
+// parseTopicGroupToggleCallback parses a payload built by
+// topicGroupToggleCallbackData. ok is false for anything malformed
+// (including a plain topen:/topoff: single-topic toggle, which lacks the
+// "g:" marker).
+func parseTopicGroupToggleCallback(data string) (topicID uuid.UUID, enable bool, ok bool) {
+	if rest, has := strings.CutPrefix(data, dataTopicGroupEnablePrefix); has {
+		id, err := uuid.Parse(rest)
+		if err != nil {
+			return uuid.UUID{}, false, false
+		}
+		return id, true, true
+	}
+	if rest, has := strings.CutPrefix(data, dataTopicGroupDisablePrefix); has {
+		id, err := uuid.Parse(rest)
+		if err != nil {
+			return uuid.UUID{}, false, false
+		}
+		return id, false, true
+	}
+	return uuid.UUID{}, false, false
+}
+
+// handleTopicToggle applies a topen:/topoff: tap: either the single-topic
+// toggle (flips one topic's user_topics.enabled via
+// TopicService.SetTopicEnabled) or, when the payload carries the "g:"
+// marker, the container's group-level toggle (flips EVERY quizzable topic
+// in the subtree via TopicService.SetSubtreeEnabled) — either way the SAME
+// topic view is re-rendered in place afterward (mirroring
+// handleTopicCallback's edit-in-place pattern) so the toggle row(s) and
+// their ✅/⬜ prefixes reflect the new state immediately.
 func (b *Bot) handleTopicToggle(ctx context.Context, s Session, data string) error {
 	if b.topics == nil {
 		return s.Respond("")
 	}
+
+	if topicID, enable, ok := parseTopicGroupToggleCallback(data); ok {
+		user, err := b.loadOrCreateUser(ctx, s)
+		if err != nil {
+			return err
+		}
+		if err := b.topics.SetSubtreeEnabled(ctx, user.ID, topicID, enable); err != nil {
+			return err
+		}
+		return b.rerenderTopicView(ctx, s, user.ID, topicID)
+	}
+
 	topicID, enable, ok := parseTopicToggleCallback(data)
 	if !ok {
 		return s.Respond("")
@@ -145,8 +208,13 @@ func (b *Bot) handleTopicToggle(ctx context.Context, s Session, data string) err
 	if err := b.topics.SetTopicEnabled(ctx, user.ID, topicID, enable); err != nil {
 		return err
 	}
+	return b.rerenderTopicView(ctx, s, user.ID, topicID)
+}
 
-	view, err := b.topics.Children(ctx, user.ID, topicID)
+// rerenderTopicView re-fetches topicID's TopicView and edits the current
+// message in place — the shared closer for both handleTopicToggle branches.
+func (b *Bot) rerenderTopicView(ctx context.Context, s Session, userID, topicID uuid.UUID) error {
+	view, err := b.topics.Children(ctx, userID, topicID)
 	if err != nil {
 		return err
 	}
@@ -232,7 +300,11 @@ func topicsBodyText(view TopicView) string {
 // topicsViewRows renders a TopicView's body rows: child topics (container)
 // or per-tier progress plus an enable/disable toggle (quizzable — the
 // /topics counterpart of the retired /decks' per-deck toggle), plus a
-// trailing ⬆️ navigation row.
+// trailing navigation row. A container view (IsQuizzable == false) with at
+// least one quizzable descendant (GroupTotalLeaves > 0) gets its
+// group-level toggle button prepended to that trailing row, to the LEFT of
+// «⬆️ Up» — [groupToggle][Up] — so turning off a whole group no longer
+// means toggling every subtopic by hand.
 func topicsViewRows(view TopicView) [][]Btn {
 	rows := make([][]Btn, 0, len(view.Children)+len(view.Tiers)+2)
 	if view.IsQuizzable {
@@ -240,12 +312,19 @@ func topicsViewRows(view TopicView) [][]Btn {
 			rows = append(rows, []Btn{{Label: tierRowLabel(t), Data: DataNoop}})
 		}
 		rows = append(rows, []Btn{topicToggleButton(view)})
-	} else {
-		for _, c := range view.Children {
-			rows = append(rows, []Btn{{Label: topicRowLabel(c), Data: "top:" + c.TopicID.String()}})
-		}
+		rows = append(rows, []Btn{topicNavButton(view)})
+		return rows
 	}
-	rows = append(rows, []Btn{topicNavButton(view)})
+
+	for _, c := range view.Children {
+		rows = append(rows, []Btn{{Label: topicRowLabel(c), Data: "top:" + c.TopicID.String()}})
+	}
+	var lastRow []Btn
+	if view.GroupTotalLeaves > 0 {
+		lastRow = append(lastRow, groupToggleButton(view))
+	}
+	lastRow = append(lastRow, topicNavButton(view))
+	rows = append(rows, lastRow)
 	return rows
 }
 
@@ -258,6 +337,20 @@ func topicToggleButton(view TopicView) Btn {
 		return Btn{Label: "✅ Enabled — tap to disable", Data: topicToggleCallbackData(view.TopicID, false)}
 	}
 	return Btn{Label: "⬜ Disabled — tap to enable", Data: topicToggleCallbackData(view.TopicID, true)}
+}
+
+// groupToggleButton renders a container TopicView's group-level toggle row
+// (task 2026-07-19: turning off a whole group of quizzable topics without
+// toggling every subtopic by hand): if ANY descendant is currently enabled
+// (GroupEnabledLeaves > 0 — covers both "all on" and "mixed"), tapping
+// turns the WHOLE subtree off; only once every descendant is already off
+// does it flip to turning the whole subtree back on. Only rendered when
+// GroupTotalLeaves > 0 (topicsViewRows' caller).
+func groupToggleButton(view TopicView) Btn {
+	if view.GroupEnabledLeaves > 0 {
+		return Btn{Label: "🔕 Turn group off", Data: topicGroupToggleCallbackData(view.TopicID, false)}
+	}
+	return Btn{Label: "🔔 Turn group on", Data: topicGroupToggleCallbackData(view.TopicID, true)}
 }
 
 // topicNavButton is the ⬆️ row: back to the parent topic's view, or to the

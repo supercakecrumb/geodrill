@@ -18,6 +18,12 @@ type stubTopicService struct {
 		topicID uuid.UUID
 		enabled bool
 	}
+
+	subtreeToggleCall struct {
+		userID  uuid.UUID
+		topicID uuid.UUID
+		enabled bool
+	}
 }
 
 func (s *stubTopicService) Root(ctx context.Context, userID uuid.UUID) ([]TopicRow, error) {
@@ -32,6 +38,13 @@ func (s *stubTopicService) SetTopicEnabled(ctx context.Context, userID, topicID 
 	s.toggleCall.userID = userID
 	s.toggleCall.topicID = topicID
 	s.toggleCall.enabled = enabled
+	return nil
+}
+
+func (s *stubTopicService) SetSubtreeEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
+	s.subtreeToggleCall.userID = userID
+	s.subtreeToggleCall.topicID = topicID
+	s.subtreeToggleCall.enabled = enabled
 	return nil
 }
 
@@ -158,6 +171,146 @@ func TestTopicsViewRows_ContainerVsQuizzable(t *testing.T) {
 	}
 	if rows[2][0].Data != topicToggleCallbackData(quizzable.TopicID, true) {
 		t.Fatalf("expected the toggle row right after the tier rows, got %+v", rows[2])
+	}
+}
+
+// ── group-level toggle (container views) ────────────────────────────────
+
+func TestTopicsViewRows_ContainerGroupToggle_LastRowLeftOfUp(t *testing.T) {
+	childID := uuid.New()
+	topicID := uuid.New()
+	view := TopicView{
+		TopicID:            topicID,
+		IsQuizzable:        false,
+		ParentID:           nil,
+		Children:           []TopicRow{{TopicID: childID, Name: "Special characters"}},
+		GroupEnabledLeaves: 3,
+		GroupTotalLeaves:   5,
+	}
+	rows := topicsViewRows(view)
+	if len(rows) != 2 { // one child row + the trailing [groupToggle][Up] row
+		t.Fatalf("expected 2 rows (1 child + trailing), got %d", len(rows))
+	}
+	last := rows[len(rows)-1]
+	if len(last) != 2 {
+		t.Fatalf("expected the trailing row to carry exactly 2 buttons ([groupToggle][Up]), got %+v", last)
+	}
+	if last[0].Data != topicGroupToggleCallbackData(topicID, false) {
+		t.Fatalf("expected the group toggle button first (left of Up), got %+v", last[0])
+	}
+	if last[1].Data != dataTopicsRoot {
+		t.Fatalf("expected «⬆️ Up»/root nav button second (right of the group toggle), got %+v", last[1])
+	}
+}
+
+func TestTopicsViewRows_ContainerNoQuizzableDescendants_NoGroupToggle(t *testing.T) {
+	// GroupTotalLeaves == 0: the render side stays defensive even though
+	// this shouldn't happen in practice (filterVisibleTopics already keeps
+	// such subtrees out of every listing that could route here).
+	view := TopicView{IsQuizzable: false, Children: []TopicRow{{Name: "Empty"}}}
+	rows := topicsViewRows(view)
+	last := rows[len(rows)-1]
+	if len(last) != 1 {
+		t.Fatalf("expected a bare [Up] trailing row with no group toggle, got %+v", last)
+	}
+}
+
+func TestTopicsViewRows_QuizzableView_NoGroupToggle(t *testing.T) {
+	// A leaf (quizzable) view must never render the group toggle, even if
+	// GroupTotalLeaves were somehow populated — it only applies to
+	// containers.
+	view := TopicView{IsQuizzable: true, Tiers: []TierRow{{Tier: 0}}, GroupTotalLeaves: 5, GroupEnabledLeaves: 5}
+	rows := topicsViewRows(view)
+	for _, row := range rows {
+		for _, btn := range row {
+			if strings.Contains(btn.Data, "topen:g:") || strings.Contains(btn.Data, "topoff:g:") {
+				t.Fatalf("a quizzable view must not render the group toggle, got %+v", row)
+			}
+		}
+	}
+}
+
+func TestGroupToggleButton(t *testing.T) {
+	id := uuid.New()
+
+	// Any descendant enabled (including "all enabled") -> turn the group OFF.
+	allOn := groupToggleButton(TopicView{TopicID: id, GroupEnabledLeaves: 5, GroupTotalLeaves: 5})
+	if allOn.Data != topicGroupToggleCallbackData(id, false) {
+		t.Fatalf("all-enabled group should offer to turn off, got %+v", allOn)
+	}
+	if !strings.Contains(allOn.Label, "off") {
+		t.Fatalf("expected an 'off' label for a group with any enabled descendant, got %q", allOn.Label)
+	}
+
+	mixed := groupToggleButton(TopicView{TopicID: id, GroupEnabledLeaves: 2, GroupTotalLeaves: 5})
+	if mixed.Data != topicGroupToggleCallbackData(id, false) {
+		t.Fatalf("mixed group should offer to turn off, got %+v", mixed)
+	}
+
+	// All disabled -> turn the group ON.
+	allOff := groupToggleButton(TopicView{TopicID: id, GroupEnabledLeaves: 0, GroupTotalLeaves: 5})
+	if allOff.Data != topicGroupToggleCallbackData(id, true) {
+		t.Fatalf("all-disabled group should offer to turn on, got %+v", allOff)
+	}
+	if !strings.Contains(allOff.Label, "on") {
+		t.Fatalf("expected an 'on' label for an all-disabled group, got %q", allOff.Label)
+	}
+}
+
+func TestTopicGroupToggleCallbackData_ParseRoundTrip(t *testing.T) {
+	id := uuid.New()
+	gotID, enable, ok := parseTopicGroupToggleCallback(topicGroupToggleCallbackData(id, true))
+	if !ok || !enable || gotID != id {
+		t.Fatalf("round trip (enable) = (%v,%v,%v), want (%v,true,true)", gotID, enable, ok, id)
+	}
+	gotID, enable, ok = parseTopicGroupToggleCallback(topicGroupToggleCallbackData(id, false))
+	if !ok || enable || gotID != id {
+		t.Fatalf("round trip (disable) = (%v,%v,%v), want (%v,false,true)", gotID, enable, ok, id)
+	}
+	// A plain single-topic toggle must NOT parse as a group toggle.
+	for _, data := range []string{"topen:" + id.String(), "topoff:" + id.String(), "", "noop", "topen:g:not-a-uuid"} {
+		if _, _, ok := parseTopicGroupToggleCallback(data); ok {
+			t.Fatalf("parseTopicGroupToggleCallback(%q) unexpectedly succeeded", data)
+		}
+	}
+}
+
+func TestHandleTopicToggle_GroupFlipsSubtreeAndRerenders(t *testing.T) {
+	topicID := uuid.New()
+	b := newTestBot(&stubStore{user: newTestUser()})
+	stub := &stubTopicService{
+		children: map[uuid.UUID]TopicView{
+			topicID: {TopicID: topicID, IsQuizzable: false, GroupEnabledLeaves: 0, GroupTotalLeaves: 3, Breadcrumb: []TopicCrumb{{TopicID: topicID, Name: "Languages"}}},
+		},
+	}
+	b.topics = stub
+
+	s := &fakeSession{userID: 1, messageID: 42, data: topicGroupToggleCallbackData(topicID, true)}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if stub.subtreeToggleCall.topicID != topicID || !stub.subtreeToggleCall.enabled {
+		t.Fatalf("expected SetSubtreeEnabled(topicID, true), got %+v", stub.subtreeToggleCall)
+	}
+	if stub.toggleCall.topicID == topicID {
+		t.Fatalf("a group toggle must not also call the single-topic SetTopicEnabled")
+	}
+	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 42 {
+		t.Fatalf("expected the topic view re-rendered in place, got %+v", s.editedMsgs)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single inert ack, got %v", s.responses)
+	}
+}
+
+func TestHandleTopicToggle_GroupNilTopicServiceIsInert(t *testing.T) {
+	b := newTestBot(&stubStore{user: newTestUser()})
+	s := &fakeSession{userID: 1, data: topicGroupToggleCallbackData(uuid.New(), true)}
+	if err := b.handleCallback(context.Background(), s); err != nil {
+		t.Fatalf("handleCallback: %v", err)
+	}
+	if len(s.responses) != 1 || s.responses[0] != "" {
+		t.Fatalf("expected a single inert ack, got %v", s.responses)
 	}
 }
 

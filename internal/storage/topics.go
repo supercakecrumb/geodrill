@@ -162,6 +162,37 @@ func (s *Store) GetUserTopicEnabled(ctx context.Context, userID, topicID uuid.UU
 	return s.q.GetUserTopicEnabled(ctx, db.GetUserTopicEnabledParams{UserID: userID, ID: topicID})
 }
 
+// SubtreeTopicCounts is the aggregate enabled-vs-total count over every
+// QUIZZABLE topic in a subtree (architecture: the /topics group-level
+// "Turn group off/on" toggle) — Enabled == Total means every descendant is
+// currently on, Enabled == 0 means every descendant is off, anything else
+// is mixed.
+type SubtreeTopicCounts struct {
+	Total   int
+	Enabled int
+}
+
+// GetSubtreeQuizzableTopicCounts aggregates enabled-vs-total counts across
+// every quizzable topic in topicID's subtree (itself + descendants, via the
+// topic_paths view) for a user — feeds the group-level toggle's tri-state
+// read without an N+1 per-topic walk.
+func (s *Store) GetSubtreeQuizzableTopicCounts(ctx context.Context, userID, topicID uuid.UUID) (SubtreeTopicCounts, error) {
+	r, err := s.q.GetSubtreeQuizzableTopicCounts(ctx, db.GetSubtreeQuizzableTopicCountsParams{UserID: userID, ID: topicID})
+	if err != nil {
+		return SubtreeTopicCounts{}, err
+	}
+	return SubtreeTopicCounts{Total: int(r.Total), Enabled: int(r.Enabled)}, nil
+}
+
+// SetSubtreeTopicsEnabled upserts user_topics.enabled for every quizzable
+// topic in topicID's subtree (itself + descendants, via topic_paths) in one
+// set-based statement — the group-level toggle's write side (architecture:
+// turning off/on a whole container without touching every subtopic by
+// hand). Idempotent, like SetUserTopicEnabled.
+func (s *Store) SetSubtreeTopicsEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
+	return s.q.SetSubtreeTopicsEnabled(ctx, db.SetSubtreeTopicsEnabledParams{UserID: userID, ID: topicID, Enabled: enabled})
+}
+
 // ListUserTopics returns every topic with the user's enabled flag
 // (default-on when no user_topics row exists).
 func (s *Store) ListUserTopics(ctx context.Context, userID uuid.UUID) ([]UserTopic, error) {

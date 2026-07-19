@@ -90,3 +90,37 @@ SELECT COALESCE(ut.enabled, true) AS enabled
 FROM topics t
 LEFT JOIN user_topics ut ON ut.topic_id = t.id AND ut.user_id = $1
 WHERE t.id = $2;
+
+-- name: GetSubtreeQuizzableTopicCounts :one
+-- internal/study.TopicService, the /topics group-level "Turn group off/on"
+-- toggle (a container's drilled-in view): aggregate enabled-vs-total counts
+-- across every QUIZZABLE topic in topicID's subtree (itself + descendants,
+-- via the topic_paths recursive view) for one user, in a single set-based
+-- query — feeds the button's tri-state read (all on / all off / mixed)
+-- without an N+1 per-topic walk.
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $2)
+SELECT
+  count(*)::int AS total,
+  count(*) FILTER (WHERE COALESCE(ut.enabled, true))::int AS enabled
+FROM topics t
+JOIN topic_paths tp ON tp.id = t.id
+CROSS JOIN target
+LEFT JOIN user_topics ut ON ut.topic_id = t.id AND ut.user_id = $1
+WHERE t.is_quizzable
+  AND (tp.path = target.path OR tp.path LIKE target.path || '/%');
+
+-- name: SetSubtreeTopicsEnabled :exec
+-- internal/study.TopicService.SetSubtreeEnabled: the group-level toggle's
+-- write side — upserts user_topics.enabled for every QUIZZABLE topic in
+-- topicID's subtree (itself + descendants, via topic_paths) in one
+-- set-based statement, idempotent like SetUserTopicEnabled above.
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $2)
+INSERT INTO user_topics (user_id, topic_id, enabled)
+SELECT $1, t.id, $3
+FROM topics t
+JOIN topic_paths tp ON tp.id = t.id
+CROSS JOIN target
+WHERE t.is_quizzable
+  AND (tp.path = target.path OR tp.path LIKE target.path || '/%')
+ON CONFLICT (user_id, topic_id)
+DO UPDATE SET enabled = EXCLUDED.enabled;

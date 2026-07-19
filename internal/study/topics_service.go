@@ -121,6 +121,14 @@ func (s *Service) Children(ctx context.Context, userID, topicID uuid.UUID) (tele
 		rows[i] = row
 	}
 	view.Children = rows
+
+	groupCounts, err := s.store.GetSubtreeQuizzableTopicCounts(ctx, userID, topicID)
+	if err != nil {
+		return telegram.TopicView{}, err
+	}
+	view.GroupEnabledLeaves = groupCounts.Enabled
+	view.GroupTotalLeaves = groupCounts.Total
+
 	return view, nil
 }
 
@@ -130,6 +138,16 @@ func (s *Service) Children(ctx context.Context, userID, topicID uuid.UUID) (tele
 // toggling a container is accepted but inert).
 func (s *Service) SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
 	return s.store.SetUserTopicEnabled(ctx, userID, topicID, enabled)
+}
+
+// SetSubtreeEnabled implements telegram.TopicService: the container view's
+// group-level "Turn group off"/"Turn group on" button — flips EVERY
+// quizzable topic in topicID's subtree (itself + descendants, via the
+// topic_paths view) for a user in one set-based upsert
+// (Store.SetSubtreeTopicsEnabled), so turning off a whole group no longer
+// means toggling every subtopic by hand.
+func (s *Service) SetSubtreeEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
+	return s.store.SetSubtreeTopicsEnabled(ctx, userID, topicID, enabled)
 }
 
 // breadcrumbFor walks topic's parent chain (root-first) via GetTopicByID,

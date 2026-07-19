@@ -12,6 +12,42 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getSubtreeQuizzableTopicCounts = `-- name: GetSubtreeQuizzableTopicCounts :one
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $2)
+SELECT
+  count(*)::int AS total,
+  count(*) FILTER (WHERE COALESCE(ut.enabled, true))::int AS enabled
+FROM topics t
+JOIN topic_paths tp ON tp.id = t.id
+CROSS JOIN target
+LEFT JOIN user_topics ut ON ut.topic_id = t.id AND ut.user_id = $1
+WHERE t.is_quizzable
+  AND (tp.path = target.path OR tp.path LIKE target.path || '/%')
+`
+
+type GetSubtreeQuizzableTopicCountsParams struct {
+	UserID uuid.UUID
+	ID     uuid.UUID
+}
+
+type GetSubtreeQuizzableTopicCountsRow struct {
+	Total   int32
+	Enabled int32
+}
+
+// internal/study.TopicService, the /topics group-level "Turn group off/on"
+// toggle (a container's drilled-in view): aggregate enabled-vs-total counts
+// across every QUIZZABLE topic in topicID's subtree (itself + descendants,
+// via the topic_paths recursive view) for one user, in a single set-based
+// query — feeds the button's tri-state read (all on / all off / mixed)
+// without an N+1 per-topic walk.
+func (q *Queries) GetSubtreeQuizzableTopicCounts(ctx context.Context, arg GetSubtreeQuizzableTopicCountsParams) (GetSubtreeQuizzableTopicCountsRow, error) {
+	row := q.db.QueryRow(ctx, getSubtreeQuizzableTopicCounts, arg.UserID, arg.ID)
+	var i GetSubtreeQuizzableTopicCountsRow
+	err := row.Scan(&i.Total, &i.Enabled)
+	return i, err
+}
+
 const getTopicByID = `-- name: GetTopicByID :one
 SELECT id, parent_id, slug, name, position, base_tier, quiz_kind, exercise_modes, is_quizzable, config, created_at FROM topics WHERE id = $1
 `
@@ -303,6 +339,34 @@ type ReparentTopicParams struct {
 // so the topic_paths recursive view stays cheap even after this.
 func (q *Queries) ReparentTopic(ctx context.Context, arg ReparentTopicParams) error {
 	_, err := q.db.Exec(ctx, reparentTopic, arg.ID, arg.ParentID)
+	return err
+}
+
+const setSubtreeTopicsEnabled = `-- name: SetSubtreeTopicsEnabled :exec
+WITH target AS (SELECT path FROM topic_paths WHERE topic_paths.id = $2)
+INSERT INTO user_topics (user_id, topic_id, enabled)
+SELECT $1, t.id, $3
+FROM topics t
+JOIN topic_paths tp ON tp.id = t.id
+CROSS JOIN target
+WHERE t.is_quizzable
+  AND (tp.path = target.path OR tp.path LIKE target.path || '/%')
+ON CONFLICT (user_id, topic_id)
+DO UPDATE SET enabled = EXCLUDED.enabled
+`
+
+type SetSubtreeTopicsEnabledParams struct {
+	UserID  uuid.UUID
+	ID      uuid.UUID
+	Enabled bool
+}
+
+// internal/study.TopicService.SetSubtreeEnabled: the group-level toggle's
+// write side — upserts user_topics.enabled for every QUIZZABLE topic in
+// topicID's subtree (itself + descendants, via topic_paths) in one
+// set-based statement, idempotent like SetUserTopicEnabled above.
+func (q *Queries) SetSubtreeTopicsEnabled(ctx context.Context, arg SetSubtreeTopicsEnabledParams) error {
+	_, err := q.db.Exec(ctx, setSubtreeTopicsEnabled, arg.UserID, arg.ID, arg.Enabled)
 	return err
 }
 

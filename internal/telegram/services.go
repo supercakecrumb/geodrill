@@ -165,6 +165,23 @@ type TopicView struct {
 	// it, since /decks' per-deck on/off affordance retired onto /topics
 	// (architecture: /decks now points here instead of its own picker).
 	Enabled bool
+
+	// GroupEnabledLeaves / GroupTotalLeaves are the enabled-vs-total count
+	// of QUIZZABLE descendant topics (recursive, via topic_paths) under
+	// this container (meaningful when IsQuizzable == false; zero value for
+	// a quizzable view). They feed the container's group-level "Turn group
+	// off"/"Turn group on" button (topics_ui.go's groupToggleButton): the
+	// task this closes is that turning off a whole group otherwise means
+	// toggling every subtopic by hand. GroupTotalLeaves == 0 hides the
+	// button entirely (a container view is only ever reached by drilling
+	// through a listing that already filtered out subtrees with no
+	// quizzable descendant — see internal/study.filterVisibleTopics — so
+	// this should never actually be 0 in practice, but the render side
+	// stays defensive about it anyway). GroupEnabledLeaves == 0 means every
+	// descendant is off (button reads "Turn on"); anything else — some or
+	// all enabled — means the button reads "Turn off".
+	GroupEnabledLeaves int
+	GroupTotalLeaves   int
 }
 
 // TopicService is the /topics tree browser, implemented by wave 4 over
@@ -180,6 +197,12 @@ type TopicService interface {
 	// counterpart of the retired /decks' per-deck toggle (only a quizzable
 	// topic's flag has any gating effect; see TopicRow.Enabled's doc).
 	SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error
+	// SetSubtreeEnabled toggles EVERY quizzable topic in topicID's subtree
+	// (itself + descendants) on/off for a user in one shot — the
+	// container view's group-level "Turn group off"/"Turn group on" button
+	// (topics_ui.go's groupToggleButton), so disabling a whole group no
+	// longer means toggling every subtopic by hand.
+	SetSubtreeEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error
 }
 
 // ── Trainer — mode-aware exercises (architecture §1.6) ────────────────────

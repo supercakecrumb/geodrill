@@ -68,6 +68,13 @@ type Querier interface {
 	// mode=text exercise).
 	GetOpenExerciseByMode(ctx context.Context, arg GetOpenExerciseByModeParams) (GetOpenExerciseByModeRow, error)
 	GetReviewsByItem(ctx context.Context, itemID uuid.UUID) ([]Review, error)
+	// internal/study.TopicService, the /topics group-level "Turn group off/on"
+	// toggle (a container's drilled-in view): aggregate enabled-vs-total counts
+	// across every QUIZZABLE topic in topicID's subtree (itself + descendants,
+	// via the topic_paths recursive view) for one user, in a single set-based
+	// query — feeds the button's tri-state read (all on / all off / mixed)
+	// without an N+1 per-topic walk.
+	GetSubtreeQuizzableTopicCounts(ctx context.Context, arg GetSubtreeQuizzableTopicCountsParams) (GetSubtreeQuizzableTopicCountsRow, error)
 	GetTopicByID(ctx context.Context, id uuid.UUID) (Topic, error)
 	// Path-walk helper: resolve a topic by its full slash-joined slug path (e.g.
 	// "languages/special-characters"), via topic_paths.
@@ -208,6 +215,11 @@ type Querier interface {
 	SetMediaTelegramFileID(ctx context.Context, arg SetMediaTelegramFileIDParams) error
 	SetReminderHour(ctx context.Context, arg SetReminderHourParams) error
 	SetReminders(ctx context.Context, arg SetRemindersParams) error
+	// internal/study.TopicService.SetSubtreeEnabled: the group-level toggle's
+	// write side — upserts user_topics.enabled for every QUIZZABLE topic in
+	// topicID's subtree (itself + descendants, via topic_paths) in one
+	// set-based statement, idempotent like SetUserTopicEnabled above.
+	SetSubtreeTopicsEnabled(ctx context.Context, arg SetSubtreeTopicsEnabledParams) error
 	SetTimezone(ctx context.Context, arg SetTimezoneParams) error
 	// ── user_topics (per-user topic opt-in/out, §2.10) ─────────────────────────
 	SetUserTopicEnabled(ctx context.Context, arg SetUserTopicEnabledParams) error
