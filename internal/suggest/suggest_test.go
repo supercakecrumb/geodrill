@@ -136,6 +136,34 @@ func TestNewFromCountries_MapsFields(t *testing.T) {
 	}
 }
 
+func TestNewFromCountriesAndCapitals_MergesBothSources(t *testing.T) {
+	countries := []storage.Country{
+		{ID: uuid.New(), Name: "Colombia", FlagEmoji: "🇨🇴", ISOA2: "CO"},
+		{ID: uuid.New(), Name: "France", FlagEmoji: "🇫🇷", ISOA2: "FR"},
+	}
+	capitalEntries := []CapitalEntry{
+		{CountryISO: "CO", Name: "Bogotá", FlagEmoji: "🇨🇴"},
+		{CountryISO: "FR", Name: "Paris", FlagEmoji: "🇫🇷"},
+	}
+
+	idx := NewFromCountriesAndCapitals(countries, capitalEntries)
+
+	// A country-name query still matches (the merge didn't drop the
+	// country source).
+	got := idx.Match("colom", 10)
+	if len(got) != 1 || got[0] != (Suggestion{Label: "Colombia", Emoji: "🇨🇴", Key: "CO"}) {
+		t.Fatalf("country match = %v, want Colombia/CO", got)
+	}
+
+	// A capital-name query matches the merged-in capital entry, keyed
+	// distinctly from its country ("cap:" prefix) so it never collides with
+	// the country's own iso2 key in the same index.
+	got = idx.Match("bogo", 10)
+	if len(got) != 1 || got[0] != (Suggestion{Label: "Bogotá", Emoji: "🇨🇴", Key: "cap:CO"}) {
+		t.Fatalf("capital match = %v, want Bogotá/cap:CO", got)
+	}
+}
+
 func TestNew_CopiesInputSlice(t *testing.T) {
 	entries := []Entry{{Label: "France"}}
 	idx := New(entries)

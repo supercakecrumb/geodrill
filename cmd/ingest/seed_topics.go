@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/topics/capitals"
 	"github.com/supercakecrumb/geodrill/internal/topics/guesslang"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
@@ -47,6 +48,14 @@ func runSeedTopics(ctx context.Context, logger *slog.Logger, store *storage.Stor
 		return fmt.Errorf("seed tld (countries/domains): %w", err)
 	}
 	logger.Info("seeded topic package", "topic", "countries/domains", "quiz_kind", tld.KindTLDToCountry+"+"+tld.KindCountryToTLD)
+
+	// capitals runs after roadside too, for the same reason: it resolves
+	// country references against the already-seeded country data rather
+	// than seeding countries itself.
+	if err := capitals.Seed(ctx, store); err != nil {
+		return fmt.Errorf("seed capitals (countries/capitals): %w", err)
+	}
+	logger.Info("seeded topic package", "topic", "countries/capitals", "quiz_kind", capitals.KindCountryToCapital+"+"+capitals.KindCapitalToCountry)
 
 	logger.Info("seed-topics: all topic packages seeded")
 	return nil

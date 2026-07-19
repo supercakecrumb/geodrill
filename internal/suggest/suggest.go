@@ -6,12 +6,13 @@
 // startup.
 //
 // The index is built from generic Entry{Label, Emoji, Key} values rather
-// than any one domain type, so a second suggestion source (e.g. cities) can
-// build its own Index the same way (see NewFromCountries for the countries
-// adapter — the first, and so far only, source): nothing here needs to
-// change to add one, and a caller wanting both just holds two *Index values
-// side by side (or a small aggregate of its own) rather than this package
-// growing source-specific branches.
+// than any one domain type, so a second suggestion source can contribute its
+// own Entries into the same Index (see NewFromCountries for the first
+// source — countries — and NewFromCountriesAndCapitals for a second —
+// capital cities — merged into one global Index, which is what the
+// single-handler OnQuery design needs: it answers from one index and can't
+// know which exercise is currently open, so per-source Indexes held side by
+// side wouldn't help it pick the right one).
 //
 // Ranking reuses two of engram's exported quiz-package primitives —
 // quiz.Normalize (Unicode casefold + trim + internal-space collapse) and
@@ -86,11 +87,53 @@ func New(entries []Entry) *Index {
 // alpha-2 as Key) — the first suggestion source (see the package doc for
 // how a second, e.g. cities, would plug in the same way via New).
 func NewFromCountries(countries []storage.Country) *Index {
+	return New(countryEntries(countries))
+}
+
+// CapitalEntry is one country's primary capital city, adapted by the caller
+// (cmd/bot/main.go) from whatever it loaded (a seeded country_facts row via
+// internal/topics/capitals.FactKeyCapital, or seeds/capitals.yaml directly)
+// into this shape — kept free of any capitals-topic-specific import so this
+// package stays generic (mirrors how NewFromCountries only depends on
+// storage.Country, not a topic package).
+type CapitalEntry struct {
+	CountryISO string // iso_a2, used to build Key ("cap:" + CountryISO)
+	Name       string // capital city name, e.g. "Bogotá"
+	FlagEmoji  string // the country's flag, e.g. "🇨🇴"
+}
+
+// NewFromCountriesAndCapitals builds ONE merged Index covering both
+// suggestion sources the countries/capitals quiz needs: every country (as
+// NewFromCountries) plus one additional entry per capital (label = capital
+// name, emoji = the country's flag, key = "cap:<iso2>" so a capital entry
+// never collides with its own country's plain-iso2 key in the same index).
+//
+// This is deliberately ONE index, not two side-by-side ones: the inline
+// OnQuery handler answers from a single global index and cannot know which
+// exercise (country->capital or capital->country) is currently open for the
+// querying user (vibe/spike-autocomplete-inline.md's design — grading
+// happens against whatever exercise is open, not the suggestion source), so
+// a merged index is the only shape that serves both directions from one
+// handler. The extra suggestions from the "other" source are harmless noise
+// for whichever direction isn't asking for them — e.g. typing "Bog" while a
+// capital->country exercise is open still surfaces "🇨🇴 Bogotá" alongside
+// any country whose name happens to start similarly, and the open
+// exercise's own Accept/CorrectAnswer (not the suggestion list) is what
+// actually grades the typed answer.
+func NewFromCountriesAndCapitals(countries []storage.Country, capitals []CapitalEntry) *Index {
+	entries := countryEntries(countries)
+	for _, c := range capitals {
+		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "cap:" + c.CountryISO})
+	}
+	return New(entries)
+}
+
+func countryEntries(countries []storage.Country) []Entry {
 	entries := make([]Entry, len(countries))
 	for i, c := range countries {
 		entries[i] = Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: c.ISOA2}
 	}
-	return New(entries)
+	return entries
 }
 
 // Match ranks Index's entries against query and returns at most limit
