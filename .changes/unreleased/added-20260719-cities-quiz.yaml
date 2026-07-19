@@ -1,0 +1,2 @@
+kind: Added
+body: "New cities quiz (first slice): \"🏙 Which country is Mumbai in?\" — the question is a city (451 world cities, biggest to smallest by population), the answer is a country, typed with the existing autocomplete country suggestions. One direction only for now; map/photo recognition and terrain questions stay in the backlog."

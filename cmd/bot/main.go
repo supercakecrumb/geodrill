@@ -23,6 +23,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
 	"github.com/supercakecrumb/geodrill/internal/topics/capitals"
+	"github.com/supercakecrumb/geodrill/internal/topics/cities"
 	"github.com/supercakecrumb/geodrill/internal/topics/profiles"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
@@ -86,6 +87,10 @@ func run() error {
 	// one quizzable topic by the P3.3 task brief (main_religion/region are
 	// seeded as facts for future sibling quizzes but have no Generator yet).
 	topics.Register(profiles.New())
+	// Cities first slice: "which country is this city from?", one direction,
+	// answered via the existing global country-suggestion index (no city
+	// entries added to it) — vibe/design-cities.md's task-brief override.
+	topics.Register(cities.New())
 
 	studySvc := study.New(store, sched, study.GlobalRegistry, nil, time.Now().UnixNano())
 
