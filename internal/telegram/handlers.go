@@ -29,12 +29,7 @@ type userStore interface {
 	SetLabelStyle(ctx context.Context, userID uuid.UUID, style string) error
 	UsersWithReminders(ctx context.Context) ([]storage.User, error)
 	CountReviewsSince(ctx context.Context, userID uuid.UUID, since time.Time) (int, error)
-	PracticeStatsSince(ctx context.Context, userID uuid.UUID, since time.Time) (total, correct int, err error)
 }
-
-// dataStopPractice is the callback payload for the /practice Stop control. It
-// deliberately avoids the "ans:"/"prac:" prefixes reserved for answer taps.
-const dataStopPractice = "pstop"
 
 // dataStartTrain is the callback payload for the "Start reviewing" button on
 // the daily reminder — tapping it kicks off the /train flow without the user
@@ -107,7 +102,6 @@ const welcomeText = "Hi! I'm geodrill — I'll show you short sentences in diffe
 	"All decks start disabled. Pick at least one below, then send /train to begin."
 
 const noContentText = "The content for your due skills hasn't been ingested yet. Try again later, or enable a different deck via /decks."
-const noTopicsText = "You don't have any topics enabled for practice yet. Check /topics to turn some on, then /practice again."
 const allCaughtUpText = "You're all caught up for now."
 const fallbackText = "Something went wrong on my end. Please try again in a moment."
 const staleToast = "⏳ already answered"
@@ -179,42 +173,6 @@ func (b *Bot) handleTrain(ctx context.Context, s Session) error {
 		return err
 	}
 	return b.sendNextTrain(ctx, s, user)
-}
-
-// ── /practice ────────────────────────────────────────────────────────────
-
-func (b *Bot) handlePractice(ctx context.Context, s Session) error {
-	user, err := b.loadOrCreateUser(ctx, s)
-	if err != nil {
-		return err
-	}
-	b.markPracticeStart(s.UserID(), b.now())
-	return b.sendNextPractice(ctx, s, user)
-}
-
-// handleStopPractice ends the caller's /practice session and rewrites the
-// current (last) practice message in place with a quick tally of the run.
-func (b *Bot) handleStopPractice(ctx context.Context, s Session) error {
-	user, err := b.loadOrCreateUser(ctx, s)
-	if err != nil {
-		return err
-	}
-	now := b.now()
-	since, ok := b.takePracticeStart(s.UserID())
-	if !ok {
-		// No session recorded (e.g. bot restarted mid-session): fall back to
-		// the start of the user's local day.
-		since = startOfLocalDay(user, now)
-	}
-	total, correct, err := b.store.PracticeStatsSince(ctx, user.ID, since)
-	if err != nil {
-		return err
-	}
-	// Rewrite the message the Stop button sits on, dropping the keyboard.
-	if err := s.EditMessage(s.MessageID(), formatPracticeSummary(total, correct), nil); err != nil {
-		b.logger.Warn("telegram: edit practice summary", "error", err)
-	}
-	return s.Respond("⏹ practice stopped")
 }
 
 // handleStartTrainCallback runs the /train flow from the "Start reviewing"
@@ -394,7 +352,6 @@ func helpCommandsText(hasStudy, hasTopics, hasGame bool) string {
 	var b strings.Builder
 	b.WriteString("🧭 Commands\n\n")
 	b.WriteString("/train — next due review, scheduled by FSRS\n")
-	b.WriteString("/practice — endless practice that does NOT touch your schedule\n")
 	if hasStudy {
 		b.WriteString("/study — teaching cards for new items (✅ Got it / 🧠 I know this / 🎯 Test me); /introduce fetches more on demand\n")
 	}
@@ -450,8 +407,6 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleTopicCallback(ctx, s, data)
 	case strings.HasPrefix(data, dataAnswerPrefix):
 		return b.handleAnswerCallback(ctx, s, data)
-	case strings.HasPrefix(data, dataPracticePrefix):
-		return b.handlePracticeAnswerCallback(ctx, s, data)
 	case data == "cap:inc":
 		return b.handleCapChange(ctx, s, 1)
 	case data == "cap:dec":
@@ -480,8 +435,6 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleFollowUpDelayCycle(ctx, s)
 	case data == "style:cycle":
 		return b.handleStyleCycle(ctx, s)
-	case data == dataStopPractice:
-		return b.handleStopPractice(ctx, s)
 	case data == dataStartTrain:
 		return b.handleStartTrainCallback(ctx, s)
 	case strings.HasPrefix(data, "help:"):
@@ -530,23 +483,6 @@ func (b *Bot) handleStyleCycle(ctx context.Context, s Session) error {
 }
 
 // ── shared rendering helpers ─────────────────────────────────────────────
-
-// formatPracticeSummary is the quick tally shown when a /practice session is
-// stopped.
-func formatPracticeSummary(total, correct int) string {
-	if total == 0 {
-		return "⏹ Practice stopped — no answers this session.\n\nSend /practice to start again."
-	}
-	pct := float64(correct) / float64(total) * 100
-	return fmt.Sprintf("⏹ Practice complete\n\nAnswered: %d\nCorrect: %d (%.0f%%)\n\nSend /practice to go again.", total, correct, pct)
-}
-
-// startOfLocalDay returns midnight in the user's timezone for the day of now.
-func startOfLocalDay(user storage.User, now time.Time) time.Time {
-	loc := locationFor(user)
-	y, m, d := now.In(loc).Date()
-	return time.Date(y, m, d, 0, 0, 0, 0, loc)
-}
 
 // loadOrCreateUser fetches the caller's user row, registering them on the
 // fly if /start was never sent (defensive; commands should still work).

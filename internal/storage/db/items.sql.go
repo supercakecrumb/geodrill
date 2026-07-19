@@ -80,55 +80,6 @@ func (q *Queries) ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID)
 	return items, nil
 }
 
-const listActiveItemsForPractice = `-- name: ListActiveItemsForPractice :many
-SELECT i.id, i.topic_id, i.key, i.label, i.tier, i.payload, i.country_id, i.position, i.active, i.created_at FROM items i
-JOIN item_tiers it ON it.item_id = i.id
-WHERE i.active = true
-  AND i.topic_id = ANY($1::uuid[])
-  AND it.tier = ANY($2::smallint[])
-ORDER BY i.topic_id, i.position
-`
-
-type ListActiveItemsForPracticeParams struct {
-	Column1 []uuid.UUID
-	Column2 []int16
-}
-
-// internal/study.Service.NextPractice: active items across a set of
-// topics (the caller's enabled+quizzable topics), restricted to a set of
-// tiers (the caller's currently-unlocked tiers) — the /practice candidate
-// pool, tier-gated like every other item-based read.
-func (q *Queries) ListActiveItemsForPractice(ctx context.Context, arg ListActiveItemsForPracticeParams) ([]Item, error) {
-	rows, err := q.db.Query(ctx, listActiveItemsForPractice, arg.Column1, arg.Column2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Item{}
-	for rows.Next() {
-		var i Item
-		if err := rows.Scan(
-			&i.ID,
-			&i.TopicID,
-			&i.Key,
-			&i.Label,
-			&i.Tier,
-			&i.Payload,
-			&i.CountryID,
-			&i.Position,
-			&i.Active,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listAllItemKeyLabels = `-- name: ListAllItemKeyLabels :many
 SELECT key, label FROM items
 `

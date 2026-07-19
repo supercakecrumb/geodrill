@@ -96,11 +96,6 @@ type Querier interface {
 	// (architecture §2.5).
 	InsertReview(ctx context.Context, arg InsertReviewParams) error
 	ListActiveItemsByTopic(ctx context.Context, topicID uuid.UUID) ([]Item, error)
-	// internal/study.Service.NextPractice: active items across a set of
-	// topics (the caller's enabled+quizzable topics), restricted to a set of
-	// tiers (the caller's currently-unlocked tiers) — the /practice candidate
-	// pool, tier-gated like every other item-based read.
-	ListActiveItemsForPractice(ctx context.Context, arg ListActiveItemsForPracticeParams) ([]Item, error)
 	// Global key->label lookup for confusion display. Best-effort: item keys
 	// are only unique WITHIN a topic (items' UNIQUE (topic_id, key) constraint),
 	// so a key shared by two topics resolves to whichever row this query
@@ -159,8 +154,6 @@ type Querier interface {
 	// seq for the next introduction row of this user+item (1 = first exposure,
 	// >1 = re-view, architecture §2.4).
 	NextIntroSeq(ctx context.Context, arg NextIntroSeqParams) (int32, error)
-	// Totals for a /practice session: practice-flagged answers since a start time.
-	PracticeStatsSince(ctx context.Context, arg PracticeStatsSinceParams) (PracticeStatsSinceRow, error)
 	// Upsert keyed on local_path (the stable identity of a media asset on disk).
 	PutMediaFile(ctx context.Context, arg PutMediaFileParams) (MediaFile, error)
 	// Upsert the lifecycle + FSRS card state for one user+item (engram.Lifecycle

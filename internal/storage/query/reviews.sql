@@ -25,13 +25,6 @@ ORDER BY reviewed_at;
 SELECT count(*) FROM reviews
 WHERE user_id = $1 AND reviewed_at >= $2;
 
--- name: PracticeStatsSince :one
--- Totals for a /practice session: practice-flagged answers since a start time.
-SELECT count(*) AS total,
-       count(*) FILTER (WHERE correct) AS correct
-FROM reviews
-WHERE user_id = $1 AND practice = true AND reviewed_at >= $2;
-
 -- name: ListAttemptsSince :many
 -- internal/study.Service.Stats: answer records for quiz.Confusion,
 -- restricted to item-based attempts (item_id IS NOT NULL, so chosen/correct_answer

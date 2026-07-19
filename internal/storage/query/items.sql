@@ -33,18 +33,6 @@ ORDER BY i.position, i.key;
 -- name: GetItemEffectiveTier :one
 SELECT tier FROM item_tiers WHERE item_id = $1;
 
--- name: ListActiveItemsForPractice :many
--- internal/study.Service.NextPractice: active items across a set of
--- topics (the caller's enabled+quizzable topics), restricted to a set of
--- tiers (the caller's currently-unlocked tiers) — the /practice candidate
--- pool, tier-gated like every other item-based read.
-SELECT i.* FROM items i
-JOIN item_tiers it ON it.item_id = i.id
-WHERE i.active = true
-  AND i.topic_id = ANY($1::uuid[])
-  AND it.tier = ANY($2::smallint[])
-ORDER BY i.topic_id, i.position;
-
 -- name: ListAllItemKeyLabels :many
 -- Global key->label lookup for confusion display. Best-effort: item keys
 -- are only unique WITHIN a topic (items' UNIQUE (topic_id, key) constraint),

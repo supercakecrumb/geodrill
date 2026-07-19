@@ -244,16 +244,6 @@ func (s *Store) CountReviewsSince(ctx context.Context, userID uuid.UUID, since t
 	return int(n), err
 }
 
-// PracticeStatsSince returns the number of practice-flagged answers (total and
-// correct) for a user since a start time — the tally for one /practice session.
-func (s *Store) PracticeStatsSince(ctx context.Context, userID uuid.UUID, since time.Time) (total, correct int, err error) {
-	row, err := s.q.PracticeStatsSince(ctx, db.PracticeStatsSinceParams{UserID: userID, ReviewedAt: timeTs(since)})
-	if err != nil {
-		return 0, 0, err
-	}
-	return int(row.Total), int(row.Correct), nil
-}
-
 // TopicStat is aggregate accuracy for one topic over a window.
 type TopicStat struct {
 	TopicID uuid.UUID

@@ -239,31 +239,6 @@ func (q *Queries) ListReviewsSince(ctx context.Context, arg ListReviewsSincePara
 	return items, nil
 }
 
-const practiceStatsSince = `-- name: PracticeStatsSince :one
-SELECT count(*) AS total,
-       count(*) FILTER (WHERE correct) AS correct
-FROM reviews
-WHERE user_id = $1 AND practice = true AND reviewed_at >= $2
-`
-
-type PracticeStatsSinceParams struct {
-	UserID     uuid.UUID
-	ReviewedAt pgtype.Timestamptz
-}
-
-type PracticeStatsSinceRow struct {
-	Total   int64
-	Correct int64
-}
-
-// Totals for a /practice session: practice-flagged answers since a start time.
-func (q *Queries) PracticeStatsSince(ctx context.Context, arg PracticeStatsSinceParams) (PracticeStatsSinceRow, error) {
-	row := q.db.QueryRow(ctx, practiceStatsSince, arg.UserID, arg.ReviewedAt)
-	var i PracticeStatsSinceRow
-	err := row.Scan(&i.Total, &i.Correct)
-	return i, err
-}
-
 const reviewStatsByTopic = `-- name: ReviewStatsByTopic :many
 SELECT t.id AS topic_id, t.name,
        count(*) AS total,

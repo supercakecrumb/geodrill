@@ -1,4 +1,4 @@
-// Command bot runs geodrill's Telegram bot: /start /train /practice /decks
+// Command bot runs geodrill's Telegram bot: /start /train /decks
 // /stats plus the daily-reminder loop (architecture contract §5, §7).
 package main
 

@@ -13,12 +13,9 @@ import (
 )
 
 // stubTrainer implements Trainer with canned results. next backs
-// NextExercise; practice backs NextPractice — kept separate since a test
-// exercising /practice's "next" step must not accidentally observe /train's
-// canned result (or vice versa).
+// NextExercise.
 type stubTrainer struct {
 	next     Prompt
-	practice Prompt
 	answer   AnswerResult
 	stats    Stats
 	statsErr error
@@ -39,10 +36,6 @@ type stubTrainer struct {
 
 func (s *stubTrainer) NextExercise(ctx context.Context, userID uuid.UUID) (Prompt, error) {
 	return s.next, nil
-}
-
-func (s *stubTrainer) NextPractice(ctx context.Context, userID uuid.UUID) (Prompt, error) {
-	return s.practice, nil
 }
 
 func (s *stubTrainer) Answer(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResult, error) {
@@ -97,40 +90,6 @@ func TestParseAnswerCallback_Invalid(t *testing.T) {
 	}
 }
 
-// ── prac: callback parsing ────────────────────────────────────────────────
-
-func TestPracticeCallbackData_RoundTrip(t *testing.T) {
-	id := uuid.New()
-	data := practiceCallbackData(id, 2)
-	gotID, gotIdx, ok := parsePracticeCallback(data)
-	if !ok || gotID != id || gotIdx != 2 {
-		t.Fatalf("round-trip failed: got (%v,%v,%v), want (%v,2,true)", gotID, gotIdx, ok, id)
-	}
-	if len(data) > 64 {
-		t.Fatalf("prac callback data exceeds Telegram's 64-byte budget: %d bytes", len(data))
-	}
-	// ans: and prac: must never parse as each other's shape.
-	if _, _, ok := parseAnswerCallback(data); ok {
-		t.Fatalf("a prac: payload must not parse as a ans: callback")
-	}
-}
-
-func TestParsePracticeCallback_Invalid(t *testing.T) {
-	cases := []string{
-		"",
-		"noop",
-		"ans:" + uuid.New().String() + ":0", // the /train prefix, not /practice
-		"prac:" + uuid.New().String(),       // missing index
-		"prac:not-a-uuid:0",
-		"prac:" + uuid.New().String() + ":-1",
-	}
-	for _, data := range cases {
-		if _, _, ok := parsePracticeCallback(data); ok {
-			t.Fatalf("parsePracticeCallback(%q) unexpectedly succeeded", data)
-		}
-	}
-}
-
 // ── /train uses the wired trainer ──────────────────────────────────────────────────
 
 func TestHandleTrain_UsesTrainerWhenWired(t *testing.T) {
@@ -147,50 +106,6 @@ func TestHandleTrain_UsesTrainerWhenWired(t *testing.T) {
 	}
 	if len(s.keyboards) != 1 || s.keyboards[0].text != "hola" {
 		t.Fatalf("expected the prompt sent, got %+v", s.keyboards)
-	}
-}
-
-// ── /practice uses the wired trainer ───────────────────────────────────────────────
-
-func TestHandlePractice_UsesTrainerWhenWired(t *testing.T) {
-	st := &stubStore{user: newTestUser()}
-	b := newTestBot(st)
-	b.trainer = &stubTrainer{practice: Prompt{
-		Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "hola", Practice: true,
-		Options: []Option{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
-	}}
-
-	s := &fakeSession{userID: 1}
-	if err := b.handlePractice(context.Background(), s); err != nil {
-		t.Fatalf("handlePractice: %v", err)
-	}
-	if len(s.keyboards) != 1 || s.keyboards[0].text != "hola" {
-		t.Fatalf("expected the practice prompt sent, got %+v", s.keyboards)
-	}
-	var sawStop bool
-	for _, row := range s.keyboards[0].rows {
-		for _, btn := range row {
-			if btn.Data == dataStopPractice {
-				sawStop = true
-			}
-			if strings.HasPrefix(btn.Data, dataAnswerPrefix) {
-				t.Fatalf("a practice option must use the prac: prefix, not ans:, got %q", btn.Data)
-			}
-		}
-	}
-	if !sawStop {
-		t.Fatalf("expected a Stop-practice button on a practice prompt; rows=%+v", s.keyboards[0].rows)
-	}
-}
-
-func TestSendPrompt_NoTopics(t *testing.T) {
-	s := &fakeSession{}
-	b := newTestBot(&stubStore{})
-	if err := b.sendPrompt(s, storage.User{}, Prompt{Kind: PromptKindNoTopics}); err != nil {
-		t.Fatalf("sendPrompt: %v", err)
-	}
-	if len(s.sent) != 1 || s.sent[0] != noTopicsText {
-		t.Fatalf("expected noTopicsText sent, got %v", s.sent)
 	}
 }
 
@@ -274,28 +189,6 @@ func TestSendExercise_AutocompleteAddsInlineQueryButton(t *testing.T) {
 	}
 }
 
-func TestSendExercise_AutocompletePracticeOrdersButtonsCorrectly(t *testing.T) {
-	s := &fakeSession{}
-	b := newTestBot(&stubStore{})
-	p := Prompt{
-		Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "France", Mode: quiz.ModeText,
-		Autocomplete: true, Practice: true,
-	}
-	if err := b.sendExercise(s, p); err != nil {
-		t.Fatalf("sendExercise: %v", err)
-	}
-	rows := s.keyboards[0].rows
-	if len(rows) != 2 {
-		t.Fatalf("expected an autocomplete row plus a trailing stop-practice row, got %+v", rows)
-	}
-	if !rows[0][0].InlineQueryChat {
-		t.Fatalf("expected the autocomplete button first, got %+v", rows[0])
-	}
-	if rows[1][0].Data != dataStopPractice {
-		t.Fatalf("expected the stop-practice button second, got %+v", rows[1])
-	}
-}
-
 func TestSendExercise_ModeSingleHasButtons(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
@@ -312,26 +205,6 @@ func TestSendExercise_ModeSingleHasButtons(t *testing.T) {
 	}
 	if s.keyboards[0].rows[0][0].Data != answerCallbackData(exID, 0) {
 		t.Fatalf("expected the option's index-based callback data, got %q", s.keyboards[0].rows[0][0].Data)
-	}
-}
-
-func TestSendExercise_PracticeUsesPracPrefixAndStopButton(t *testing.T) {
-	s := &fakeSession{}
-	b := newTestBot(&stubStore{})
-	exID := uuid.New()
-	p := Prompt{
-		Kind: PromptKindExercise, ExerciseID: exID, Text: "hola", Mode: quiz.ModeSingle, Practice: true,
-		Options: []Option{{Index: 0, Label: "🇪🇸 Spanish"}, {Index: 1, Label: "🇵🇹 Portuguese"}},
-	}
-	if err := b.sendExercise(s, p); err != nil {
-		t.Fatalf("sendExercise: %v", err)
-	}
-	rows := s.keyboards[0].rows
-	if rows[0][0].Data != practiceCallbackData(exID, 0) {
-		t.Fatalf("expected the prac: callback data for a practice option, got %q", rows[0][0].Data)
-	}
-	if len(rows) != 2 || len(rows[1]) != 1 || rows[1][0].Data != dataStopPractice {
-		t.Fatalf("expected a trailing Stop-practice row, got %+v", rows)
 	}
 }
 
@@ -420,67 +293,6 @@ func TestHandleAnswerCallback_PhotoUsesEditCaption(t *testing.T) {
 func TestHandleAnswerCallback_NilTrainerIsInert(t *testing.T) {
 	b := newTestBot(&stubStore{user: newTestUser()})
 	s := &fakeSession{userID: 1, data: answerCallbackData(uuid.New(), 0)}
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-	if len(s.responses) != 1 || s.responses[0] != "" {
-		t.Fatalf("expected a single inert ack, got %v", s.responses)
-	}
-}
-
-// ── prac: callback handling ───────────────────────────────────────────────
-
-func TestHandlePracticeAnswerCallback_GradesAndAdvancesViaPractice(t *testing.T) {
-	st := &stubStore{user: newTestUser()}
-	b := newTestBot(st)
-	exID := uuid.New()
-	stub := &stubTrainer{
-		answer:   AnswerResult{Correct: true, Text: "hola", HasMessage: true, MessageID: 99},
-		practice: Prompt{Kind: PromptKindNothingDue},
-		next:     Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "SHOULD NOT BE SENT"},
-	}
-	b.trainer = stub
-
-	s := &fakeSession{userID: 1, messageID: 42, data: practiceCallbackData(exID, 1)}
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-	if stub.answerCall.exerciseID != exID || stub.answerCall.index != 1 {
-		t.Fatalf("unexpected Answer call: %+v", stub.answerCall)
-	}
-	if len(s.editedMsgs) != 1 || s.editedMsgs[0].messageID != 99 {
-		t.Fatalf("expected the edit on message 99 (HasMessage), got %+v", s.editedMsgs)
-	}
-	if len(s.responses) != 1 || s.responses[0] != correctToast {
-		t.Fatalf("expected the correct toast, got %v", s.responses)
-	}
-	// Must advance via NextPractice (KindNothingDue -> allCaughtUpText),
-	// never via NextExercise's canned "next" result.
-	if len(s.sent) != 1 || s.sent[0] != allCaughtUpText {
-		t.Fatalf("expected the practice-loop advance, got sent=%v", s.sent)
-	}
-}
-
-func TestHandlePracticeAnswerCallback_Stale(t *testing.T) {
-	st := &stubStore{user: newTestUser()}
-	b := newTestBot(st)
-	b.trainer = &stubTrainer{answer: AnswerResult{Stale: true}}
-
-	s := &fakeSession{userID: 1, data: practiceCallbackData(uuid.New(), 0)}
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback: %v", err)
-	}
-	if len(s.responses) != 1 || s.responses[0] != staleToast {
-		t.Fatalf("expected the stale toast, got %v", s.responses)
-	}
-	if len(s.editedMsgs) != 0 {
-		t.Fatalf("a stale answer must not edit the message, got %d edits", len(s.editedMsgs))
-	}
-}
-
-func TestHandlePracticeAnswerCallback_NilTrainerIsInert(t *testing.T) {
-	b := newTestBot(&stubStore{user: newTestUser()})
-	s := &fakeSession{userID: 1, data: practiceCallbackData(uuid.New(), 0)}
 	if err := b.handleCallback(context.Background(), s); err != nil {
 		t.Fatalf("handleCallback: %v", err)
 	}
@@ -599,27 +411,5 @@ func TestHandleText_SuggestionArrival_UsesExistingFreeTextGradingPath(t *testing
 	}
 	if s.sent[0] != correctToast {
 		t.Fatalf("expected the correct toast as a plain message, got %q", s.sent[0])
-	}
-}
-
-func TestHandleText_PracticeAdvancesViaNextPractice(t *testing.T) {
-	st := &stubStore{user: newTestUser()}
-	b := newTestBot(st)
-	stub := &stubTrainer{
-		textOK:   true,
-		answer:   AnswerResult{Correct: true, Text: "ulica", Practice: true},
-		next:     Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "SHOULD NOT BE SENT"},
-		practice: Prompt{Kind: PromptKindNothingDue},
-	}
-	b.trainer = stub
-
-	s := &fakeSession{userID: 1, msgText: "street"}
-	if err := b.handleText(context.Background(), s); err != nil {
-		t.Fatalf("handleText: %v", err)
-	}
-	// A practice-flagged AnswerResult must advance via NextPractice
-	// (KindNothingDue -> allCaughtUpText), never NextExercise's "next".
-	if len(s.sent) != 2 || s.sent[1] != allCaughtUpText {
-		t.Fatalf("expected the toast plus the practice-loop advance, got %v", s.sent)
 	}
 }

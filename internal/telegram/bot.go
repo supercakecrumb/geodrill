@@ -55,7 +55,7 @@ type reminderState struct {
 // Config configures a Bot. StudyService, TopicService, and IntroCapStore
 // are OPTIONAL and nil-safe: every feature they gate degrades to a
 // "🚧 coming soon" reply until wired. Trainer is REQUIRED
-// (deliverable 5's cutover): /train, /practice, /stats, and the
+// (deliverable 5's cutover): /train, /stats, and the
 // reminder loop's due-review count all call it unconditionally now — the
 // legacy trainer fallback they used to have is gone, and the free-text
 // OnText handler is only registered when it's non-nil.
@@ -71,7 +71,7 @@ type Config struct {
 	// TopicService powers the /topics tree browser (architecture §5.2).
 	TopicService TopicService
 	// Trainer powers the mode-aware exercise path (architecture §1.6):
-	// /train, /practice, /stats, and the reminder loop's due count all
+	// /train, /stats, and the reminder loop's due count all
 	// require it now (see this type's doc comment); its presence also
 	// decides whether the free-text OnText handler is registered at all.
 	Trainer Trainer
@@ -101,7 +101,7 @@ type Bot struct {
 	// call site checks it before use (see topics_ui.go).
 	topics TopicService
 	// trainer is required (Config.Trainer, see this package's Config
-	// doc comment) — /train, /practice, /stats, and the reminder loop's
+	// doc comment) — /train, /stats, and the reminder loop's
 	// due count call it unconditionally (train.go); only OnText's
 	// registration still checks it for nil (bot.go's New).
 	trainer  Trainer
@@ -117,32 +117,8 @@ type Bot struct {
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
 
-	practiceMu    sync.Mutex
-	practiceStart map[int64]time.Time // telegram user id -> current /practice session start
-
 	gameMu   sync.Mutex
 	gameRuns map[int64]*gameRun // telegram user id -> current /game run state (design doc "Persistence": run state is in-memory per chat)
-}
-
-// markPracticeStart records (or resets) the start of a user's /practice
-// session, so the Stop control can summarize just that run.
-func (b *Bot) markPracticeStart(telegramID int64, t time.Time) {
-	b.practiceMu.Lock()
-	defer b.practiceMu.Unlock()
-	if b.practiceStart == nil {
-		b.practiceStart = make(map[int64]time.Time)
-	}
-	b.practiceStart[telegramID] = t
-}
-
-// takePracticeStart returns and clears a user's /practice session start. ok is
-// false if none is recorded (e.g. after a bot restart mid-session).
-func (b *Bot) takePracticeStart(telegramID int64) (time.Time, bool) {
-	b.practiceMu.Lock()
-	defer b.practiceMu.Unlock()
-	t, ok := b.practiceStart[telegramID]
-	delete(b.practiceStart, telegramID)
-	return t, ok
 }
 
 // New builds a Bot: constructs the underlying telebot.Bot with a 10s
@@ -167,24 +143,22 @@ func New(cfg Config) (*Bot, error) {
 	}
 
 	b := &Bot{
-		tb:            tb,
-		store:         cfg.Store,
-		logger:        logger,
-		now:           now,
-		study:         cfg.StudyService,
-		topics:        cfg.TopicService,
-		trainer:       cfg.Trainer,
-		introCap:      cfg.IntroCapStore,
-		game:          cfg.Game,
-		suggest:       cfg.Suggest,
-		remindState:   make(map[uuid.UUID]reminderState),
-		practiceStart: make(map[int64]time.Time),
-		gameRuns:      make(map[int64]*gameRun),
+		tb:          tb,
+		store:       cfg.Store,
+		logger:      logger,
+		now:         now,
+		study:       cfg.StudyService,
+		topics:      cfg.TopicService,
+		trainer:     cfg.Trainer,
+		introCap:    cfg.IntroCapStore,
+		game:        cfg.Game,
+		suggest:     cfg.Suggest,
+		remindState: make(map[uuid.UUID]reminderState),
+		gameRuns:    make(map[int64]*gameRun),
 	}
 
 	tb.Handle("/start", b.wrap(b.handleStart))
 	tb.Handle("/train", b.wrap(b.handleTrain))
-	tb.Handle("/practice", b.wrap(b.handlePractice))
 	tb.Handle("/decks", b.wrap(b.handleDecks))
 	tb.Handle("/settings", b.wrap(b.handleSettings))
 	tb.Handle("/stats", b.wrap(b.handleStats))
@@ -226,7 +200,6 @@ func New(cfg Config) (*Bot, error) {
 // botCommands is the "/" autocomplete menu shown in Telegram clients.
 var botCommands = []telebot.Command{
 	{Text: "train", Description: "Next due exercise"},
-	{Text: "practice", Description: "Endless practice (no scheduling)"},
 	{Text: "study", Description: "Introduce new items"},
 	{Text: "topics", Description: "Browse topics, tiers & progress"},
 	{Text: "decks", Description: "Now points to /topics"},

@@ -126,8 +126,8 @@ func (s *Service) Children(ctx context.Context, userID, topicID uuid.UUID) (tele
 
 // SetTopicEnabled implements telegram.TopicService: the /topics counterpart
 // of the retired /decks' per-deck toggle (architecture: only a quizzable
-// topic's flag has any gating effect — see disabledTopicSet/
-// enabledQuizzableTopicIDs — toggling a container is accepted but inert).
+// topic's flag has any gating effect — see disabledTopicSet —
+// toggling a container is accepted but inert).
 func (s *Service) SetTopicEnabled(ctx context.Context, userID, topicID uuid.UUID, enabled bool) error {
 	return s.store.SetUserTopicEnabled(ctx, userID, topicID, enabled)
 }

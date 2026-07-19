@@ -586,85 +586,6 @@ func TestFullLoop(t *testing.T) {
 		t.Fatalf("expected ok=false once the open ModeText exercise has been answered")
 	}
 
-	// ── NextPractice / Answer (practice=true): counts in stats but
-	// applies ZERO FSRS movement (architecture: /practice's contract) ────
-	practiceUser, err := store.UpsertUser(ctx, 900010, "practice-tester")
-	if err != nil {
-		t.Fatalf("create practice user: %v", err)
-	}
-	practicePrompt, err := svc.NextPractice(ctx, practiceUser.ID)
-	if err != nil {
-		t.Fatalf("NextPractice: %v", err)
-	}
-	if practicePrompt.Kind != telegram.PromptKindExercise || !practicePrompt.Practice {
-		t.Fatalf("expected a practice exercise (a fresh user has every topic enabled by default), got kind=%v practice=%v", practicePrompt.Kind, practicePrompt.Practice)
-	}
-	exPractice, found, err := store.GetExerciseByID(ctx, practicePrompt.ExerciseID)
-	if err != nil || !found {
-		t.Fatalf("GetExerciseByID (practice): found=%v err=%v", found, err)
-	}
-	if !exPractice.Practice {
-		t.Fatalf("expected the persisted exercise row to carry practice=true")
-	}
-	if exPractice.ItemID == uuid.Nil {
-		t.Fatalf("expected the practice exercise to carry an item_id")
-	}
-	practiceItemID := exPractice.ItemID
-	cardBefore, foundBefore, err := store.GetUserItem(ctx, practiceUser.ID, practiceItemID)
-	if err != nil {
-		t.Fatalf("GetUserItem before practice answer: %v", err)
-	}
-
-	practiceCorrectIdx := correctOptionIndex(t, exPractice)
-	practiceRes, err := svc.Answer(ctx, practiceUser.ID, practicePrompt.ExerciseID, practiceCorrectIdx)
-	if err != nil {
-		t.Fatalf("Answer (practice): %v", err)
-	}
-	if !practiceRes.Correct {
-		t.Fatalf("expected the correct-option tap to grade correct, got %+v", practiceRes)
-	}
-	if !practiceRes.Practice {
-		t.Fatalf("expected AnswerResult.Practice=true so the caller advances via NextPractice")
-	}
-
-	cardAfter, foundAfter, err := store.GetUserItem(ctx, practiceUser.ID, practiceItemID)
-	if err != nil {
-		t.Fatalf("GetUserItem after practice answer: %v", err)
-	}
-	if foundAfter != foundBefore {
-		t.Fatalf("practice must not create a user_items row: before found=%v after found=%v", foundBefore, foundAfter)
-	}
-	if foundAfter && cardAfter != cardBefore {
-		t.Fatalf("practice must not modify existing user_items state: before=%+v after=%+v", cardBefore, cardAfter)
-	}
-
-	practiceReviews, err := store.GetReviewsByItem(ctx, practiceItemID)
-	if err != nil {
-		t.Fatalf("GetReviewsByItem (practice): %v", err)
-	}
-	sawPracticeReview := false
-	for _, r := range practiceReviews {
-		if r.Practice && r.Correct {
-			sawPracticeReview = true
-		}
-	}
-	if !sawPracticeReview {
-		t.Fatalf("expected a practice=true, correct review row, got %+v", practiceReviews)
-	}
-	if cnt, err := store.CountReviewsSince(ctx, practiceUser.ID, now.Add(-time.Hour)); err != nil || cnt != 1 {
-		t.Fatalf("CountReviewsSince after practice = %d, want 1 (err=%v)", cnt, err)
-	}
-
-	// A second tap on the same practice exercise must be stale (single-use
-	// guard applies to practice exercises too).
-	stalePractice, err := svc.Answer(ctx, practiceUser.ID, practicePrompt.ExerciseID, practiceCorrectIdx)
-	if err != nil {
-		t.Fatalf("Answer (practice, stale): %v", err)
-	}
-	if !stalePractice.Stale {
-		t.Fatalf("second tap on an already-answered practice exercise should be Stale")
-	}
-
 	// ── TopicService.Root/Children shape ─────────────────────────────────
 	rootRows, err := svc.Root(ctx, user.ID)
 	if err != nil {
@@ -738,7 +659,7 @@ func TestFullLoop(t *testing.T) {
 	}
 
 	// ── TopicService.SetTopicEnabled: the /decks-retired-onto-/topics
-	// toggle, and NextPractice respecting it ───────────────────────────
+	// toggle ─────────────────────────────────────────────────────────────
 	if err := svc.SetTopicEnabled(ctx, user.ID, quizzableChild.TopicID, false); err != nil {
 		t.Fatalf("SetTopicEnabled(false): %v", err)
 	}

@@ -30,27 +30,8 @@ func parseAnswerCallback(data string) (exerciseID uuid.UUID, index int, ok bool)
 	return parseIndexCallback(dataAnswerPrefix, data)
 }
 
-// dataPracticePrefix is the callback prefix for Trainer's /practice
-// answers: "prac:<exercise-uuid>:<index>" — the practice counterpart of
-// ans:. A separate prefix (rather than reusing ans: with an extra flag)
-// lets handleCallback's routing alone decide which "next" step follows
-// grading (sendNextPractice vs sendNextTrain).
-const dataPracticePrefix = "prac:"
-
-// practiceCallbackData builds one practice option button's payload.
-func practiceCallbackData(exerciseID uuid.UUID, index int) string {
-	return dataPracticePrefix + exerciseID.String() + ":" + strconv.Itoa(index)
-}
-
-// parsePracticeCallback parses a payload built by practiceCallbackData.
-// ok is false for anything malformed.
-func parsePracticeCallback(data string) (exerciseID uuid.UUID, index int, ok bool) {
-	return parseIndexCallback(dataPracticePrefix, data)
-}
-
 // parseIndexCallback parses a "<prefix><exercise-uuid>:<index>" payload —
-// the shared shape behind both parseAnswerCallback and
-// parsePracticeCallback. ok is false for anything malformed.
+// the shape behind parseAnswerCallback. ok is false for anything malformed.
 func parseIndexCallback(prefix, data string) (exerciseID uuid.UUID, index int, ok bool) {
 	rest, hasPrefix := strings.CutPrefix(data, prefix)
 	if !hasPrefix {
@@ -85,17 +66,6 @@ func (b *Bot) sendNextTrain(ctx context.Context, s Session, user storage.User) e
 	return b.sendPrompt(s, user, p)
 }
 
-// sendNextPractice sends the next practice exercise for user via
-// Trainer's practice pool (across enabled+tier-unlocked topics) — the
-// legacy unscheduled-practice fallback is gone.
-func (b *Bot) sendNextPractice(ctx context.Context, s Session, user storage.User) error {
-	p, err := b.trainer.NextPractice(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-	return b.sendPrompt(s, user, p)
-}
-
 // sendPrompt renders a Prompt result, mirroring sendNextResult's
 // Kind switch for the exercise path.
 func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
@@ -110,8 +80,6 @@ func (b *Bot) sendPrompt(s Session, user storage.User, p Prompt) error {
 		return s.Send(allCaughtUpText)
 	case PromptKindNoContent:
 		return s.Send(noContentText)
-	case PromptKindNoTopics:
-		return s.Send(noTopicsText)
 	default:
 		return s.Send(fallbackText)
 	}
@@ -127,8 +95,7 @@ const autocompleteButtonLabel = "⌨️ Type your answer"
 // sendExercise sends one ready Prompt: a photo-from-birth or text
 // message, with option buttons for ModeSingle/ModeSet or a bare "type your
 // answer" prompt (no buttons, unless Autocomplete adds its own prefill
-// button) for ModeText. A practice exercise (p.Practice) gets a trailing
-// "⏹ Stop practice" control, same as the legacy /practice prompt.
+// button) for ModeText.
 func (b *Bot) sendExercise(s Session, p Prompt) error {
 	text := p.Text
 	var rows [][]Btn
@@ -138,10 +105,7 @@ func (b *Bot) sendExercise(s Session, p Prompt) error {
 			rows = append(rows, []Btn{{Label: autocompleteButtonLabel, InlineQueryChat: true}})
 		}
 	} else {
-		rows = optionRows(p.ExerciseID, p.Options, p.Practice)
-	}
-	if p.Practice {
-		rows = append(rows, []Btn{{Label: "⏹ Stop practice", Data: dataStopPractice}})
+		rows = optionRows(p.ExerciseID, p.Options)
 	}
 	if p.MediaPath != "" {
 		// SendPhoto is ModeHTML (see its Session doc comment) — escape like
@@ -155,30 +119,24 @@ func (b *Bot) sendExercise(s Session, p Prompt) error {
 
 // optionRows lays out a Prompt's options two per row (a trailing odd
 // option sits alone on the last row), mirroring buttonRows' layout for the
-// legacy exercise path. practice selects which callback prefix each
-// option's Data carries (prac: vs ans:), so handleCallback's routing alone
-// decides whether grading advances via sendNextPractice or sendNextTrain.
-func optionRows(exerciseID uuid.UUID, options []Option, practice bool) [][]Btn {
+// legacy exercise path.
+func optionRows(exerciseID uuid.UUID, options []Option) [][]Btn {
 	if len(options) == 0 {
 		return nil
 	}
-	callbackData := answerCallbackData
-	if practice {
-		callbackData = practiceCallbackData
-	}
 	rows := make([][]Btn, 0, (len(options)+1)/2)
 	for i := 0; i < len(options); i += 2 {
-		row := []Btn{{Label: options[i].Label, Data: callbackData(exerciseID, options[i].Index)}}
+		row := []Btn{{Label: options[i].Label, Data: answerCallbackData(exerciseID, options[i].Index)}}
 		if i+1 < len(options) {
 			next := options[i+1]
-			row = append(row, Btn{Label: next.Label, Data: callbackData(exerciseID, next.Index)})
+			row = append(row, Btn{Label: next.Label, Data: answerCallbackData(exerciseID, next.Index)})
 		}
 		rows = append(rows, row)
 	}
 	return rows
 }
 
-// ── ans: / prac: callbacks (button answer) ───────────────────────────────
+// ── ans: callbacks (button answer) ───────────────────────────────────────
 
 // handleAnswerCallback grades one ans: tap (a /train exercise) via
 // Trainer.Answer, edits the exercise in place, toasts the result, and
@@ -191,31 +149,13 @@ func (b *Bot) handleAnswerCallback(ctx context.Context, s Session, data string) 
 	if !ok {
 		return s.Respond("")
 	}
-	return b.answerAndAdvance(ctx, s, exerciseID, index, (*Bot).sendNextTrain)
+	return b.answerAndAdvance(ctx, s, exerciseID, index)
 }
 
-// handlePracticeAnswerCallback grades one prac: tap (a /practice exercise)
-// through the SAME Answer grading path as ans: — the exercise row already
-// carries practice=true (set at NextPractice time), so Answer's
-// underlying finishAnswer already knows to skip FSRS movement without this
-// callback saying so again — then sends the next practice exercise instead
-// of the next due one.
-func (b *Bot) handlePracticeAnswerCallback(ctx context.Context, s Session, data string) error {
-	if b.trainer == nil {
-		return s.Respond("")
-	}
-	exerciseID, index, ok := parsePracticeCallback(data)
-	if !ok {
-		return s.Respond("")
-	}
-	return b.answerAndAdvance(ctx, s, exerciseID, index, (*Bot).sendNextPractice)
-}
-
-// answerAndAdvance is the shared grading flow behind both ans: and prac:
-// taps: grade via Answer, edit the exercise message/caption in place,
-// toast the result, then advance via next (sendNextTrain or
-// sendNextPractice, picked by the caller per the tapped prefix).
-func (b *Bot) answerAndAdvance(ctx context.Context, s Session, exerciseID uuid.UUID, index int, next func(*Bot, context.Context, Session, storage.User) error) error {
+// answerAndAdvance is the shared grading flow behind an ans: tap: grade via
+// Answer, edit the exercise message/caption in place, toast the result,
+// then send the next due exercise.
+func (b *Bot) answerAndAdvance(ctx context.Context, s Session, exerciseID uuid.UUID, index int) error {
 	user, err := b.loadOrCreateUser(ctx, s)
 	if err != nil {
 		return err
@@ -232,7 +172,7 @@ func (b *Bot) answerAndAdvance(ctx context.Context, s Session, exerciseID uuid.U
 	if err := s.Respond(answerToast(res.Correct)); err != nil {
 		return err
 	}
-	return next(b, ctx, s, user)
+	return b.sendNextTrain(ctx, s, user)
 }
 
 // ── free-typed answers (telebot.OnText) ─────────────────────────────────
@@ -271,12 +211,6 @@ func (b *Bot) handleText(ctx context.Context, s Session) error {
 	b.applyAnswerEdit(s, res)
 	if err := s.Send(answerToast(res.Correct)); err != nil {
 		return err
-	}
-	// A free-typed reply carries no callback prefix to tell a practice
-	// answer from a scheduled one, unlike ans:/prac: — res.Practice (echoed
-	// from the graded exercise's own practice flag) is what decides here.
-	if res.Practice {
-		return b.sendNextPractice(ctx, s, user)
 	}
 	return b.sendNextTrain(ctx, s, user)
 }

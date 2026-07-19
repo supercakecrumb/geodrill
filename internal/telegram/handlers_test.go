@@ -128,10 +128,6 @@ var errEditMessage = errors.New("message can't be edited")
 type stubStore struct {
 	user storage.User
 
-	practiceTotal   int
-	practiceCorrect int
-	practiceSince   time.Time // records the arg passed to PracticeStatsSince
-
 	remindUsers  []storage.User // returned by UsersWithReminders
 	reviewsSince int            // returned by CountReviewsSince
 }
@@ -186,78 +182,12 @@ func (s *stubStore) CountReviewsSince(ctx context.Context, userID uuid.UUID, sin
 	return s.reviewsSince, nil
 }
 
-func (s *stubStore) PracticeStatsSince(ctx context.Context, userID uuid.UUID, since time.Time) (int, int, error) {
-	s.practiceSince = since
-	return s.practiceTotal, s.practiceCorrect, nil
-}
-
 func newTestBot(st *stubStore) *Bot {
 	return &Bot{
 		store:       st,
 		logger:      slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError + 100})),
 		now:         time.Now,
 		remindState: make(map[uuid.UUID]reminderState),
-	}
-}
-
-// ── /practice Stop control ───────────────────────────────────────────────
-//
-// The Stop button itself (its rendering) is covered by train_test.go's
-// TestSendExercise_PracticeUsesPracPrefixAndStopButton; the tests below
-// cover handleStopPractice, which is independent of Trainer/legacy trainer
-// (it only reads storage.Store.PracticeStatsSince).
-
-func TestHandleStopPractice(t *testing.T) {
-	st := &stubStore{
-		user:            storage.User{ID: uuid.New(), Timezone: "UTC"},
-		practiceTotal:   8,
-		practiceCorrect: 6,
-	}
-	b := newTestBot(st)
-	// A recorded session start so the summary counts from there.
-	b.markPracticeStart(7, time.Date(2026, 7, 15, 20, 0, 0, 0, time.UTC))
-
-	s := &fakeSession{userID: 7, messageID: 55, data: dataStopPractice}
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback(stop): %v", err)
-	}
-
-	if len(s.editedMsgs) != 1 {
-		t.Fatalf("expected the last message to be edited once, got %d", len(s.editedMsgs))
-	}
-	edit := s.editedMsgs[0]
-	if edit.messageID != 55 {
-		t.Fatalf("expected edit on the Stop message (55), got %d", edit.messageID)
-	}
-	if len(edit.rows) != 0 {
-		t.Fatalf("expected the keyboard removed on stop, got %d rows", len(edit.rows))
-	}
-	for _, want := range []string{"Answered: 8", "Correct: 6 (75%)"} {
-		if !strings.Contains(edit.text, want) {
-			t.Fatalf("expected summary to contain %q; got:\n%s", want, edit.text)
-		}
-	}
-	// No next exercise should be sent when stopping.
-	if len(s.keyboards) != 0 {
-		t.Fatalf("expected no next exercise on stop, got %d keyboards", len(s.keyboards))
-	}
-	// The session start must be consumed (cleared).
-	if _, ok := b.takePracticeStart(7); ok {
-		t.Fatalf("expected the practice session start to be cleared after stop")
-	}
-}
-
-func TestHandleStopPractice_NoAnswers(t *testing.T) {
-	st := &stubStore{user: storage.User{ID: uuid.New(), Timezone: "UTC"}}
-	b := newTestBot(st)
-	b.markPracticeStart(7, time.Now())
-	s := &fakeSession{userID: 7, messageID: 55, data: dataStopPractice}
-
-	if err := b.handleCallback(context.Background(), s); err != nil {
-		t.Fatalf("handleCallback(stop): %v", err)
-	}
-	if len(s.editedMsgs) != 1 || !strings.Contains(s.editedMsgs[0].text, "no answers") {
-		t.Fatalf("expected a no-answers summary; got %+v", s.editedMsgs)
 	}
 }
 
@@ -883,7 +813,7 @@ func TestHandleCallback_HelpCmds_GatedByWiredServices(t *testing.T) {
 		t.Fatalf("handleCallback: %v", err)
 	}
 	text := s.editedMsgs[0].text
-	for _, want := range []string{"/train", "/practice", "/stats", "/settings", "/help"} {
+	for _, want := range []string{"/train", "/stats", "/settings", "/help"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("expected commands section to mention %q; got:\n%s", want, text)
 		}

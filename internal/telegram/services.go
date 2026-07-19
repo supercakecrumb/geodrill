@@ -195,13 +195,8 @@ const (
 	// PromptKindNothingDue: nothing is due now (DueAt may hold the next
 	// due time).
 	PromptKindNothingDue
-	// PromptKindNoContent: due (or, for /practice, tier-unlocked) items
-	// exist but none have content ready.
+	// PromptKindNoContent: due items exist but none have content ready.
 	PromptKindNoContent
-	// PromptKindNoTopics: /practice found no enabled+quizzable topics at
-	// all (nudge the caller to /topics) — the counterpart of the legacy
-	// KindNoDecks.
-	PromptKindNoTopics
 )
 
 // Option is one answer option for a Prompt in ModeSingle/ModeSet. Label
@@ -230,12 +225,6 @@ type Prompt struct {
 	Mode      quiz.Mode // ModeSingle | ModeSet | ModeText
 	Options   []Option  // populated for ModeSingle/ModeSet; empty for ModeText
 	DueAt     time.Time // set when Kind == PromptKindNothingDue and a future due exists
-
-	// Practice is true for a /practice exercise (NextPractice): the
-	// telegram layer adds a Stop control and answers route through the
-	// prac: callback prefix instead of ans:, mirroring the legacy
-	// train.Prompt.Practice flag.
-	Practice bool
 
 	// Autocomplete is true when this ModeText exercise should render the
 	// "⌨️ Type your answer" inline-query prefill button
@@ -299,13 +288,6 @@ type AnswerResult struct {
 
 	MessageID  int64
 	HasMessage bool
-
-	// Practice echoes back the graded exercise's Practice flag (read from
-	// storage.Exercise at answer time) — handleText has no callback
-	// prefix to tell a practice tap from a scheduled one, so it reads this
-	// field to decide whether the "next" step is NextPractice or
-	// NextExercise.
-	Practice bool
 }
 
 // Trainer supplements trainer with the mode-aware exercise path
@@ -314,11 +296,6 @@ type AnswerResult struct {
 // bot.go's New).
 type Trainer interface {
 	NextExercise(ctx context.Context, userID uuid.UUID) (Prompt, error)
-	// NextPractice generates an unscheduled practice exercise (Prompt.
-	// Practice=true) from a random active item across the caller's
-	// enabled+tier-unlocked topics — the counterpart of the legacy
-	// trainer.NextPractice.
-	NextPractice(ctx context.Context, userID uuid.UUID) (Prompt, error)
 	Answer(ctx context.Context, userID, exerciseID uuid.UUID, optionIndex int) (AnswerResult, error)
 	// AnswerText grades a free-typed message against the caller's single
 	// open ModeText exercise (answered_at IS NULL, newest). ok=false means
