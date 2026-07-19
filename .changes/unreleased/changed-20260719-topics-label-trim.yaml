@@ -1,0 +1,2 @@
+kind: Changed
+body: "Topic and tier progress row labels no longer include the word \"introduced\" (now \"12/451 · 3 good\") so the button text stops overflowing/truncating in Telegram."

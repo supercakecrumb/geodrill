@@ -366,9 +366,10 @@ func topicNavButton(view TopicView) Btn {
 // listing-level visibility the retired /decks picker gave for free), name,
 // aggregate progress (when this topic has any items), a 🔒 badge for its
 // lowest locked tier, and a 💡 badge when a TipProvider exists —
-// architecture §5.2's "▸ Languages   tier: 42/50 · introduced 48/50" mock,
-// folded into a single button label (Telegram button text is never
-// markup-parsed, so no escaping is needed here, unlike topicsBodyText).
+// architecture §5.2's "▸ Languages   tier: 42/50 · 48/50" mock (word
+// "introduced" dropped 2026-07-19 — it made rows overflow/truncate in
+// Telegram), folded into a single button label (Telegram button text is
+// never markup-parsed, so no escaping is needed here, unlike topicsBodyText).
 func topicRowLabel(row TopicRow) string {
 	var b strings.Builder
 	if row.Enabled {
@@ -378,7 +379,7 @@ func topicRowLabel(row TopicRow) string {
 	}
 	b.WriteString(row.Name)
 	if row.Total > 0 {
-		fmt.Fprintf(&b, "  %d/%d introduced · %d good", row.Introduced, row.Total, row.GoodShape)
+		fmt.Fprintf(&b, "  %d/%d · %d good", row.Introduced, row.Total, row.GoodShape)
 	}
 	if row.AnyLocked {
 		fmt.Fprintf(&b, " · 🔒 tier %d", row.LockedTier)
@@ -395,5 +396,5 @@ func tierRowLabel(t TierRow) string {
 	if t.Locked {
 		lock = " 🔒"
 	}
-	return fmt.Sprintf("Tier %d: %d/%d introduced · %d good%s", t.Tier, t.Introduced, t.Total, t.GoodShape, lock)
+	return fmt.Sprintf("Tier %d: %d/%d · %d good%s", t.Tier, t.Introduced, t.Total, t.GoodShape, lock)
 }

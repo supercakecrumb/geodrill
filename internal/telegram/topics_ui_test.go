@@ -93,7 +93,7 @@ func TestTopicRowLabel(t *testing.T) {
 		AnyLocked: true, LockedTier: 3, HasTips: true, Enabled: true,
 	}
 	got := topicRowLabel(row)
-	for _, want := range []string{"✅", "Languages", "48/50 introduced", "42 good", "🔒 tier 3", "💡"} {
+	for _, want := range []string{"✅", "Languages", "48/50", "42 good", "🔒 tier 3", "💡"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("topicRowLabel = %q, expected to contain %q", got, want)
 		}
@@ -107,14 +107,14 @@ func TestTopicRowLabel(t *testing.T) {
 
 	// A row with no items yet must not print a bogus 0/0 progress line.
 	empty := topicRowLabel(TopicRow{Name: "Empty"})
-	if strings.Contains(empty, "introduced") {
+	if strings.Contains(empty, "good") {
 		t.Fatalf("expected no progress suffix for a zero-item row, got %q", empty)
 	}
 }
 
 func TestTierRowLabel(t *testing.T) {
 	got := tierRowLabel(TierRow{Tier: 2, Total: 10, Introduced: 6, GoodShape: 4, Locked: true})
-	for _, want := range []string{"Tier 2", "6/10 introduced", "4 good", "🔒"} {
+	for _, want := range []string{"Tier 2", "6/10", "4 good", "🔒"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("tierRowLabel = %q, expected to contain %q", got, want)
 		}
