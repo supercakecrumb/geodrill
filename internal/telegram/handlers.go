@@ -435,27 +435,43 @@ func (b *Bot) handleMenu(ctx context.Context, s Session) error {
 	return err
 }
 
-// menuRows renders the hub's destination buttons. /train, /stats,
-// /settings, and /help are always available (Trainer is required — see
-// Config's doc comment); /study, /topics, and /game are gated on their
-// service being wired, mirroring helpCommandsText's hasStudy/hasTopics/
-// hasGame gating so the hub never advertises a destination that would just
-// reply "🚧 coming soon".
+// menuRowWidth is how many destination buttons the hub packs per row —
+// a grid instead of the old one-per-row stack.
+const menuRowWidth = 2
+
+// menuRows renders the hub's destination buttons, packed menuRowWidth per
+// row (a grid, not a single stacked column). /train, /stats, /settings, and
+// /help are always available (Trainer is required — see Config's doc
+// comment); /study, /topics, and /game are gated on their service being
+// wired, mirroring helpCommandsText's hasStudy/hasTopics/hasGame gating so
+// the hub never advertises a destination that would just reply "🚧 coming
+// soon". Destinations are collected in the same logical order as before and
+// then chunked into rows of menuRowWidth, so an odd count trails a final
+// row with a single button.
 func menuRows(hasStudy, hasTopics, hasGame bool) [][]Btn {
-	rows := make([][]Btn, 0, 7)
+	btns := make([]Btn, 0, 7)
 	if hasStudy {
-		rows = append(rows, []Btn{{Label: "📚 Study", Data: dataMenuStudy}})
+		btns = append(btns, Btn{Label: "📚 Study", Data: dataMenuStudy})
 	}
-	rows = append(rows, []Btn{{Label: "🎯 Train", Data: dataMenuTrain}})
+	btns = append(btns, Btn{Label: "🎯 Train", Data: dataMenuTrain})
 	if hasGame {
-		rows = append(rows, []Btn{{Label: "🎮 Game", Data: dataMenuGame}})
+		btns = append(btns, Btn{Label: "🎮 Game", Data: dataMenuGame})
 	}
 	if hasTopics {
-		rows = append(rows, []Btn{{Label: "🗺 Topics", Data: dataMenuTopics}})
+		btns = append(btns, Btn{Label: "🗺 Topics", Data: dataMenuTopics})
 	}
-	rows = append(rows, []Btn{{Label: "📊 Stats", Data: dataMenuStats}})
-	rows = append(rows, []Btn{{Label: "⚙️ Settings", Data: dataMenuSettings}})
-	rows = append(rows, []Btn{{Label: "❓ Help", Data: dataMenuHelp}})
+	btns = append(btns, Btn{Label: "📊 Stats", Data: dataMenuStats})
+	btns = append(btns, Btn{Label: "⚙️ Settings", Data: dataMenuSettings})
+	btns = append(btns, Btn{Label: "❓ Help", Data: dataMenuHelp})
+
+	rows := make([][]Btn, 0, (len(btns)+menuRowWidth-1)/menuRowWidth)
+	for i := 0; i < len(btns); i += menuRowWidth {
+		end := i + menuRowWidth
+		if end > len(btns) {
+			end = len(btns)
+		}
+		rows = append(rows, btns[i:end])
+	}
 	return rows
 }
 
