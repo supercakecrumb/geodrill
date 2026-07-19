@@ -23,6 +23,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/telegram"
 	"github.com/supercakecrumb/geodrill/internal/topics"
 	"github.com/supercakecrumb/geodrill/internal/topics/capitals"
+	"github.com/supercakecrumb/geodrill/internal/topics/profiles"
 	"github.com/supercakecrumb/geodrill/internal/topics/roadside"
 	"github.com/supercakecrumb/geodrill/internal/topics/specialchars"
 	"github.com/supercakecrumb/geodrill/internal/topics/tld"
@@ -80,6 +81,11 @@ func run() error {
 	// internal/topics/capitals's package doc.
 	topics.Register(capitals.NewCountryToCapital())
 	topics.Register(capitals.NewCapitalToCountry())
+	// Country profiles: single-choice country->language quiz with
+	// same-region distractors — vibe/design-country-profiles.md, narrowed to
+	// one quizzable topic by the P3.3 task brief (main_religion/region are
+	// seeded as facts for future sibling quizzes but have no Generator yet).
+	topics.Register(profiles.New())
 
 	studySvc := study.New(store, sched, study.GlobalRegistry, nil, time.Now().UnixNano())
 
