@@ -1,2 +1,0 @@
-kind: Added
-body: "New TLD (country-code top-level domain) quiz, both directions as two independently-tracked topics under Countries → Domains: \"Which country uses the domain .de?\" (answer a country by typing with autocomplete country suggestions) and \"🇩🇪 Germany — which top-level domain?\" (type the TLD). 248 countries, including the .uk (not .gb) edge case and famous ones like .tv/.io/.me/.ai."

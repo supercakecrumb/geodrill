@@ -1,2 +1,0 @@
-kind: Added
-body: "ModeText exercises whose topic requests autocomplete now show a \"⌨️ Type your answer\" button that opens Telegram inline mode with typo-tolerant country suggestions; tapping one sends it as a normal message, graded by the existing free-text answer path"

@@ -1,2 +1,0 @@
-kind: Added
-body: "Container /topics views now show a \"Turn group off\"/\"Turn group on\" button (last row, left of \"⬆️ Up\"): tapping it enables or disables every quizzable topic in that container's subtree at once, instead of toggling each subtopic by hand"

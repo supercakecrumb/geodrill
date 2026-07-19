@@ -1,2 +1,0 @@
-kind: Changed
-body: "/train's \"nothing due\" screen now shows real progress (reviews done today, how many reviews are still coming up, how many items are left to learn) and, when a next review is scheduled, explains the time in plain terms (\"Your next review unlocks at HH:MM ...\") instead of a bare, unexplained \"Come back at HH:MM\"; when there's truly nothing left at all, it says so plainly instead of printing a stale time"

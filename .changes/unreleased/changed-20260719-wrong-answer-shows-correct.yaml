@@ -1,2 +1,0 @@
-kind: Changed
-body: "A wrong answer now shows the correct answer (e.g. \"✅ Correct answer: Canberra\") instead of only marking the attempt wrong — most useful for typed/autocomplete questions that have no options to reveal it."

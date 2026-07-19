@@ -1,2 +1,0 @@
-kind: Removed
-body: "Removed the legacy /practice command and all its logic (handler, Stop control, prac: callback prefix, NextPractice/PracticeStatsSince/ListActiveItemsForPractice, help and command-menu mentions): it predates the multi-topic FSRS trainer and is superseded by /train; a future endless-practice mode will be designed separately"
