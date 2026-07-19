@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/supercakecrumb/engram/quiz"
 	telebot "gopkg.in/telebot.v4"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/suggest"
 )
 
 // reminderCheckInterval is how often the reminder goroutine wakes up to
@@ -99,6 +101,19 @@ type mediaStore interface {
 	SetMediaTelegramFileID(ctx context.Context, mediaID uuid.UUID, fileID string) error
 }
 
+// openExerciseStore is the narrow store surface handleQuery needs to look up
+// a user's currently open ModeText exercise, so inline-query autocomplete
+// suggestions can be scoped to its answer domain (suggest.Domain) instead of
+// always merging countries and capitals regardless of which direction is
+// open (kanban card "Autocomplete must be scoped to the question's answer
+// domain"). Declared locally the same way mediaStore is, just above, so
+// *storage.Store satisfies it directly with no adapter —
+// GetOpenExerciseByMode (internal/storage/exercises_reviews.go) already has
+// this exact shape.
+type openExerciseStore interface {
+	GetOpenExerciseByMode(ctx context.Context, userID uuid.UUID, mode int16) (storage.Exercise, bool, error)
+}
+
 // Bot wires telebot to geodrill's study/storage layers.
 type Bot struct {
 	tb     *telebot.Bot
@@ -134,6 +149,11 @@ type Bot struct {
 	// suggest is nil until Config.Suggest is wired — handleQuery isn't even
 	// registered in New() until it is, mirroring Trainer's OnText gate.
 	suggest Suggester
+	// exerciseStore looks up a user's open ModeText exercise for
+	// handleQuery's domain scoping (openExerciseStore's doc). Set from
+	// Config.Store, the same *storage.Store already satisfying userStore
+	// and mediaStore above — nil-safe the same way those are.
+	exerciseStore openExerciseStore
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -164,19 +184,20 @@ func New(cfg Config) (*Bot, error) {
 	}
 
 	b := &Bot{
-		tb:          tb,
-		store:       cfg.Store,
-		media:       cfg.Store,
-		logger:      logger,
-		now:         now,
-		study:       cfg.StudyService,
-		topics:      cfg.TopicService,
-		trainer:     cfg.Trainer,
-		introCap:    cfg.IntroCapStore,
-		game:        cfg.Game,
-		suggest:     cfg.Suggest,
-		remindState: make(map[uuid.UUID]reminderState),
-		gameRuns:    make(map[int64]*gameRun),
+		tb:            tb,
+		store:         cfg.Store,
+		media:         cfg.Store,
+		logger:        logger,
+		now:           now,
+		study:         cfg.StudyService,
+		topics:        cfg.TopicService,
+		trainer:       cfg.Trainer,
+		introCap:      cfg.IntroCapStore,
+		game:          cfg.Game,
+		suggest:       cfg.Suggest,
+		exerciseStore: cfg.Store,
+		remindState:   make(map[uuid.UUID]reminderState),
+		gameRuns:      make(map[int64]*gameRun),
 	}
 
 	tb.Handle("/start", b.wrap(b.handleStart))
@@ -698,35 +719,35 @@ const queryCacheTimeSeconds = 1
 // *ArticleResult so buildQueryResults' ranking/label composition is
 // unit-testable without any telebot dependency.
 type QueryResult struct {
-	// Title is the line shown in the suggestion list (flag + label, when
-	// the matched suggestion carries an emoji).
+	// Title is the line shown in the suggestion list — the bare label, with
+	// no flag-emoji prefix (kanban card "Autocomplete must be scoped to the
+	// question's answer domain": the flag was noise and has been dropped).
 	Title string
 	// Text is the exact string sent into the chat when the suggestion is
 	// tapped. The existing free-text grading path (handleText/
 	// Trainer.AnswerText) grades this verbatim against whatever exercise
-	// is open, indistinguishable from a hand-typed answer (spike §2) — so
-	// Text is always the bare label, never Title's flag-decorated form.
+	// is open, indistinguishable from a hand-typed answer (spike §2).
+	// Always equal to Title now that Title carries no decoration either,
+	// but kept as its own field since the two answer different questions
+	// (what's shown vs. what's sent).
 	Text string
 }
 
 // buildQueryResults asks suggester for up to maxQueryResults matches for
-// query and renders them as QueryResults. Pure (no I/O, no telebot
-// dependency), so ranking/label composition is unit-testable without a
-// telebot.Context. A nil suggester yields no results — handleQuery's own
-// registration is already gated on a non-nil Suggester (see New), so this
-// nil check only matters for a direct unit test of this function.
-func buildQueryResults(suggester Suggester, query string) []QueryResult {
+// query, scoped to domain, and renders them as QueryResults. Pure (no I/O,
+// no telebot dependency), so ranking/label composition is unit-testable
+// without a telebot.Context. A nil suggester yields no results —
+// handleQuery's own registration is already gated on a non-nil Suggester
+// (see New), so this nil check only matters for a direct unit test of this
+// function.
+func buildQueryResults(suggester Suggester, query string, domain suggest.Domain) []QueryResult {
 	if suggester == nil {
 		return nil
 	}
-	matches := suggester.Match(query, maxQueryResults)
+	matches := suggester.MatchDomain(query, domain, maxQueryResults)
 	out := make([]QueryResult, len(matches))
 	for i, m := range matches {
-		title := m.Label
-		if m.Emoji != "" {
-			title = m.Emoji + " " + m.Label
-		}
-		out[i] = QueryResult{Title: title, Text: m.Label}
+		out[i] = QueryResult{Title: m.Label, Text: m.Label}
 	}
 	return out
 }
@@ -746,15 +767,43 @@ type queryContext interface {
 	Answer(resp *telebot.QueryResponse) error
 }
 
+// queryDomain resolves which suggest.Domain q's suggestions should be
+// scoped to: the querying user's currently open ModeText exercise's
+// CorrectAnswer, resolved via Suggester.DomainForAnswer's country-first
+// membership. It defaults to suggest.DomainCountry — the same default
+// DomainForAnswer itself falls back to for an unrecognized answer — when
+// there's no Suggester wired, no query sender, no matching internal user,
+// no exerciseStore wired, or no open ModeText exercise at all; none of
+// these are treated as errors (this package's "never block on a missing
+// optional dependency" convention, e.g. mediaStore's doc comment above).
+func (b *Bot) queryDomain(ctx context.Context, q *telebot.Query) suggest.Domain {
+	if b.suggest == nil || q == nil || q.Sender == nil {
+		return suggest.DomainCountry
+	}
+	u, ok, err := b.store.GetUserByTelegramID(ctx, q.Sender.ID)
+	if err != nil || !ok {
+		return suggest.DomainCountry
+	}
+	if b.exerciseStore == nil {
+		return suggest.DomainCountry
+	}
+	ex, found, err := b.exerciseStore.GetOpenExerciseByMode(ctx, u.ID, int16(quiz.ModeText))
+	if err != nil || !found {
+		return suggest.DomainCountry
+	}
+	return b.suggest.DomainForAnswer(ex.CorrectAnswer)
+}
+
 // handleQuery answers an inline query (telebot.OnQuery) with up to
-// maxQueryResults typo-tolerant Suggest matches for the query text,
-// regardless of whether the querying user currently has an exercise open —
-// harmless, and keeps the UX responsive (this package's Config doc). A
-// query can only be answered once (telebot's Bot.Answer doc comment,
-// bot_raw.go) — an Answer error is logged, not returned, and a panic is
-// recovered, mirroring wrap's never-let-anything-escape contract for every
-// other handler (this one bypasses wrap/Session entirely — see
-// queryContext's doc).
+// maxQueryResults typo-tolerant Suggest matches for the query text, scoped
+// to the querying user's currently open ModeText exercise's answer domain
+// (queryDomain) — a "capital of X?" question suggests capitals, every other
+// question suggests countries (kanban card "Autocomplete must be scoped to
+// the question's answer domain"). A query can only be answered once
+// (telebot's Bot.Answer doc comment, bot_raw.go) — an Answer error is
+// logged, not returned, and a panic is recovered, mirroring wrap's
+// never-let-anything-escape contract for every other handler (this one
+// bypasses wrap/Session entirely — see queryContext's doc).
 func (b *Bot) handleQuery(c queryContext) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -762,7 +811,10 @@ func (b *Bot) handleQuery(c queryContext) (err error) {
 		}
 	}()
 
-	results := buildQueryResults(b.suggest, c.Query().Text)
+	ctx := context.Background()
+	domain := b.queryDomain(ctx, c.Query())
+
+	results := buildQueryResults(b.suggest, c.Query().Text, domain)
 	articles := make(telebot.Results, len(results))
 	for i, r := range results {
 		articles[i] = &telebot.ArticleResult{

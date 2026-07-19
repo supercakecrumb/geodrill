@@ -1,0 +1,2 @@
+kind: Changed
+body: "Autocomplete inline suggestions are now scoped to the open question's answer domain — a \"capital of X?\" question suggests capitals, a country-answer question suggests countries — and the flag emoji has been dropped from suggestion rows."

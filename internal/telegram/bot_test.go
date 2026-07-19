@@ -1,11 +1,14 @@
 package telegram
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
+	"github.com/google/uuid"
 	tele "gopkg.in/telebot.v4"
 
+	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/suggest"
 )
 
@@ -61,29 +64,57 @@ func TestBuildMarkup_MixedRowKeepsButtonsIndependent(t *testing.T) {
 // tests can assert on it without a real suggest.Index.
 type fakeSuggester struct {
 	result []suggest.Suggestion
+	// domainForAnswer is what DomainForAnswer returns.
+	domainForAnswer suggest.Domain
 
-	query string
-	limit int
+	query  string
+	domain suggest.Domain
+	limit  int
+
+	domainForAnswerCalledWith string
 }
 
-func (f *fakeSuggester) Match(query string, limit int) []suggest.Suggestion {
+func (f *fakeSuggester) MatchDomain(query string, domain suggest.Domain, limit int) []suggest.Suggestion {
 	f.query = query
+	f.domain = domain
 	f.limit = limit
 	return f.result
 }
 
-func TestBuildQueryResults_RendersFlagPrefixedTitleAndBareText(t *testing.T) {
+func (f *fakeSuggester) DomainForAnswer(correct string) suggest.Domain {
+	f.domainForAnswerCalledWith = correct
+	return f.domainForAnswer
+}
+
+// fakeExerciseStore implements openExerciseStore in memory.
+type fakeExerciseStore struct {
+	exercise storage.Exercise
+	found    bool
+	err      error
+}
+
+func (f *fakeExerciseStore) GetOpenExerciseByMode(ctx context.Context, userID uuid.UUID, mode int16) (storage.Exercise, bool, error) {
+	return f.exercise, f.found, f.err
+}
+
+func TestBuildQueryResults_RendersBareLabelNoEmoji(t *testing.T) {
 	sg := &fakeSuggester{result: []suggest.Suggestion{
 		{Label: "France", Emoji: "🇫🇷", Key: "FR"},
 		{Label: "Chad", Key: "TD"}, // no emoji
 	}}
 
-	got := buildQueryResults(sg, "fra")
+	got := buildQueryResults(sg, "fra", suggest.DomainCountry)
 	if sg.query != "fra" || sg.limit != maxQueryResults {
-		t.Fatalf("expected Match called with (query, maxQueryResults), got (%q, %d)", sg.query, sg.limit)
+		t.Fatalf("expected MatchDomain called with (query, _, maxQueryResults), got (%q, _, %d)", sg.query, sg.limit)
 	}
+	if sg.domain != suggest.DomainCountry {
+		t.Fatalf("expected MatchDomain called with DomainCountry, got %v", sg.domain)
+	}
+	// Title carries no flag-emoji prefix even though the matched
+	// suggestion has one — the flag was dropped as noise (kanban card
+	// "Autocomplete must be scoped to the question's answer domain").
 	want := []QueryResult{
-		{Title: "🇫🇷 France", Text: "France"},
+		{Title: "France", Text: "France"},
 		{Title: "Chad", Text: "Chad"},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -92,7 +123,7 @@ func TestBuildQueryResults_RendersFlagPrefixedTitleAndBareText(t *testing.T) {
 }
 
 func TestBuildQueryResults_NilSuggesterYieldsNoResults(t *testing.T) {
-	if got := buildQueryResults(nil, "anything"); got != nil {
+	if got := buildQueryResults(nil, "anything", suggest.DomainCountry); got != nil {
 		t.Fatalf("expected nil, got %v", got)
 	}
 }
@@ -140,8 +171,8 @@ func TestHandleQuery_AnswersWithSuggestMatches(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected an *ArticleResult, got %T", c.answered.Results[0])
 	}
-	if article.Title != "🇫🇷 France" {
-		t.Fatalf("expected the flag-prefixed title, got %q", article.Title)
+	if article.Title != "France" {
+		t.Fatalf("expected the emoji-free title, got %q", article.Title)
 	}
 	if article.Text != "" {
 		t.Fatalf("expected the legacy ArticleResult.Text shortcut left unset, got %q", article.Text)
@@ -175,5 +206,74 @@ func TestHandleQuery_AnswerErrorIsLoggedNotReturned(t *testing.T) {
 	c := &fakeQueryContext{query: &tele.Query{Text: ""}, answerErr: errEditMessage}
 	if err := b.handleQuery(c); err != nil {
 		t.Fatalf("handleQuery must never return an Answer error, got %v", err)
+	}
+}
+
+// ── domain scoping (kanban "Autocomplete must be scoped to the question's
+// answer domain") ────────────────────────────────────────────────────────
+
+func TestHandleQuery_ScopesToCapitalDomainAndDropsEmoji(t *testing.T) {
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+	sg := &fakeSuggester{
+		result:          []suggest.Suggestion{{Label: "Canberra", Emoji: "🇦🇺", Domain: suggest.DomainCapital}},
+		domainForAnswer: suggest.DomainCapital,
+	}
+	b.suggest = sg
+	b.exerciseStore = &fakeExerciseStore{found: true, exercise: storage.Exercise{CorrectAnswer: "Canberra"}}
+
+	c := &fakeQueryContext{query: &tele.Query{Text: "can", Sender: &tele.User{ID: 42}}}
+	if err := b.handleQuery(c); err != nil {
+		t.Fatalf("handleQuery: %v", err)
+	}
+
+	if sg.domainForAnswerCalledWith != "Canberra" {
+		t.Fatalf("expected DomainForAnswer called with the open exercise's CorrectAnswer, got %q", sg.domainForAnswerCalledWith)
+	}
+	if sg.domain != suggest.DomainCapital {
+		t.Fatalf("expected MatchDomain called with DomainCapital, got %v", sg.domain)
+	}
+	if c.answered == nil || len(c.answered.Results) != 1 {
+		t.Fatalf("expected one result, got %+v", c.answered)
+	}
+	article, ok := c.answered.Results[0].(*tele.ArticleResult)
+	if !ok {
+		t.Fatalf("expected an *ArticleResult, got %T", c.answered.Results[0])
+	}
+	if article.Title != "Canberra" {
+		t.Fatalf("expected an emoji-free capital title, got %q", article.Title)
+	}
+}
+
+func TestQueryDomain_DefaultsToCountryWhenNoOpenExercise(t *testing.T) {
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+	// Would return DomainCapital if it were ever consulted — it must not
+	// be, since there's no open exercise to resolve a domain from.
+	b.suggest = &fakeSuggester{domainForAnswer: suggest.DomainCapital}
+	b.exerciseStore = &fakeExerciseStore{found: false}
+
+	got := b.queryDomain(context.Background(), &tele.Query{Text: "x", Sender: &tele.User{ID: 42}})
+	if got != suggest.DomainCountry {
+		t.Fatalf("queryDomain with no open exercise = %v, want DomainCountry", got)
+	}
+}
+
+func TestQueryDomain_DefaultsToCountryWhenNoSender(t *testing.T) {
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+	b.suggest = &fakeSuggester{domainForAnswer: suggest.DomainCapital}
+	b.exerciseStore = &fakeExerciseStore{found: true, exercise: storage.Exercise{CorrectAnswer: "Canberra"}}
+
+	got := b.queryDomain(context.Background(), &tele.Query{Text: "x"}) // no Sender
+	if got != suggest.DomainCountry {
+		t.Fatalf("queryDomain with no Sender = %v, want DomainCountry", got)
+	}
+}
+
+func TestQueryDomain_DefaultsToCountryWhenSuggesterNil(t *testing.T) {
+	b := newTestBot(&stubStore{user: storage.User{ID: uuid.New()}})
+	b.exerciseStore = &fakeExerciseStore{found: true, exercise: storage.Exercise{CorrectAnswer: "Canberra"}}
+
+	got := b.queryDomain(context.Background(), &tele.Query{Text: "x", Sender: &tele.User{ID: 42}})
+	if got != suggest.DomainCountry {
+		t.Fatalf("queryDomain with nil Suggester = %v, want DomainCountry", got)
 	}
 }

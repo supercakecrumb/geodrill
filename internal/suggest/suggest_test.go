@@ -157,10 +157,92 @@ func TestNewFromCountriesAndCapitals_MergesBothSources(t *testing.T) {
 
 	// A capital-name query matches the merged-in capital entry, keyed
 	// distinctly from its country ("cap:" prefix) so it never collides with
-	// the country's own iso2 key in the same index.
+	// the country's own iso2 key in the same index, and tagged
+	// DomainCapital (not the country entries' DomainCountry).
 	got = idx.Match("bogo", 10)
-	if len(got) != 1 || got[0] != (Suggestion{Label: "Bogotá", Emoji: "🇨🇴", Key: "cap:CO"}) {
-		t.Fatalf("capital match = %v, want Bogotá/cap:CO", got)
+	if len(got) != 1 || got[0] != (Suggestion{Label: "Bogotá", Emoji: "🇨🇴", Key: "cap:CO", Domain: DomainCapital}) {
+		t.Fatalf("capital match = %v, want Bogotá/cap:CO/DomainCapital", got)
+	}
+}
+
+// ── Domain / MatchDomain / DomainForAnswer ──────────────────────────────
+
+func testCountriesAndCapitalsIndex() *Index {
+	countries := []storage.Country{
+		{ID: uuid.New(), Name: "Australia", FlagEmoji: "🇦🇺", ISOA2: "AU"},
+		{ID: uuid.New(), Name: "Singapore", FlagEmoji: "🇸🇬", ISOA2: "SG"},
+		{ID: uuid.New(), Name: "France", FlagEmoji: "🇫🇷", ISOA2: "FR"},
+	}
+	capitalEntries := []CapitalEntry{
+		{CountryISO: "AU", Name: "Canberra", FlagEmoji: "🇦🇺"},
+		// Singapore is a city-state: its capital fact carries the same name
+		// as the country itself, exercising DomainForAnswer's
+		// country-first rule.
+		{CountryISO: "SG", Name: "Singapore", FlagEmoji: "🇸🇬"},
+		{CountryISO: "FR", Name: "Paris", FlagEmoji: "🇫🇷"},
+	}
+	return NewFromCountriesAndCapitals(countries, capitalEntries)
+}
+
+func TestDomainForAnswer_CountryNameResolvesCountry(t *testing.T) {
+	idx := testCountriesAndCapitalsIndex()
+	if got := idx.DomainForAnswer("Australia"); got != DomainCountry {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainCountry", "Australia", got)
+	}
+}
+
+func TestDomainForAnswer_PureCapitalResolvesCapital(t *testing.T) {
+	idx := testCountriesAndCapitalsIndex()
+	if got := idx.DomainForAnswer("Canberra"); got != DomainCapital {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainCapital", "Canberra", got)
+	}
+}
+
+func TestDomainForAnswer_CityStateIsCountryFirst(t *testing.T) {
+	idx := testCountriesAndCapitalsIndex()
+	// Singapore is both a country name and (per the seeded capital fact) a
+	// capital name; country-first membership must resolve it to
+	// DomainCountry, not DomainCapital.
+	if got := idx.DomainForAnswer("Singapore"); got != DomainCountry {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainCountry (country-first)", "Singapore", got)
+	}
+}
+
+func TestDomainForAnswer_UnknownDefaultsCountry(t *testing.T) {
+	idx := testCountriesAndCapitalsIndex()
+	if got := idx.DomainForAnswer("Atlantis"); got != DomainCountry {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainCountry (default)", "Atlantis", got)
+	}
+}
+
+func TestDomainForAnswer_NilIndexIsSafe(t *testing.T) {
+	var idx *Index
+	if got := idx.DomainForAnswer("Australia"); got != DomainCountry {
+		t.Fatalf("DomainForAnswer on nil Index = %v, want DomainCountry", got)
+	}
+}
+
+func TestMatchDomain_ScopesToCountryOnly(t *testing.T) {
+	idx := testCountriesAndCapitalsIndex()
+	got := labels(idx.MatchDomain("a", DomainCountry, 10))
+	for _, l := range got {
+		if l == "Canberra" || l == "Paris" {
+			t.Fatalf("MatchDomain(DomainCountry) leaked a capital-only entry: %v", got)
+		}
+	}
+}
+
+func TestMatchDomain_ScopesToCapitalOnly(t *testing.T) {
+	idx := testCountriesAndCapitalsIndex()
+	got := labels(idx.MatchDomain("ca", DomainCapital, 10))
+	want := []string{"Canberra"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MatchDomain(DomainCapital, %q) = %v, want %v", "ca", got, want)
+	}
+	// "Australia" (a country) must never surface from a capital-scoped
+	// match even though it's a prefix match for itself.
+	if leaked := idx.MatchDomain("austra", DomainCapital, 10); len(leaked) != 0 {
+		t.Fatalf("MatchDomain(DomainCapital) leaked a country-only entry: %v", leaked)
 	}
 }
 

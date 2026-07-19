@@ -438,16 +438,27 @@ type GameService interface {
 // ── inline-mode autocomplete (vibe/spike-autocomplete-inline.md) ───────────
 
 // Suggester answers inline-query autocomplete lookups (telebot.OnQuery,
-// bot.go's handleQuery) with ranked, typo-tolerant matches —
-// internal/suggest.Index satisfies this directly (its own Match method has
-// this exact shape); this package declares its own copy of the interface,
-// per this file's narrow-dependency-interface convention, so handleQuery is
-// unit-testable against a hand-written fake instead of a real Index. A nil
-// Suggester on Config keeps telebot.OnQuery unregistered entirely (bot.go's
-// New, mirroring Trainer's OnText gate) — a query never reaches an
-// unconfigured bot.
+// bot.go's handleQuery) with ranked, typo-tolerant, answer-domain-scoped
+// matches — internal/suggest.Index satisfies this directly (its own
+// MatchDomain/DomainForAnswer methods have this exact shape); this package
+// declares its own copy of the interface, per this file's
+// narrow-dependency-interface convention, so handleQuery is unit-testable
+// against a hand-written fake instead of a real Index. A nil Suggester on
+// Config keeps telebot.OnQuery unregistered entirely (bot.go's New,
+// mirroring Trainer's OnText gate) — a query never reaches an unconfigured
+// bot.
 type Suggester interface {
-	Match(query string, limit int) []suggest.Suggestion
+	// MatchDomain ranks matches scoped to domain (suggest.DomainCountry or
+	// suggest.DomainCapital) — handleQuery always calls this instead of a
+	// domain-agnostic Match, so suggestions never mix countries and
+	// capitals regardless of which direction's exercise is open (kanban
+	// card "Autocomplete must be scoped to the question's answer domain").
+	MatchDomain(query string, domain suggest.Domain, limit int) []suggest.Suggestion
+	// DomainForAnswer resolves which suggest.Domain an open exercise's
+	// CorrectAnswer belongs to (country-first membership — see
+	// suggest.Index.DomainForAnswer's doc comment), so handleQuery knows
+	// which Domain to pass to MatchDomain.
+	DomainForAnswer(correct string) suggest.Domain
 }
 
 // IntroCapStore is the narrow settings surface for the daily intro cap

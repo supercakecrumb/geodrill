@@ -43,26 +43,49 @@ import (
 // grading and autocomplete.
 const maxEdits = 2
 
+// Domain is the answer-kind an Entry belongs to — the scoping unit for
+// MatchDomain/DomainForAnswer (kanban card "Autocomplete must be scoped to
+// the question's answer domain"). There are only two autocomplete answer
+// domains in the whole app today: city→country, capital→country,
+// tld→country, and flags all answer a COUNTRY; only country→capital answers
+// a CAPITAL (country→tld is plain text, no autocomplete at all) — so these
+// two values are the complete set.
+type Domain int8
+
+const (
+	// DomainCountry is the default/zero Domain: every country Entry
+	// (countryEntries) is tagged with this, and it's DomainForAnswer's
+	// fallback for an answer that matches neither a known country nor a
+	// known capital.
+	DomainCountry Domain = iota
+	// DomainCapital tags capital-city entries (NewFromCountriesAndCapitals's
+	// merged-in capitals).
+	DomainCapital
+)
+
 // Entry is one suggestion candidate: a display label, an optional emoji
-// prefix (e.g. a flag), and a stable key. Key is carried through to
-// Suggestion unused by ranking itself — it exists so a caller can correlate
-// a suggestion back to its source row (e.g. an ISO alpha-2 code) if it ever
-// needs to, without Match itself caring what it means.
+// prefix (e.g. a flag), a stable key, and the Domain it belongs to. Key is
+// carried through to Suggestion unused by ranking itself — it exists so a
+// caller can correlate a suggestion back to its source row (e.g. an ISO
+// alpha-2 code) if it ever needs to, without Match itself caring what it
+// means.
 type Entry struct {
-	Label string
-	Emoji string
-	Key   string
+	Label  string
+	Emoji  string
+	Key    string
+	Domain Domain
 }
 
-// Suggestion is one ranked Match result. Its shape mirrors Entry exactly
-// (same fields, same order) — kept as a distinct type anyway so a caller
-// (internal/telegram) depends on "what Match returns" rather than "what an
-// Index happens to be built from", which stays free to grow index-internal
-// fields later without changing Match's contract.
+// Suggestion is one ranked Match/MatchDomain result. Its shape mirrors Entry
+// exactly (same fields, same order) — kept as a distinct type anyway so a
+// caller (internal/telegram) depends on "what Match returns" rather than
+// "what an Index happens to be built from", which stays free to grow
+// index-internal fields later without changing Match's contract.
 type Suggestion struct {
-	Label string
-	Emoji string
-	Key   string
+	Label  string
+	Emoji  string
+	Key    string
+	Domain Domain
 }
 
 // Index is an in-memory suggestion source built from a fixed slice of Entry
@@ -123,7 +146,7 @@ type CapitalEntry struct {
 func NewFromCountriesAndCapitals(countries []storage.Country, capitals []CapitalEntry) *Index {
 	entries := countryEntries(countries)
 	for _, c := range capitals {
-		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "cap:" + c.CountryISO})
+		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "cap:" + c.CountryISO, Domain: DomainCapital})
 	}
 	return New(entries)
 }
@@ -131,7 +154,7 @@ func NewFromCountriesAndCapitals(countries []storage.Country, capitals []Capital
 func countryEntries(countries []storage.Country) []Entry {
 	entries := make([]Entry, len(countries))
 	for i, c := range countries {
-		entries[i] = Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: c.ISOA2}
+		entries[i] = Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: c.ISOA2, Domain: DomainCountry}
 	}
 	return entries
 }
@@ -163,14 +186,81 @@ func (idx *Index) Match(query string, limit int) []Suggestion {
 	if idx == nil {
 		return nil
 	}
+	return matchEntries(idx.entries, query, limit)
+}
 
+// MatchDomain is Match scoped to entries tagged with domain — e.g. only
+// DomainCountry entries when handleQuery's open exercise expects a country
+// answer, only DomainCapital entries for a capital answer (see
+// DomainForAnswer) — using the identical prefix-then-fuzzy ranking Match
+// itself uses, just over the domain-filtered subset. Same nil-safety and
+// limit<=0 contract as Match.
+func (idx *Index) MatchDomain(query string, domain Domain, limit int) []Suggestion {
+	if limit <= 0 {
+		return nil
+	}
+	if idx == nil {
+		return nil
+	}
+
+	var filtered []Entry
+	for _, e := range idx.entries {
+		if e.Domain == domain {
+			filtered = append(filtered, e)
+		}
+	}
+	return matchEntries(filtered, query, limit)
+}
+
+// DomainForAnswer resolves which Domain an open exercise's CorrectAnswer
+// belongs to, so a caller (internal/telegram's handleQuery) can pass the
+// right Domain to MatchDomain instead of always merging both suggestion
+// sources. Membership is COUNTRY-FIRST: idx's DomainCountry entries are
+// checked before its DomainCapital entries, so a city-state whose capital
+// shares its country's name (Singapore, Monaco) resolves to DomainCountry —
+// only a name that is genuinely a capital-and-nothing-else (Canberra,
+// Ottawa) resolves to DomainCapital. An unrecognized answer, an empty
+// string, or a nil Index all default to DomainCountry, the same default a
+// caller falls back to when no exercise is open at all. Comparison is
+// casefolded via quiz.Normalize, consistent with Match's own notion of "the
+// same label".
+func (idx *Index) DomainForAnswer(correct string) Domain {
+	if idx == nil {
+		return DomainCountry
+	}
+	norm := quiz.Normalize(correct)
+	if norm == "" {
+		return DomainCountry
+	}
+
+	for _, e := range idx.entries {
+		if e.Domain == DomainCountry && quiz.Normalize(e.Label) == norm {
+			return DomainCountry
+		}
+	}
+	for _, e := range idx.entries {
+		if e.Domain == DomainCapital && quiz.Normalize(e.Label) == norm {
+			return DomainCapital
+		}
+	}
+	return DomainCountry
+}
+
+// matchEntries is Match/MatchDomain's shared ranking core: case-folded
+// prefix matches first (shortest normalized label first, then
+// alphabetically), then typo-tolerant matches (whole-label Levenshtein
+// distance <= maxEdits from the whole query, ordered by distance then
+// alphabetically) — see Match's own doc comment for the full ranking
+// rationale, which applies unchanged here over whatever subset of entries
+// the caller hands in.
+func matchEntries(entries []Entry, query string, limit int) []Suggestion {
 	q := quiz.Normalize(query)
 	if q == "" {
-		return toSuggestions(firstN(idx.entries, limit))
+		return toSuggestions(firstN(entries, limit))
 	}
 
 	var prefix, fuzzy []rankedEntry
-	for _, e := range idx.entries {
+	for _, e := range entries {
 		norm := quiz.Normalize(e.Label)
 		if norm == "" {
 			continue
