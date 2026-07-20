@@ -31744,6 +31744,9 @@ cities:
     country: NZ
     population: 53000
     tier: 6
+    lat: -45.03145
+    lng: 168.66261
+    region: Otago
   - key: ni:nueva-guinea
     name: Nueva Guinea
     country: NI
@@ -46314,6 +46317,9 @@ cities:
     country: ME
     population: 13000
     tier: 6
+    lat: 42.42472
+    lng: 18.77124
+    region: Kotor
   - key: kn:basseterre
     name: Basseterre
     country: KN
