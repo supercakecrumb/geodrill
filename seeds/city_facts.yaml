@@ -1,0 +1,2262 @@
+# seeds/city_facts.yaml — one-paragraph landmark/fact blurbs for the
+# higher-tier cities in seeds/cities.yaml, later folded into the "city
+# discovered" intro card for tier 0-2 cities.
+#
+# Blurbs are Wikipedia page-summary extracts (the lead paragraph, via the
+# REST API /page/summary/<title> endpoint) and are licensed
+# CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/) — reusing
+# this text REQUIRES attribution, carried per-entry via source_url (a link
+# to the exact Wikipedia article each blurb came from).
+#
+# Cities are matched to a Wikipedia article primarily via Wikidata (CC0,
+# https://www.wikidata.org/), batched SPARQL joining on the GeoNames ID
+# already recorded in seeds/cities.yaml (property P1566). Cities with no
+# geoname_id, or no Wikidata hit, fall back to Wikipedia's GeoSearch API by
+# coordinates.
+#
+# Regenerate (adds new cities; -force re-scrapes existing keys) with:
+#   go run ./cmd/cityfacts
+#
+# Schema:
+#   key: matches the city's key in seeds/cities.yaml
+#   blurb: trimmed Wikipedia summary extract (<=2 sentences, <=350 chars)
+#   source_title: the matched Wikipedia article title
+#   source_url: the matched Wikipedia article URL (attribution link)
+#   wikidata: the matched Wikidata QID, when captured
+#   retrieved: UTC date (YYYY-MM-DD) the blurb was fetched
+facts:
+  - key: ae:abu-dhabi
+    blurb: Abu Dhabi is the capital city of the United Arab Emirates (UAE). The city is the seat of the Abu Dhabi Central Capital District, the capital city of the Emirate of Abu Dhabi, and the UAE's second-most populous city, after Dubai.
+    source_title: Abu Dhabi
+    source_url: https://en.wikipedia.org/wiki/Abu_Dhabi
+    wikidata: Q1519
+    retrieved: "2026-07-20"
+  - key: ae:dubai
+    blurb: Dubai is the most populous city in the United Arab Emirates and the capital of the Emirate of Dubai. It is on a creek on the southeastern coast of the Persian Gulf.
+    source_title: Dubai
+    source_url: https://en.wikipedia.org/wiki/Dubai
+    wikidata: Q612
+    retrieved: "2026-07-20"
+  - key: ae:sharjah
+    blurb: Sharjah is a major port city and the third-most populous city in the United Arab Emirates, after Dubai and Abu Dhabi. It is the capital of the Emirate of Sharjah and forms part of the Dubai-Sharjah-Ajman metropolitan area.
+    source_title: Sharjah
+    source_url: https://en.wikipedia.org/wiki/Sharjah
+    wikidata: Q289693
+    retrieved: "2026-07-20"
+  - key: af:kabul
+    blurb: Kabul is the capital and largest city of Afghanistan. It is within the jurisdiction of Kabul District and has an estimated population of 5,333,284 people.
+    source_title: Kabul
+    source_url: https://en.wikipedia.org/wiki/Kabul
+    wikidata: Q5838
+    retrieved: "2026-07-20"
+  - key: am:yerevan
+    blurb: Yerevan is the capital and largest city of Armenia, as well as one of the world's oldest continuously inhabited cities. Situated along the Hrazdan River, Yerevan is the administrative, cultural, and industrial centre of the country, as its primate city.
+    source_title: Yerevan
+    source_url: https://en.wikipedia.org/wiki/Yerevan
+    retrieved: "2026-07-20"
+  - key: ao:luanda
+    blurb: Luanda is the capital and largest city of Angola. It is Angola's primary port, and its major industrial, cultural and urban centre.
+    source_title: Luanda
+    source_url: https://en.wikipedia.org/wiki/Luanda
+    wikidata: Q3897
+    retrieved: "2026-07-20"
+  - key: ar:buenos-aires
+    blurb: Buenos Aires, officially the Autonomous City of Buenos Aires, is the capital and largest city of Argentina. It is located on the southwest of the Río de la Plata.
+    source_title: Buenos Aires
+    source_url: https://en.wikipedia.org/wiki/Buenos_Aires
+    wikidata: Q1486
+    retrieved: "2026-07-20"
+  - key: ar:cordoba
+    blurb: Córdoba is a city in central Argentina, in the foothills of the Sierras Chicas on the Suquía River, about 700 km (435 mi) northwest of Buenos Aires. It is the capital of Córdoba Province and the second-most populous city in Argentina after Buenos Aires, with about 1.6 million urban inhabitants according to the 2020 census.
+    source_title: Córdoba, Argentina
+    source_url: https://en.wikipedia.org/wiki/C%C3%B3rdoba%2C_Argentina
+    wikidata: Q44210
+    retrieved: "2026-07-20"
+  - key: at:vienna
+    blurb: Vienna is the capital, most populous city, and one of the nine states of Austria. It is Austria's primate city, with just over two million inhabitants.
+    source_title: Vienna
+    source_url: https://en.wikipedia.org/wiki/Vienna
+    wikidata: Q1741
+    retrieved: "2026-07-20"
+  - key: au:adelaide
+    blurb: Adelaide is the capital and most populous city of South Australia, as well as the fifth-most populous city in Australia. The name "Adelaide" may refer to either Greater Adelaide or the Adelaide city centre; the demonym Adelaidean is used to denote the city and the residents of Adelaide.
+    source_title: Adelaide
+    source_url: https://en.wikipedia.org/wiki/Adelaide
+    wikidata: Q5112
+    retrieved: "2026-07-20"
+  - key: au:brisbane
+    blurb: Brisbane is the capital and largest city of the Australian state of Queensland and the third-most populous city in Australia, with a population of approximately 2.8 million. Brisbane lies at the centre of South East Queensland, a bio-geographical and urban region with an estimated population of 4.1 million as of 2024.
+    source_title: Brisbane
+    source_url: https://en.wikipedia.org/wiki/Brisbane
+    wikidata: Q34932
+    retrieved: "2026-07-20"
+  - key: au:melbourne
+    blurb: Melbourne is the capital and most populous city of the Australian state of Victoria and the second-most populous city in Australia. The city's name generally refers to a 9,993-square-kilometre (3,858 sq mi) area, comprising an urban agglomeration of 31 local government areas.
+    source_title: Melbourne
+    source_url: https://en.wikipedia.org/wiki/Melbourne
+    wikidata: Q3141
+    retrieved: "2026-07-20"
+  - key: au:perth
+    blurb: Perth is the capital city of Western Australia. It is the fourth-most-populous city in Australia, with a population of over 2.3 million within Greater Perth as of 2023.
+    source_title: Perth
+    source_url: https://en.wikipedia.org/wiki/Perth
+    wikidata: Q3183
+    retrieved: "2026-07-20"
+  - key: au:sydney
+    blurb: Sydney is the capital city of the state of New South Wales, and the most populous city in Australia.
+    source_title: Sydney
+    source_url: https://en.wikipedia.org/wiki/Sydney
+    wikidata: Q3130
+    retrieved: "2026-07-20"
+  - key: az:baku
+    blurb: Baku is the capital and largest city of Azerbaijan, as well as the largest city on the Caspian Sea and in the Caucasus region. Baku is 28 metres (92 ft) below sea level, which makes it the lowest lying national capital in the world and the largest city in the world below sea level.
+    source_title: Baku
+    source_url: https://en.wikipedia.org/wiki/Baku
+    retrieved: "2026-07-20"
+  - key: bd:chittagong
+    blurb: Chittagong, officially Chattogram, is the second-largest city in Bangladesh and the largest city in the Greater Chittagong region. Home to the Port of Chittagong, it is the busiest port in Bangladesh and the Bay of Bengal.
+    source_title: Chittagong
+    source_url: https://en.wikipedia.org/wiki/Chittagong
+    wikidata: Q376749
+    retrieved: "2026-07-20"
+  - key: bd:dhaka
+    blurb: Dhaka, formerly known as Dacca, is the capital and largest city of Bangladesh. With an estimated population of 36.6 million, Dhaka is the second largest city by population in the world, and is widely considered to be the most densely populated built-up urban area in the world.
+    source_title: Dhaka
+    source_url: https://en.wikipedia.org/wiki/Dhaka
+    wikidata: Q1354
+    retrieved: "2026-07-20"
+  - key: bd:gazipur
+    blurb: Gazipur is a city in central Bangladesh. Located in Gazipur District in Dhaka Division, it is a major industrial city 25 km (16 mi) north of Dhaka.
+    source_title: Gazipur
+    source_url: https://en.wikipedia.org/wiki/Gazipur
+    retrieved: "2026-07-20"
+  - key: bd:khulna
+    blurb: Khulna is the third-largest city in Bangladesh, after Dhaka and Chittagong. It is the administrative centre of the Khulna District and the Khulna Division.
+    source_title: Khulna
+    source_url: https://en.wikipedia.org/wiki/Khulna
+    wikidata: Q243325
+    retrieved: "2026-07-20"
+  - key: bd:rangpur
+    blurb: Rangpur is a major metropolitan city in Bangladesh. This city serves as the administrative center of the Rangpur Division.
+    source_title: Rangpur, Bangladesh
+    source_url: https://en.wikipedia.org/wiki/Rangpur%2C_Bangladesh
+    wikidata: Q994514
+    retrieved: "2026-07-20"
+  - key: be:brussels
+    blurb: The City of Brussels is the largest municipality and historical centre of the Brussels-Capital Region, as well as the capital of the French Community of Belgium, the Flemish Region, and Belgium. The City of Brussels is also the administrative centre of the European Union, as it hosts a number of principal EU institutions in its European Quarter.
+    source_title: City of Brussels
+    source_url: https://en.wikipedia.org/wiki/City_of_Brussels
+    wikidata: Q239
+    retrieved: "2026-07-20"
+  - key: bf:ouagadougou
+    blurb: Ouagadougou or Wagadugu is the capital and largest city of Burkina Faso, and the administrative, communications, cultural and economic centre of the nation. It has a population of 2,415,266 in 2019.
+    source_title: Ouagadougou
+    source_url: https://en.wikipedia.org/wiki/Ouagadougou
+    wikidata: Q3777
+    retrieved: "2026-07-20"
+  - key: bg:sofia
+    blurb: Sofia is the capital and largest city of Bulgaria. It is situated in the Sofia Valley at the foot of the Vitosha mountain, in the western part of the country.
+    source_title: Sofia
+    source_url: https://en.wikipedia.org/wiki/Sofia
+    wikidata: Q472
+    retrieved: "2026-07-20"
+  - key: bo:la-paz
+    blurb: La Paz, officially Nuestra Señora de La Paz is the seat of government of Bolivia. With 755,732 residents as of 2024, it is the third-most populous city in Bolivia.
+    source_title: La Paz
+    source_url: https://en.wikipedia.org/wiki/La_Paz
+    wikidata: Q1491
+    retrieved: "2026-07-20"
+  - key: bo:santa-cruz
+    blurb: Santa Cruz de la Sierra, commonly known as Santa Cruz, is the largest city in Bolivia and the capital of the Santa Cruz department.
+    source_title: Santa Cruz de la Sierra
+    source_url: https://en.wikipedia.org/wiki/Santa_Cruz_de_la_Sierra
+    wikidata: Q170688
+    retrieved: "2026-07-20"
+  - key: br:belem
+    blurb: Belém, often called Belém of Pará, is the capital and largest city of the state of Pará in the north of Brazil. It is the gateway to the Amazon River with a busy port, airport, and bus/coach station.
+    source_title: Belém
+    source_url: https://en.wikipedia.org/wiki/Bel%C3%A9m
+    retrieved: "2026-07-20"
+  - key: br:belo-horizonte
+    blurb: Belo Horizonte is the sixth-largest city in Brazil, with a population of around 2.4 million, and the third largest metropolitan area, containing a population of 6 million. It is the 13th-largest city in South America and the 18th-largest in the Americas.
+    source_title: Belo Horizonte
+    source_url: https://en.wikipedia.org/wiki/Belo_Horizonte
+    retrieved: "2026-07-20"
+  - key: br:brasilia
+    blurb: Brasília is the capital city of Brazil and the Federal District. Located in the Brazilian Highlands in the country's Central-West region, it was founded by President Juscelino Kubitschek on 21 April 1960, to replace Rio de Janeiro as the national capital.
+    source_title: Brasília
+    source_url: https://en.wikipedia.org/wiki/Bras%C3%ADlia
+    wikidata: Q2844
+    retrieved: "2026-07-20"
+  - key: br:campinas
+    blurb: Campinas is a city in the Brazilian state of São Paulo, located 84 kilometers northwest of the city of São Paulo. As of 2024, the city's population is estimated at 1,185,977, making it the fourteenth most populous Brazilian city and the third most populous in São Paulo state.
+    source_title: Campinas
+    source_url: https://en.wikipedia.org/wiki/Campinas
+    retrieved: "2026-07-20"
+  - key: br:curitiba
+    blurb: Curitiba is the capital and largest city in the state of Paraná in Southern Brazil. The city's population was 1,829,225 as of 2024, making it the eighth most populous city in Brazil and the largest in Brazil's South Region.
+    source_title: Curitiba
+    source_url: https://en.wikipedia.org/wiki/Curitiba
+    retrieved: "2026-07-20"
+  - key: br:fortaleza
+    blurb: Fortaleza is the state capital of Ceará, located in Northeastern Brazil. It is Brazil's fourth largest city—Fortaleza surpassed Salvador in 2024 census with a population of slightly over 2.5 million.
+    source_title: Fortaleza
+    source_url: https://en.wikipedia.org/wiki/Fortaleza
+    retrieved: "2026-07-20"
+  - key: br:goiania
+    blurb: Goiânia is the capital and largest city of the Brazilian state of Goiás. With a population of 1,536,097, it is the second-largest city in the Central-West Region and the 10th-largest in the country.
+    source_title: Goiânia
+    source_url: https://en.wikipedia.org/wiki/Goi%C3%A2nia
+    retrieved: "2026-07-20"
+  - key: br:guarulhos
+    blurb: Guarulhos is a city and municipality located in the Metropolitan Region of São Paulo, São Paulo state, Brazil. It is located northeast of the state capital, São Paulo.
+    source_title: Guarulhos
+    source_url: https://en.wikipedia.org/wiki/Guarulhos
+    retrieved: "2026-07-20"
+  - key: br:maceio
+    blurb: Maceió, formerly anglicised as Maceio, is the capital and the largest city of the coastal state of Alagoas, Brazil. The name "Maceió" is a Tupi Indigenous term for a spring.
+    source_title: Maceió
+    source_url: https://en.wikipedia.org/wiki/Macei%C3%B3
+    retrieved: "2026-07-20"
+  - key: br:manaus
+    blurb: Manaus is the capital and largest city of the Brazilian state of Amazonas. It is the seventh-largest city in Brazil, with an estimated 2024 population of 2,279,686 distributed over a land area of about 11,401 km2 (4,402 sq mi).
+    source_title: Manaus
+    source_url: https://en.wikipedia.org/wiki/Manaus
+    retrieved: "2026-07-20"
+  - key: br:porto-alegre
+    blurb: Porto Alegre is the capital and largest city of the Brazilian state of Rio Grande do Sul. Its population of roughly 1.4 million inhabitants (2022) makes it the 11th-most populous city in the country and the centre of Brazil's fifth-largest metropolitan area, with 4.1 million inhabitants (2022).
+    source_title: Porto Alegre
+    source_url: https://en.wikipedia.org/wiki/Porto_Alegre
+    retrieved: "2026-07-20"
+  - key: br:recife
+    blurb: Recife is the state capital of Pernambuco, Brazil, on the northeastern Atlantic coast of South America. It is the largest urban area within both the North and the Northeast Region of Brazil.
+    source_title: Recife
+    source_url: https://en.wikipedia.org/wiki/Recife
+    retrieved: "2026-07-20"
+  - key: br:rio-de-janeiro
+    blurb: Rio de Janeiro, also known simply as Rio, is the capital of the state of Rio de Janeiro. It is the second-most-populous city in Brazil after São Paulo with a population of 13 million people as of 2025, and the sixth-most-populous city in the Americas.
+    source_title: Rio de Janeiro
+    source_url: https://en.wikipedia.org/wiki/Rio_de_Janeiro
+    retrieved: "2026-07-20"
+  - key: br:salvador
+    blurb: The Salvador Metro is a rapid transit system serving Salvador, the state capital of Bahia and the fifth largest city in Brazil. The current system is 38 kilometres (24 mi) long and has 22 stations, which began partial public service on June 11, 2014.
+    source_title: Salvador Metro
+    source_url: https://en.wikipedia.org/wiki/Salvador_Metro
+    retrieved: "2026-07-20"
+  - key: br:sao-paulo
+    blurb: São Paulo is the capital city of the state of the same name, as well as the most populous city in Brazil, South America, the Americas, and in both the Western and Southern Hemispheres.
+    source_title: São Paulo
+    source_url: https://en.wikipedia.org/wiki/S%C3%A3o_Paulo
+    retrieved: "2026-07-20"
+  - key: by:minsk
+    blurb: Minsk is the capital and largest city of Belarus, located on the Svislach and the now subterranean Nyamiha rivers. As the capital, Minsk has a special administrative status in Belarus and is the administrative centre of Minsk region and Minsk district.
+    source_title: Minsk
+    source_url: https://en.wikipedia.org/wiki/Minsk
+    wikidata: Q2280
+    retrieved: "2026-07-20"
+  - key: ca:calgary
+    blurb: Calgary is the largest city in the Canadian province of Alberta. As of 2021, the city proper had a population of 1,306,784 and a metropolitan population of 1,481,806, making Calgary the third-largest city and the fifth-largest metropolitan area in Canada.
+    source_title: Calgary
+    source_url: https://en.wikipedia.org/wiki/Calgary
+    wikidata: Q36312
+    retrieved: "2026-07-20"
+  - key: ca:edmonton
+    blurb: Edmonton is the capital city of the Canadian province of Alberta. It is situated on the North Saskatchewan River and is the centre of the Edmonton Metropolitan Region, which is surrounded by Alberta's central region.
+    source_title: Edmonton
+    source_url: https://en.wikipedia.org/wiki/Edmonton
+    wikidata: Q2096
+    retrieved: "2026-07-20"
+  - key: ca:montreal
+    blurb: Montreal is the largest city in the province of Quebec, the second-largest in Canada, and the eighth-largest in North America. Founded in 1642 as Ville-Marie, or "City of Mary", it now takes its name from Mount Royal, the triple-peaked mountain around which the early settlement was built.
+    source_title: Montreal
+    source_url: https://en.wikipedia.org/wiki/Montreal
+    wikidata: Q340
+    retrieved: "2026-07-20"
+  - key: ca:ottawa
+    blurb: Ottawa is the capital city of Canada. It is located in the southeastern portion of the province of Ontario, at the confluence of the Ottawa River and the Rideau River.
+    source_title: Ottawa
+    source_url: https://en.wikipedia.org/wiki/Ottawa
+    wikidata: Q1930
+    retrieved: "2026-07-20"
+  - key: ca:toronto
+    blurb: Toronto is the most populous city in Canada and the capital city of the Canadian province of Ontario. It is located on a harbour at the northwestern shore of Lake Ontario.
+    source_title: Toronto
+    source_url: https://en.wikipedia.org/wiki/Toronto
+    wikidata: Q172
+    retrieved: "2026-07-20"
+  - key: cd:kananga
+    blurb: Kananga, formerly known as Luluabourg or Luluaburg, is the capital city of the Kasai-Central Province in the Democratic Republic of the Congo and was the capital of the former Kasaï-Occidental Province. It is the fourth most populous urban area in the country, with an estimated population of 1,524,000 in 2021.
+    source_title: Kananga
+    source_url: https://en.wikipedia.org/wiki/Kananga
+    wikidata: Q205327
+    retrieved: "2026-07-20"
+  - key: cd:kinshasa
+    blurb: Kinshasa, formerly named Léopoldville from 1881 to 1966, is the capital and largest city of the Democratic Republic of the Congo. Kinshasa is one of the world's fastest-growing megacities, with an estimated population of 18.5 million in 2026.
+    source_title: Kinshasa
+    source_url: https://en.wikipedia.org/wiki/Kinshasa
+    wikidata: Q3838
+    retrieved: "2026-07-20"
+  - key: cd:kisangani
+    blurb: Kisangani, formerly Stanleyville, is the capital of Tshopo Province, located on the Congo River in the eastern part of the central Congo Basin in the Democratic Republic of the Congo.
+    source_title: Kisangani
+    source_url: https://en.wikipedia.org/wiki/Kisangani
+    wikidata: Q146723
+    retrieved: "2026-07-20"
+  - key: cd:lubumbashi
+    blurb: Lubumbashi, formerly Élisabethville, is the second-largest city in the Democratic Republic of the Congo, located in the southeasternmost part of the country, near the border with Zambia.
+    source_title: Lubumbashi
+    source_url: https://en.wikipedia.org/wiki/Lubumbashi
+    wikidata: Q187593
+    retrieved: "2026-07-20"
+  - key: cd:mbuji-mayi
+    blurb: Mbuji-Mayi is a city and the capital of Kasai-Oriental Province in the south-central Democratic Republic of Congo. It is thought to be the second largest city in the country, after the capital Kinshasa and ahead of Lubumbashi, Kisangani and Kananga, though its exact population is not known.
+    source_title: Mbuji-Mayi
+    source_url: https://en.wikipedia.org/wiki/Mbuji-Mayi
+    retrieved: "2026-07-20"
+  - key: cg:brazzaville
+    blurb: Brazzaville is the capital and largest city of the Republic of the Congo. Administratively, it is a department and a commune.
+    source_title: Brazzaville
+    source_url: https://en.wikipedia.org/wiki/Brazzaville
+    wikidata: Q3844
+    retrieved: "2026-07-20"
+  - key: cg:pointe-noire
+    blurb: Pointe-Noire is the second largest city and main economic centre in the Republic of the Congo, with a population of 1,420,612 inhabitants in 2023. Since the 2002 constitution, it is also an autonomous department and a commune ; before this date it was the capital of the Kouilou region.
+    source_title: Pointe-Noire
+    source_url: https://en.wikipedia.org/wiki/Pointe-Noire
+    wikidata: Q223920
+    retrieved: "2026-07-20"
+  - key: ci:abidjan
+    blurb: Abidjan is the largest city and the former capital of Ivory Coast. As of the 2021 census, Abidjan's population was 6.3 million, which is 21.5 percent of the overall population of the country, making it the sixth most populous city proper in Africa, after Lagos, Cairo, Kinshasa, Dar es Salaam, and Johannesburg.
+    source_title: Abidjan
+    source_url: https://en.wikipedia.org/wiki/Abidjan
+    wikidata: Q1515
+    retrieved: "2026-07-20"
+  - key: ci:abobo
+    blurb: Abobo is a northern suburb of Abidjan and one of the 10 urban communes of this city in Ivory Coast. Abobo is one of the most populated communes in the country with about 1.3 million inhabitants in an area of 6,925 ha (69.25 km2), a density of 193 inhabitants per hectare.
+    source_title: Abobo
+    source_url: https://en.wikipedia.org/wiki/Abobo
+    wikidata: Q322624
+    retrieved: "2026-07-20"
+  - key: cl:santiago
+    blurb: Santiago, also known as Santiago de Chile, is the capital and largest city of Chile and one of the largest cities in the Americas.
+    source_title: Santiago
+    source_url: https://en.wikipedia.org/wiki/Santiago
+    wikidata: Q2887
+    retrieved: "2026-07-20"
+  - key: cm:douala
+    blurb: Douala is the largest city in Cameroon and its economic capital. It is also the capital of Cameroon's Littoral Region.
+    source_title: Douala
+    source_url: https://en.wikipedia.org/wiki/Douala
+    wikidata: Q132830
+    retrieved: "2026-07-20"
+  - key: cm:yaounde
+    blurb: Yaoundé is the capital city of Cameroon. It has a population of more than 2.8 million, which makes it the second-largest city in the country after the port city Douala.
+    source_title: Yaoundé
+    source_url: https://en.wikipedia.org/wiki/Yaound%C3%A9
+    wikidata: Q3808
+    retrieved: "2026-07-20"
+  - key: cn:bao-an
+    blurb: Bao'an District is one of the nine districts comprising the city of Shenzhen, Guangdong province. It is one of the districts formerly lying outside the Shenzhen Special Economic Zone.
+    source_title: Bao'an, Shenzhen
+    source_url: https://en.wikipedia.org/wiki/Bao'an%2C_Shenzhen
+    retrieved: "2026-07-20"
+  - key: cn:beijing
+    blurb: Beijing, previously romanized as Peking, is the capital city of China. With more than 21.8 million residents, it is the world's most populous national capital city, as well as China's second-largest city by urban area, after Shanghai.
+    source_title: Beijing
+    source_url: https://en.wikipedia.org/wiki/Beijing
+    wikidata: Q956
+    retrieved: "2026-07-20"
+  - key: cn:changchun
+    blurb: Changchun is the capital and largest city of Jilin Province, China, on the Songliao Plain. Changchun is administered as a sub-provincial city, comprising seven districts, one county and three county-level cities.
+    source_title: Changchun
+    source_url: https://en.wikipedia.org/wiki/Changchun
+    wikidata: Q92161
+    retrieved: "2026-07-20"
+  - key: cn:chengdu
+    blurb: Chengdu is the capital city of the Chinese province of Sichuan. With a population of 20,937,757 at the 2020 census, it is the country's fourth most populous city and the only city with a population of over 20 million apart from provincial-level municipalities.
+    source_title: Chengdu
+    source_url: https://en.wikipedia.org/wiki/Chengdu
+    wikidata: Q30002
+    retrieved: "2026-07-20"
+  - key: cn:chongqing
+    blurb: Chongqing is a provincial-level direct-administered municipality in Southwestern China. It is one of the four direct-administered municipalities of China and the only one located inland.
+    source_title: Chongqing
+    source_url: https://en.wikipedia.org/wiki/Chongqing
+    retrieved: "2026-07-20"
+  - key: cn:dalian
+    blurb: Dalian is a major prefecture-level, sub-provincial port city in Liaoning province, People's Republic of China, and is Liaoning's second largest city and the third-most populous city of Northeast China. Located on the southern tip of the Liaodong peninsula, it is the southernmost city in both Liaoning and the entire Northeast.
+    source_title: Dalian
+    source_url: https://en.wikipedia.org/wiki/Dalian
+    wikidata: Q74881
+    retrieved: "2026-07-20"
+  - key: cn:dongguan
+    blurb: Dongguan is a prefecture-level city in central Guangdong Province, China. An important industrial city in the Pearl River Delta, Dongguan borders the provincial capital of Guangzhou to the north, Huizhou to the northeast, Shenzhen to the south, and the Pearl River to the west.
+    source_title: Dongguan
+    source_url: https://en.wikipedia.org/wiki/Dongguan
+    wikidata: Q59218
+    retrieved: "2026-07-20"
+  - key: cn:foshan
+    blurb: Foshan or Fatshan is a prefecture-level city in central Guangdong Province, China. The entire prefecture covers 3,848 km2 (1,486 sq mi) and had a population of 9,498,863 as of the 2020 census.
+    source_title: Foshan
+    source_url: https://en.wikipedia.org/wiki/Foshan
+    wikidata: Q34412
+    retrieved: "2026-07-20"
+  - key: cn:guangzhou
+    blurb: Guangzhou, also known as Canton, is the capital and largest city of Guangdong in southern China. Located on the Pearl River, about 120 kilometres (75 mi) northwest of Hong Kong and 145 kilometres (90 mi) north of Macau, Guangzhou has a history of over 2,200 years and was a major terminus of the Silk Road.
+    source_title: Guangzhou
+    source_url: https://en.wikipedia.org/wiki/Guangzhou
+    wikidata: Q16572
+    retrieved: "2026-07-20"
+  - key: cn:hangzhou
+    blurb: Hangzhou is the capital and most populated city of Zhejiang province, China. Situated at the intersection of the southern terminus of the Grand Canal and the head of Hangzhou Bay, Hangzhou is one of the core cities of Southeast China's Yangtze Delta Metropolitan.
+    source_title: Hangzhou
+    source_url: https://en.wikipedia.org/wiki/Hangzhou
+    wikidata: Q4970
+    retrieved: "2026-07-20"
+  - key: cn:harbin
+    blurb: Harbin is the capital of Heilongjiang, China, and the largest city of the province—as well as the second largest urban population and the largest metropolitan population in Northeast China. Harbin has direct jurisdiction over nine metropolitan districts, two county-level cities, and seven counties.
+    source_title: Harbin
+    source_url: https://en.wikipedia.org/wiki/Harbin
+    wikidata: Q42956
+    retrieved: "2026-07-20"
+  - key: cn:hefei
+    blurb: Hefei is the capital of Anhui province, China. A prefecture-level city, it is the political, economic, and cultural center of Anhui.
+    source_title: Hefei
+    source_url: https://en.wikipedia.org/wiki/Hefei
+    wikidata: Q185684
+    retrieved: "2026-07-20"
+  - key: cn:jinan
+    blurb: Jinan is the capital of the Shandong province in Eastern China. With a population of 9.2 million, it is one of the largest cities in Shandong in terms of population.
+    source_title: Jinan
+    source_url: https://en.wikipedia.org/wiki/Jinan
+    wikidata: Q170247
+    retrieved: "2026-07-20"
+  - key: cn:nanjing
+    blurb: Nanjing is the capital of Jiangsu, East China. The city, which is located in the southwestern corner of the province, has 11 districts, an administrative area of 6,600 square kilometres (2,500 sq mi), and as of 2021 a population of 9,423,400.
+    source_title: Nanjing
+    source_url: https://en.wikipedia.org/wiki/Nanjing
+    wikidata: Q16666
+    retrieved: "2026-07-20"
+  - key: cn:pudong
+    blurb: Pudong is a district of Shanghai located east of the Huangpu, the river which flows through central Shanghai. The name Pudong was originally applied to the Huangpu's east bank, directly across from the west bank or Puxi, the historic city center.
+    source_title: Pudong
+    source_url: https://en.wikipedia.org/wiki/Pudong
+    retrieved: "2026-07-20"
+  - key: cn:puxi
+    blurb: Puxi is the historic center of Shanghai, China, and remains the home of approximately 48% of Shanghai's residents in an area of 288 km2. Puxi is distinguished from Pudong to its east, which is separated from it by the Huangpu River.
+    source_title: Puxi
+    source_url: https://en.wikipedia.org/wiki/Puxi
+    retrieved: "2026-07-20"
+  - key: cn:qingdao
+    blurb: Qingdao, archaically known as Tsingtao, is a prefecture-level city in the eastern Shandong Province of China. Lying across the Shandong Peninsula and looking out to the Yellow Sea, it borders the prefecture-level cities of Yantai to the northeast, Weifang to the west and Rizhao to the southwest.
+    source_title: Qingdao
+    source_url: https://en.wikipedia.org/wiki/Qingdao
+    wikidata: Q170322
+    retrieved: "2026-07-20"
+  - key: cn:shanghai
+    blurb: Shanghai is a provincial-level direct-administered municipality in China. It has a population of 30,050,000 in the urban area as of 2026, thus making it China's most populous city and more broadly the fifth-largest city in the world by population.
+    source_title: Shanghai
+    source_url: https://en.wikipedia.org/wiki/Shanghai
+    wikidata: Q8686
+    retrieved: "2026-07-20"
+  - key: cn:shenyang
+    blurb: Shenyang, formerly known by its Manchu name Mukden, is a sub-provincial city in China and the provincial capital of Liaoning province. It is the province's most populous city with a population of 9,070,093 as of the 2020 census, also making it the largest city in Manchuria by urban population, and the second-largest by metropolitan population.
+    source_title: Shenyang
+    source_url: https://en.wikipedia.org/wiki/Shenyang
+    wikidata: Q11720
+    retrieved: "2026-07-20"
+  - key: cn:shenzhen
+    blurb: Shenzhen is a prefecture-level city in the province of Guangdong, China. A special economic zone, it is located on the east bank of the Pearl River estuary on the central coast of Guangdong, bordering Hong Kong to the south, Dongguan to the north, Huizhou to the northeast, and Macau to the southwest.
+    source_title: Shenzhen
+    source_url: https://en.wikipedia.org/wiki/Shenzhen
+    retrieved: "2026-07-20"
+  - key: cn:shijiazhuang
+    blurb: Shijiazhuang is the capital and most populous city of China's Hebei Province, located 266 kilometres (165 mi) southwest of Beijing.
+    source_title: Shijiazhuang
+    source_url: https://en.wikipedia.org/wiki/Shijiazhuang
+    retrieved: "2026-07-20"
+  - key: cn:suzhou
+    blurb: Suzhou is a prefecture-level city in Jiangsu province, Eastern China. Suzhou is a major tourist destination and industrial hub of Eastern China, specializing in high-end manufacturing.
+    source_title: Suzhou
+    source_url: https://en.wikipedia.org/wiki/Suzhou
+    wikidata: Q42622
+    retrieved: "2026-07-20"
+  - key: cn:taiyuan
+    blurb: Taiyuan is the capital of Shanxi, China. It is the political, economic, cultural, and international exchange center of the province, containing an industrial base focusing on energy and heavy chemicals.
+    source_title: Taiyuan
+    source_url: https://en.wikipedia.org/wiki/Taiyuan
+    wikidata: Q72778
+    retrieved: "2026-07-20"
+  - key: cn:tianjin
+    blurb: Tianjin is a provincial-level direct-administered municipality in China. It is located on the shore of the Bohai Sea.
+    source_title: Tianjin
+    source_url: https://en.wikipedia.org/wiki/Tianjin
+    retrieved: "2026-07-20"
+  - key: cn:wuhan
+    blurb: Wuhan is the capital of Hubei, China. With a population of 13,861,900, it is the most populous city in Hubei and the seventh-most-populous city in China.
+    source_title: Wuhan
+    source_url: https://en.wikipedia.org/wiki/Wuhan
+    wikidata: Q11746
+    retrieved: "2026-07-20"
+  - key: cn:wuxi
+    blurb: Wuxi is a city in southern Jiangsu, China. As of 2024, it had a population of 7,495,000.
+    source_title: Wuxi
+    source_url: https://en.wikipedia.org/wiki/Wuxi
+    wikidata: Q42651
+    retrieved: "2026-07-20"
+  - key: cn:wuzhong
+    blurb: Wuzhong is a prefecture-level city in the Ningxia autonomous region of the People's Republic of China. It was known as Yinnan Prefecture before it was upgraded to a prefecture-level city in 1998.
+    source_title: Wuzhong, Ningxia
+    source_url: https://en.wikipedia.org/wiki/Wuzhong%2C_Ningxia
+    wikidata: Q604517
+    retrieved: "2026-07-20"
+  - key: cn:xi-an
+    blurb: Xi'an is the capital of the Chinese province of Shaanxi. A sub-provincial city on the Guanzhong plain, the city is the third-most populous city in Western China after Chongqing and Chengdu, as well as the most populous city in Northwestern China.
+    source_title: Xi'an
+    source_url: https://en.wikipedia.org/wiki/Xi'an
+    wikidata: Q5826
+    retrieved: "2026-07-20"
+  - key: cn:xiamen
+    blurb: 'Xiamen, historically romanized as Amoy, is a sub-provincial city in southeastern Fujian, People''s Republic of China, beside the Taiwan Strait. It is divided into six districts: Huli, Siming, Jimei, Tong''an, Haicang, and Xiang''an.'
+    source_title: Xiamen
+    source_url: https://en.wikipedia.org/wiki/Xiamen
+    wikidata: Q68744
+    retrieved: "2026-07-20"
+  - key: cn:zhengzhou
+    blurb: Zhengzhou, previously romanized as Chengchow, is the capital and the largest city of Henan Province, China. With a population of 12.6 million people in 2021, it is China's 11th largest city by population.
+    source_title: Zhengzhou
+    source_url: https://en.wikipedia.org/wiki/Zhengzhou
+    wikidata: Q30340
+    retrieved: "2026-07-20"
+  - key: co:barranquilla
+    blurb: Barranquilla is the capital district of the Atlántico department in Colombia. It is located near the Caribbean Sea and is the largest city and third port in the Caribbean coast region; as of 2018, it had a population of 1,206,319, making it Colombia's fourth-most populous city after Bogotá, Medellín, and Cali.
+    source_title: Barranquilla
+    source_url: https://en.wikipedia.org/wiki/Barranquilla
+    retrieved: "2026-07-20"
+  - key: co:bogota
+    blurb: Bogotá is the capital and largest city of Colombia. The city is administered as the Capital District, as well as the capital of, though not politically part of, the surrounding department of Cundinamarca.
+    source_title: Bogotá
+    source_url: https://en.wikipedia.org/wiki/Bogot%C3%A1
+    wikidata: Q2841
+    retrieved: "2026-07-20"
+  - key: co:cali
+    blurb: Santiago de Cali, or Cali, is the capital of the Valle del Cauca department, and the most populous city in southwest Colombia, with an estimated 2,280,522 residents in 2023. The city spans 560.3 km2 (216.3 sq mi) with 120.9 km2 (46.7 sq mi) of urban area, making Cali the second-largest city in the country by area and the third most populous.
+    source_title: Cali
+    source_url: https://en.wikipedia.org/wiki/Cali
+    retrieved: "2026-07-20"
+  - key: co:medellin
+    blurb: Medellín, officially the Special District of Science, Technology and Innovation of Medellín, is the second-largest city in Colombia after Bogotá, and the capital of the department of Antioquia. It is located in the Aburrá Valley, a central region of the Andes Mountains, in northwestern South America.
+    source_title: Medellín
+    source_url: https://en.wikipedia.org/wiki/Medell%C3%ADn
+    retrieved: "2026-07-20"
+  - key: cu:havana
+    blurb: Havana is the capital and largest city of Cuba. The heart of La Habana Province, Havana is the country's main port and commercial center.
+    source_title: Havana
+    source_url: https://en.wikipedia.org/wiki/Havana
+    wikidata: Q1563
+    retrieved: "2026-07-20"
+  - key: cz:prague
+    blurb: Prague is the capital and largest city of the Czech Republic and the historical capital of Bohemia. Located on the Vltava River, the city has a population of about 1.4 million, making it the twelfth-largest city in the European Union.
+    source_title: Prague
+    source_url: https://en.wikipedia.org/wiki/Prague
+    wikidata: Q1085
+    retrieved: "2026-07-20"
+  - key: de:berlin
+    blurb: Berlin is the capital of Germany as well as its largest city by both area and population. With 3.7 million inhabitants, it has the highest population within its city limits of any city in the European Union.
+    source_title: Berlin
+    source_url: https://en.wikipedia.org/wiki/Berlin
+    wikidata: Q64
+    retrieved: "2026-07-20"
+  - key: de:cologne
+    blurb: Cologne is the fourth-most populous city of Germany and the largest city of the German state of North Rhine-Westphalia with nearly 1.1 million inhabitants in the city proper and over 3.1 million people in the Cologne Bonn urban region.
+    source_title: Cologne
+    source_url: https://en.wikipedia.org/wiki/Cologne
+    retrieved: "2026-07-20"
+  - key: de:hamburg
+    blurb: Hamburg, officially the Free and Hanseatic City of Hamburg, is the second-largest city in Germany after Berlin and sixth-largest city in the European Union, with a population of over 1.9 million. The Hamburg Metropolitan Region has a population of over 5.1 million and is the tenth-largest metropolitan region by GDP in the European Union.
+    source_title: Hamburg
+    source_url: https://en.wikipedia.org/wiki/Hamburg
+    wikidata: Q1055
+    retrieved: "2026-07-20"
+  - key: de:munich
+    blurb: Munich is the capital and most populous city of Bavaria, Germany. As of 30 November 2024, its population was 1,604,384, making it the third-largest city in Germany after Berlin and Hamburg.
+    source_title: Munich
+    source_url: https://en.wikipedia.org/wiki/Munich
+    retrieved: "2026-07-20"
+  - key: dk:copenhagen
+    blurb: Copenhagen is the capital and most populous city of both the country of Denmark and the wider Kingdom of Denmark, with a population of 671,714 people in the municipality and 1.4 million in the urban area. The city is situated mainly on the island of Zealand (Sjælland), with a smaller part on the island of Amager.
+    source_title: Copenhagen
+    source_url: https://en.wikipedia.org/wiki/Copenhagen
+    wikidata: Q1748
+    retrieved: "2026-07-20"
+  - key: do:santiago
+    blurb: Santiago, also known as Santiago de Chile, is the capital and largest city of Chile and one of the largest cities in the Americas.
+    source_title: Santiago
+    source_url: https://en.wikipedia.org/wiki/Santiago
+    retrieved: "2026-07-20"
+  - key: do:santo-domingo
+    blurb: Santo Domingo, formerly known as Santo Domingo de Guzmán, is the capital and largest city of the Dominican Republic and the largest metropolitan area in the Caribbean by population. As of 2022, the city center had a population of 1,029,110 while its metropolitan area, Greater Santo Domingo, had a population of 4,274,651.
+    source_title: Santo Domingo
+    source_url: https://en.wikipedia.org/wiki/Santo_Domingo
+    wikidata: Q34820
+    retrieved: "2026-07-20"
+  - key: dz:algiers
+    blurb: Algiers, officially Capital City of Algiers, is the capital city of Algeria, located on the Mediterranean Sea in the north-central portion of the country. In 2025, an estimated 4.325 million people resided within the urban area.
+    source_title: Algiers
+    source_url: https://en.wikipedia.org/wiki/Algiers
+    wikidata: Q3561
+    retrieved: "2026-07-20"
+  - key: ec:guayaquil
+    blurb: Guayaquil, officially Santiago de Guayaquil, is the largest city in Ecuador and also the nation's economic capital and main port. The city is the capital of Guayas Province and the seat of Guayaquil Canton.
+    source_title: Guayaquil
+    source_url: https://en.wikipedia.org/wiki/Guayaquil
+    wikidata: Q43509
+    retrieved: "2026-07-20"
+  - key: ec:quito
+    blurb: Quito, officially San Francisco de Quito, is the capital and second-largest city of Ecuador, with an estimated population of 2.8 million in its metropolitan area. It is also the capital of the province of Pichincha.
+    source_title: Quito
+    source_url: https://en.wikipedia.org/wiki/Quito
+    wikidata: Q2900
+    retrieved: "2026-07-20"
+  - key: eg:alexandria
+    blurb: Alexandria is a major city in Egypt. Lying at the western edge of the Nile River Delta, it extends about 40 km (25 mi) along the country's northern coast.
+    source_title: Alexandria
+    source_url: https://en.wikipedia.org/wiki/Alexandria
+    wikidata: Q87
+    retrieved: "2026-07-20"
+  - key: eg:cairo
+    blurb: Cairo is the capital and largest city of Egypt and the Cairo Governorate. It is home to more than 9.8 million people.
+    source_title: Cairo
+    source_url: https://en.wikipedia.org/wiki/Cairo
+    wikidata: Q85
+    retrieved: "2026-07-20"
+  - key: eg:giza
+    blurb: Giza is the third-largest city in Egypt by area and population, and is also the eighteenth-largest city in Africa by population. It is the capital of Giza Governorate with a total population of 4,458,135 as of 2023.
+    source_title: Giza
+    source_url: https://en.wikipedia.org/wiki/Giza
+    wikidata: Q81788
+    retrieved: "2026-07-20"
+  - key: eg:shubra-al-khaymah
+    blurb: Shubra El Kheima, is the fourth-largest city in Egypt after Cairo, Giza and Alexandria. It is located in the Qalyubia Governorate along the northern edge of the Cairo Governorate.
+    source_title: Shubra El Kheima
+    source_url: https://en.wikipedia.org/wiki/Shubra_El_Kheima
+    wikidata: Q269960
+    retrieved: "2026-07-20"
+  - key: es:barcelona
+    blurb: Barcelona is a city on the northeastern coast of Spain. It is the capital and largest city of the autonomous community of Catalonia, as well as the second-most populous municipality of Spain after Madrid.
+    source_title: Barcelona
+    source_url: https://en.wikipedia.org/wiki/Barcelona
+    retrieved: "2026-07-20"
+  - key: es:madrid
+    blurb: Madrid is the capital and most populous city of Spain. It had a population of over 3.4 million in the city proper in 2025, and a metropolitan area population of approximately 6.8 million.
+    source_title: Madrid
+    source_url: https://en.wikipedia.org/wiki/Madrid
+    retrieved: "2026-07-20"
+  - key: et:addis-ababa
+    blurb: Addis Ababa is the capital and largest city of Ethiopia. With an estimated population of 2,739,551 inhabitants as of the 2007 census, it is the eleventh-largest city in Africa.
+    source_title: Addis Ababa
+    source_url: https://en.wikipedia.org/wiki/Addis_Ababa
+    wikidata: Q3624
+    retrieved: "2026-07-20"
+  - key: fr:paris
+    blurb: Paris is the capital and largest city of France, with an estimated city population of 2.04 million in an area of 105.4 km2 (40.7 sq mi), and a metropolitan population of 13.2 million as of January 2026.
+    source_title: Paris
+    source_url: https://en.wikipedia.org/wiki/Paris
+    wikidata: Q90
+    retrieved: "2026-07-20"
+  - key: gb:birmingham
+    blurb: Birmingham is a city and metropolitan borough in the West Midlands County, of England. It is the largest local authority district in England by population and the second-largest city in Britain – commonly referred to as the second city of the United Kingdom – with a population of 1.2 million people in the city proper in 2024.
+    source_title: Birmingham
+    source_url: https://en.wikipedia.org/wiki/Birmingham
+    wikidata: Q2256
+    retrieved: "2026-07-20"
+  - key: gb:london
+    blurb: London is the capital and largest city of England and the United Kingdom, with a population of 9.1 million people in 2024. Its wider metropolitan area is the largest in Western Europe, with a population of 15.4 million.
+    source_title: London
+    source_url: https://en.wikipedia.org/wiki/London
+    wikidata: Q84
+    retrieved: "2026-07-20"
+  - key: ge:tbilisi
+    blurb: Tbilisi is the capital and largest city of Georgia, located on the banks of the Kura River. With more than 1.3 million inhabitants, it contains almost one third of the country's population.
+    source_title: Tbilisi
+    source_url: https://en.wikipedia.org/wiki/Tbilisi
+    wikidata: Q994
+    retrieved: "2026-07-20"
+  - key: gh:accra
+    blurb: Accra is the capital and largest city of Ghana, located on the southern coast at the Gulf of Guinea, which is part of the Atlantic Ocean. As of the 2021 census, the Accra Metropolitan District, 20.4 km2 (7.9 sq mi), had a population of 284,124, and the larger Greater Accra Region, 3,245 km2 (1,253 sq mi), had a population of 5.46 million.
+    source_title: Accra
+    source_url: https://en.wikipedia.org/wiki/Accra
+    wikidata: Q3761
+    retrieved: "2026-07-20"
+  - key: gh:kumasi
+    blurb: Kumasi is a city and the capital of the Kumasi Metropolitan Assembly and the Ashanti Region of Ghana. It is the second largest city in the country, with a population of 443,981 as of the 2021 census.
+    source_title: Kumasi
+    source_url: https://en.wikipedia.org/wiki/Kumasi
+    wikidata: Q182059
+    retrieved: "2026-07-20"
+  - key: gn:camayenne
+    blurb: The Hotel Palm Camayenne is a hotel in Conakry, Guinea. Set beside the sea, it is one of Conakry's most famous hotels.
+    source_title: Hotel Palm Camayenne
+    source_url: https://en.wikipedia.org/wiki/Hotel_Palm_Camayenne
+    retrieved: "2026-07-20"
+  - key: gn:conakry
+    blurb: Conakry is the capital and largest city of Guinea. A port city, it serves as the economic, financial and cultural centre of Guinea.
+    source_title: Conakry
+    source_url: https://en.wikipedia.org/wiki/Conakry
+    wikidata: Q3733
+    retrieved: "2026-07-20"
+  - key: hk:hong-kong
+    blurb: Hong Kong is a special administrative region of China. Situated on China's southern coast just south of Shenzhen, it consists of Hong Kong Island, Kowloon, and the New Territories.
+    source_title: Hong Kong
+    source_url: https://en.wikipedia.org/wiki/Hong_Kong
+    retrieved: "2026-07-20"
+  - key: hk:hong-kong-island
+    blurb: Hong Kong Island is an island in the southern part of Hong Kong. The island, known originally and on road signs simply as Hong Kong, has a land area of approximately 78.59 square kilometres (30.34 sq mi) and a population of 1,289,500 with a population density of 16,390 per square kilometre (42,400/sq mi), as of 2023.
+    source_title: Hong Kong Island
+    source_url: https://en.wikipedia.org/wiki/Hong_Kong_Island
+    retrieved: "2026-07-20"
+  - key: hk:kowloon
+    blurb: Kowloon, formerly Kaulung, is one of the three areas of Hong Kong, along with Hong Kong Island and the New Territories. It is an urban area comprising the Kowloon Peninsula and New Kowloon.
+    source_title: Kowloon
+    source_url: https://en.wikipedia.org/wiki/Kowloon
+    wikidata: Q239143
+    retrieved: "2026-07-20"
+  - key: hk:new-territories
+    blurb: The New Territories is the largest of the three areas of Hong Kong, alongside Hong Kong Island and Kowloon. It makes up 86.2% of Hong Kong's territory at an area of 952 square kilometres (368 sq mi), and contains 53.7% of the city's population at 3,984,077 as of 2021.
+    source_title: New Territories
+    source_url: https://en.wikipedia.org/wiki/New_Territories
+    retrieved: "2026-07-20"
+  - key: ht:port-au-prince
+    blurb: Port-au-Prince is the capital and most populous city of Haiti. The city's population was estimated at 1,200,000 in 2022 with the metropolitan area estimated at a population of 2,618,894.
+    source_title: Port-au-Prince
+    source_url: https://en.wikipedia.org/wiki/Port-au-Prince
+    retrieved: "2026-07-20"
+  - key: hu:budapest
+    blurb: Budapest is the capital and most populous city of Hungary. It is Hungary's primate city with 1.7 million inhabitants and its greater metro area has a population of about 3.3 million, representing one-third of the country's population and producing more than 40% of the country's economic output.
+    source_title: Budapest
+    source_url: https://en.wikipedia.org/wiki/Budapest
+    wikidata: Q1781
+    retrieved: "2026-07-20"
+  - key: hu:pest
+    blurb: Pest is the part of Budapest, the capital city of Hungary, that lies on the eastern bank of the Danube. Pest was administratively unified with Buda and Óbuda in 1873.
+    source_title: Pest, Hungary
+    source_url: https://en.wikipedia.org/wiki/Pest%2C_Hungary
+    wikidata: Q210205
+    retrieved: "2026-07-20"
+  - key: id:bandar-lampung
+    blurb: Bandar Lampung is the capital and largest city of the Indonesian province of Lampung. Located on the southern tip of Sumatra, Bandar Lampung was originally called Tanjungkarang–Telukbetung, since it was a unification of two major settlements in Lampung, before being renamed in 1983.
+    source_title: Bandar Lampung
+    source_url: https://en.wikipedia.org/wiki/Bandar_Lampung
+    wikidata: Q8156
+    retrieved: "2026-07-20"
+  - key: id:bandung
+    blurb: Bandung is the capital city of the West Java province of Indonesia. Located on the western highland of Java island, it has one of the coolest climates compared to other provincial capitals in Indonesia, situated 708 meters above sea level, approximately 135 kilometres southeast of Jakarta.
+    source_title: Bandung
+    source_url: https://en.wikipedia.org/wiki/Bandung
+    retrieved: "2026-07-20"
+  - key: id:batam
+    blurb: Batam, officially the City of Batam or Batam City, is the largest city in the Indonesian province of the Riau Islands.
+    source_title: Batam
+    source_url: https://en.wikipedia.org/wiki/Batam
+    wikidata: Q10103
+    retrieved: "2026-07-20"
+  - key: id:bekasi
+    blurb: Bekasi is the largest city in the province of West Java and the third-largest city in Indonesia. Located on the eastern border of Jakarta, it serves as a commuter city within the Jakarta metropolitan area.
+    source_title: Bekasi
+    source_url: https://en.wikipedia.org/wiki/Bekasi
+    wikidata: Q10392
+    retrieved: "2026-07-20"
+  - key: id:bogor
+    blurb: Bogor City, or Bogor, is a landlocked city in West Java, Indonesia. Located around 53 kilometers (33 mi) south of the national capital of Jakarta, it is the 6th largest city in the Jakarta metropolitan area and the 14th overall nationwide.
+    source_title: Bogor
+    source_url: https://en.wikipedia.org/wiki/Bogor
+    wikidata: Q10393
+    retrieved: "2026-07-20"
+  - key: id:depok
+    blurb: Depok is a landlocked city in West Java province. It is located directly south of Jakarta, and it is the third largest urban center in the Greater Jakarta metropolitan area after Jakarta and Bekasi, covering an area of about 199.91 km2.
+    source_title: Depok
+    source_url: https://en.wikipedia.org/wiki/Depok
+    retrieved: "2026-07-20"
+  - key: id:jakarta
+    blurb: Jakarta, officially the Special Capital Region of Jakarta, is the capital and largest city of Indonesia, with administrative status equivalent to a province. It lies on the northwestern coast of Java, borders the provinces of West Java and Banten, and faces the Java Sea to the north.
+    source_title: Jakarta
+    source_url: https://en.wikipedia.org/wiki/Jakarta
+    wikidata: Q3630
+    retrieved: "2026-07-20"
+  - key: id:jepara
+    blurb: Jepara is a town in the province of Central Java, Indonesia. Jepara is on the north coast of Java, northeast of Semarang, not far from Mount Muria, with a population of 85,970 in mid 2024.
+    source_title: Jepara
+    source_url: https://en.wikipedia.org/wiki/Jepara
+    wikidata: Q2662601
+    retrieved: "2026-07-20"
+  - key: id:makassar
+    blurb: Makassar, formerly Ujung Pandang, is the capital of the Indonesian province of South Sulawesi. It is the largest city in the region of Eastern Indonesia and the country's fifth-largest urban center after Jakarta, Surabaya, Medan, and Bandung.
+    source_title: Makassar
+    source_url: https://en.wikipedia.org/wiki/Makassar
+    retrieved: "2026-07-20"
+  - key: id:medan
+    blurb: Medan is the capital and largest city of the Indonesian province of North Sumatra. The nearby Strait of Malacca, Port of Belawan, and Kualanamu International Airport make Medan a regional hub and multicultural metropolis, acting as a financial centre for Sumatra and a gateway to the western part of Indonesia.
+    source_title: Medan
+    source_url: https://en.wikipedia.org/wiki/Medan
+    wikidata: Q5972
+    retrieved: "2026-07-20"
+  - key: id:palembang
+    blurb: Palembang is the capital city of the Indonesian province of South Sumatra. The city proper covers 352.51 square kilometres on both banks of the Musi River in the eastern lowlands of southern Sumatra.
+    source_title: Palembang
+    source_url: https://en.wikipedia.org/wiki/Palembang
+    wikidata: Q8131
+    retrieved: "2026-07-20"
+  - key: id:pekanbaru
+    blurb: Pekanbaru is the capital city of the Indonesian province of Riau, and a major economic center on the eastern side of Sumatra Island with its name derived from the Malay (Indonesian) word for 'new market' .
+    source_title: Pekanbaru
+    source_url: https://en.wikipedia.org/wiki/Pekanbaru
+    wikidata: Q7786
+    retrieved: "2026-07-20"
+  - key: id:semarang
+    blurb: Semarang is the capital and largest city of Central Java province in Indonesia. It was a major port during the Dutch colonial era, and is still an important regional center and port today.
+    source_title: Semarang
+    source_url: https://en.wikipedia.org/wiki/Semarang
+    wikidata: Q11025
+    retrieved: "2026-07-20"
+  - key: id:south-tangerang
+    blurb: South Tangerang abbreviated as Tangsel, is a city in the province of Banten, Indonesia. Located 30 km (19 mi) on the southwestern border of Jakarta, the city forms part of the Greater Jakarta metropolitan area.
+    source_title: South Tangerang
+    source_url: https://en.wikipedia.org/wiki/South_Tangerang
+    wikidata: Q10128
+    retrieved: "2026-07-20"
+  - key: id:surabaya
+    blurb: Surabaya is the capital and largest city of East Java province and the second-largest city in Indonesia, after Jakarta. Located on the northeastern corner of Java island, on the Madura Strait, it is one of the earliest port cities in Southeast Asia.
+    source_title: Surabaya
+    source_url: https://en.wikipedia.org/wiki/Surabaya
+    wikidata: Q11462
+    retrieved: "2026-07-20"
+  - key: id:tangerang
+    blurb: Tangerang is the city with the largest population in the province of Banten, Indonesia. Located on the western border of Jakarta and bordered with South Tangerang city, Tangerang is the sixth largest city proper in the nation.
+    source_title: Tangerang
+    source_url: https://en.wikipedia.org/wiki/Tangerang
+    wikidata: Q10127
+    retrieved: "2026-07-20"
+  - key: ie:dublin
+    blurb: Dublin is the capital and largest city of Ireland. Situated on Dublin Bay at the mouth of the River Liffey, it is in the province of Leinster, and is bordered on the south by the Dublin Mountains, part of the Wicklow Mountains range.
+    source_title: Dublin
+    source_url: https://en.wikipedia.org/wiki/Dublin
+    wikidata: Q1761
+    retrieved: "2026-07-20"
+  - key: in:agra
+    blurb: Agra is a city on the banks of the Yamuna river in the Indian state of Uttar Pradesh, It is a part of Western Uttar Pradesh, about 230 kilometres (140 mi) south-east of the national capital Delhi and 330 km west of the state capital Lucknow. It is also part of the Braj region.
+    source_title: Agra
+    source_url: https://en.wikipedia.org/wiki/Agra
+    wikidata: Q42941
+    retrieved: "2026-07-20"
+  - key: in:ahmedabad
+    blurb: Ahmedabad, also spelt Amdavad, is the most populous city in the Indian state of Gujarat. It is the administrative headquarters of the Ahmedabad district and the seat of the Gujarat High Court.
+    source_title: Ahmedabad
+    source_url: https://en.wikipedia.org/wiki/Ahmedabad
+    wikidata: Q1070
+    retrieved: "2026-07-20"
+  - key: in:bangalore
+    blurb: Bengaluru, also known as Bangalore, is the capital and largest city of the southern Indian state of Karnataka. As per the 2011 census, the city had a population of 8.4 million, making it the third most populous city in India and the most populous in South India.
+    source_title: Bengaluru
+    source_url: https://en.wikipedia.org/wiki/Bengaluru
+    wikidata: Q1355
+    retrieved: "2026-07-20"
+  - key: in:bhopal
+    blurb: Bhopal is the capital city of the Indian state of Madhya Pradesh and the administrative headquarters of both Bhopal district and Bhopal division. It is known as the City of Lakes, due to presence of various natural and artificial lakes near the city boundary.
+    source_title: Bhopal
+    source_url: https://en.wikipedia.org/wiki/Bhopal
+    wikidata: Q80989
+    retrieved: "2026-07-20"
+  - key: in:chennai
+    blurb: Chennai, also known as Madras, is the capital and largest city of Tamil Nadu, the southernmost state of India. It is located on the Coromandel Coast of the Bay of Bengal.
+    source_title: Chennai
+    source_url: https://en.wikipedia.org/wiki/Chennai
+    wikidata: Q1352
+    retrieved: "2026-07-20"
+  - key: in:coimbatore
+    blurb: Coimbatore, also known as Kovai, is a metropolitan city in the Indian state of Tamil Nadu. It is located on the banks of the Noyyal River and surrounded by the Western Ghats.
+    source_title: Coimbatore
+    source_url: https://en.wikipedia.org/wiki/Coimbatore
+    wikidata: Q9885
+    retrieved: "2026-07-20"
+  - key: in:delhi
+    blurb: Delhi, officially the National Capital Territory (NCT) of Delhi, is a megacity and a union territory of India containing New Delhi, the capital of India.
+    source_title: Delhi
+    source_url: https://en.wikipedia.org/wiki/Delhi
+    wikidata: Q1353
+    retrieved: "2026-07-20"
+  - key: in:hyderabad
+    blurb: Hyderabad is the capital and largest city of the Indian state of Telangana. It occupies 650 km2 (250 sq mi) on the Deccan Plateau along the banks of the Musi River, in the northern part of South India.
+    source_title: Hyderabad
+    source_url: https://en.wikipedia.org/wiki/Hyderabad
+    wikidata: Q1361
+    retrieved: "2026-07-20"
+  - key: in:indore
+    blurb: Indore is the largest city of the Indian state of Madhya Pradesh where it serves as the capital and the administrative headquarters of the eponymous district and division.
+    source_title: Indore
+    source_url: https://en.wikipedia.org/wiki/Indore
+    wikidata: Q66616
+    retrieved: "2026-07-20"
+  - key: in:jaipur
+    blurb: Jaipur is the capital and the largest city of the north-western Indian state of Rajasthan. As of 2011, the city had a population of 3.1 million, making it the tenth most populous city in the country.
+    source_title: Jaipur
+    source_url: https://en.wikipedia.org/wiki/Jaipur
+    wikidata: Q66485
+    retrieved: "2026-07-20"
+  - key: in:kallakurichi
+    blurb: Kallakurichi is a first-grade municipality and the administrative headquarters of Kallakurichi district in Tamil Nadu, India. The district was formed as the 33rd district of Tamil Nadu by bifurcating Villupuram district on 8 January 2019.
+    source_title: Kallakurichi
+    source_url: https://en.wikipedia.org/wiki/Kallakurichi
+    retrieved: "2026-07-20"
+  - key: in:kanpur
+    blurb: Kanpur, originally named Kanhapur and formerly anglicized as Cawnpore, is a large city in the Indian state of Uttar Pradesh. Founded by Rajput ruler Hindu Singh Chandel, Kanpur became one of the most important commercial and military stations of British Raj.
+    source_title: Kanpur
+    source_url: https://en.wikipedia.org/wiki/Kanpur
+    wikidata: Q66568
+    retrieved: "2026-07-20"
+  - key: in:kolkata
+    blurb: Kolkata, also known as Calcutta, is the capital and largest city of the Indian state of West Bengal. It lies on the eastern bank of the Hooghly River, 80 km (50 mi) west of the border with Bangladesh.
+    source_title: Kolkata
+    source_url: https://en.wikipedia.org/wiki/Kolkata
+    wikidata: Q1348
+    retrieved: "2026-07-20"
+  - key: in:lucknow
+    blurb: Lucknow is a metropolis and the second largest city of the Indian state of Uttar Pradesh where it serves as the capital and the administrative headquarters of the eponymous district and division.
+    source_title: Lucknow
+    source_url: https://en.wikipedia.org/wiki/Lucknow
+    wikidata: Q47916
+    retrieved: "2026-07-20"
+  - key: in:ludhiana
+    blurb: Ludhiana is the most populous city in the Indian state of Punjab. The city has an estimated population of 1,618,879 as of the 2011 census and distributed over 310 km2 (120 sq mi), making Ludhiana the most densely populated urban centre in the state.
+    source_title: Ludhiana
+    source_url: https://en.wikipedia.org/wiki/Ludhiana
+    wikidata: Q200123
+    retrieved: "2026-07-20"
+  - key: in:madurai
+    blurb: Madurai is a major tier II city in the Indian state of Tamil Nadu. It is the cultural capital of Tamil Nadu and the administrative headquarters of Madurai district, which is governed by the Madurai Municipal Corporation established on 1 November 1866.
+    source_title: Madurai
+    source_url: https://en.wikipedia.org/wiki/Madurai
+    wikidata: Q228405
+    retrieved: "2026-07-20"
+  - key: in:mumbai
+    blurb: Mumbai, also known as Bombay, is the capital city of the Indian state of Maharashtra. It is the financial capital and the most populous city proper of India, with an estimated population of 12.5 million (1.25 crore).
+    source_title: Mumbai
+    source_url: https://en.wikipedia.org/wiki/Mumbai
+    wikidata: Q1156
+    retrieved: "2026-07-20"
+  - key: in:nagpur
+    blurb: Nagpur is the largest and most populous city in central India. It is the second capital and the third-largest city of the Indian state Maharashtra.
+    source_title: Nagpur
+    source_url: https://en.wikipedia.org/wiki/Nagpur
+    wikidata: Q1513
+    retrieved: "2026-07-20"
+  - key: in:nashik
+    blurb: Nashik, formerly Nasik, is a city in the northern region of the Indian state of Maharashtra situated on the banks of the river Godavari, about 165 km (103 mi) northeast of the state capital Mumbai. The city lies in the Nashik Metropolitan Region.
+    source_title: Nashik
+    source_url: https://en.wikipedia.org/wiki/Nashik
+    wikidata: Q200235
+    retrieved: "2026-07-20"
+  - key: in:navi-mumbai
+    blurb: Navi Mumbai is a city in the Mumbai Metropolitan Region, located in the Konkan division of the Western Indian state of Maharashtra. Navi Mumbai is situated on the Indian mainland, opposite Salsette Island and the city of Mumbai, and is part of Thane district and Raigad district, respectively
+    source_title: Navi Mumbai
+    source_url: https://en.wikipedia.org/wiki/Navi_Mumbai
+    wikidata: Q61445
+    retrieved: "2026-07-20"
+  - key: in:patna
+    blurb: Patna, historically known as Pāṭaliputra, is the capital and largest city of the Indian state of Bihar. According to the United Nations, as of 2018, Patna had a population of 2.35 million, making it the 19th largest city in India.
+    source_title: Patna
+    source_url: https://en.wikipedia.org/wiki/Patna
+    wikidata: Q80484
+    retrieved: "2026-07-20"
+  - key: in:pimpri-chinchwad
+    blurb: Pimpri-Chinchwad, also known as PCMC, is a city in the Indian state of Maharashtra. The city is about 15 km (9.3 mi) northwest of the historic city of Pune, at an altitude of 590 m (1,940 ft) above sea level.
+    source_title: Pimpri-Chinchwad
+    source_url: https://en.wikipedia.org/wiki/Pimpri-Chinchwad
+    wikidata: Q119219
+    retrieved: "2026-07-20"
+  - key: in:pune
+    blurb: Pune, previously spelled in English as Poona, is a city in the state of Maharashtra in the Deccan Plateau in Western India. It is the administrative headquarters of the Pune district, and of Pune division.
+    source_title: Pune
+    source_url: https://en.wikipedia.org/wiki/Pune
+    wikidata: Q1538
+    retrieved: "2026-07-20"
+  - key: in:surat
+    blurb: Surat is a city in the western Indian state of Gujarat. The word Surat directly translates to face in Gujarati, Hindi and Urdu.
+    source_title: Surat
+    source_url: https://en.wikipedia.org/wiki/Surat
+    wikidata: Q4629
+    retrieved: "2026-07-20"
+  - key: in:thane
+    blurb: Thane is a city in western India, in the state of Maharashtra. It neighbours Mumbai and is part of the Mumbai Metropolitan Region.
+    source_title: Thane
+    source_url: https://en.wikipedia.org/wiki/Thane
+    wikidata: Q207749
+    retrieved: "2026-07-20"
+  - key: in:tirunelveli
+    blurb: Tirunelveli, also known as Nellai, is a city and municipal corporation in the Indian state of Tamil Nadu. It is located on the southern part of the state, on the west bank of the Thamirabarani River.
+    source_title: Tirunelveli
+    source_url: https://en.wikipedia.org/wiki/Tirunelveli
+    wikidata: Q213248
+    retrieved: "2026-07-20"
+  - key: in:vadodara
+    blurb: Vadodara, also known as Baroda, is a city on the banks of the Vishwamitri River in the Indian state of Gujarat. It serves as the administrative headquarters of the Vadodara district.
+    source_title: Vadodara
+    source_url: https://en.wikipedia.org/wiki/Vadodara
+    wikidata: Q11909
+    retrieved: "2026-07-20"
+  - key: iq:baghdad
+    blurb: Baghdad is the capital and largest city in Iraq. It is located on the banks of the Tigris in central Iraq.
+    source_title: Baghdad
+    source_url: https://en.wikipedia.org/wiki/Baghdad
+    wikidata: Q1530
+    retrieved: "2026-07-20"
+  - key: iq:basra
+    blurb: Basra or Basrah is a port city in southern Iraq. It is the capital of the eponymous Basra Governorate, as well as the third largest city in Iraq overall, behind Baghdad and Mosul.
+    source_title: Basra
+    source_url: https://en.wikipedia.org/wiki/Basra
+    wikidata: Q48195
+    retrieved: "2026-07-20"
+  - key: iq:erbil
+    blurb: Erbil, also called Hawler, is the capital and most populated city in the Kurdistan Region of Iraq and the capital of the Erbil Governorate. Erbil is described as the region's cultural, economic, industrial, educational and medical hub.
+    source_title: Erbil
+    source_url: https://en.wikipedia.org/wiki/Erbil
+    wikidata: Q132754
+    retrieved: "2026-07-20"
+  - key: iq:karbala
+    blurb: Karbala is a major city in central Iraq. It is the capital of Karbala Governorate.
+    source_title: Karbala
+    source_url: https://en.wikipedia.org/wiki/Karbala
+    wikidata: Q199909
+    retrieved: "2026-07-20"
+  - key: iq:kirkuk
+    blurb: Kirkuk is a major city in northern Iraq, serving as the capital of the Kirkuk Governorate. The city is home to a diverse population of Kurds, Iraqi Turkmens and Arabs.
+    source_title: Kirkuk
+    source_url: https://en.wikipedia.org/wiki/Kirkuk
+    wikidata: Q173310
+    retrieved: "2026-07-20"
+  - key: iq:mosul
+    blurb: Mosul is a major city in northern Iraq, serving as the capital of Nineveh Governorate. It is the second largest city in Iraq overall after the capital Baghdad and situated on the banks of Tigris.
+    source_title: Mosul
+    source_url: https://en.wikipedia.org/wiki/Mosul
+    wikidata: Q83317
+    retrieved: "2026-07-20"
+  - key: iq:sadr-city
+    blurb: Sadr City, formerly known as Al-Thawra and Saddam City, is a suburb district of the city of Baghdad, Iraq. It was built in 1959 by Prime Minister Abdul Karim Qassim and named Al-Rafidain District.
+    source_title: Sadr City
+    source_url: https://en.wikipedia.org/wiki/Sadr_City
+    wikidata: Q1017715
+    retrieved: "2026-07-20"
+  - key: ir:isfahan
+    blurb: Isfahan is a city in the Central District of Isfahan County, Isfahan Province, Iran. It is the capital of the province, the county, and the district.
+    source_title: Isfahan
+    source_url: https://en.wikipedia.org/wiki/Isfahan
+    wikidata: Q42053
+    retrieved: "2026-07-20"
+  - key: ir:karaj
+    blurb: Karaj is a city in the Central District of Karaj County, Alborz province, Iran, serving as capital of the province, the county, and the district. Earliest evidence of inhabitation in Karaj can be dated to the Bronze Age at Tepe Khurvin.
+    source_title: Karaj
+    source_url: https://en.wikipedia.org/wiki/Karaj
+    wikidata: Q36529
+    retrieved: "2026-07-20"
+  - key: ir:mashhad
+    blurb: Mashhad, historically also known as Mashad, Meshhed, or Meshed, is the second-most-populous city in Iran, located in the north-east of the country about 740 kilometres east of Tehran. In the Central District of Mashhad County, it serves as the capital of Razavi Khorasan province, the county, and the district.
+    source_title: Mashhad
+    source_url: https://en.wikipedia.org/wiki/Mashhad
+    wikidata: Q121157
+    retrieved: "2026-07-20"
+  - key: ir:shiraz
+    blurb: Shiraz is the fifth-most-populous city of Iran and the capital of Fars province, which is historically known by the exonym Persia proper. As of the 2016 national census, the population of the city was 1,565,572 people, and its built-up area with Sadra was home to almost 1,800,000 inhabitants.
+    source_title: Shiraz
+    source_url: https://en.wikipedia.org/wiki/Shiraz
+    wikidata: Q6397066
+    retrieved: "2026-07-20"
+  - key: ir:tabriz
+    blurb: Tabriz is a city in the Central District of Tabriz County, in East Azerbaijan province of northwestern Iran. It serves as capital of the province, the county, and the district.
+    source_title: Tabriz
+    source_url: https://en.wikipedia.org/wiki/Tabriz
+    wikidata: Q80053
+    retrieved: "2026-07-20"
+  - key: ir:tehran
+    blurb: Tehran is the capital and largest city of Iran. It is also the capital of Tehran province and the administrative center for Tehran County and its Central District.
+    source_title: Tehran
+    source_url: https://en.wikipedia.org/wiki/Tehran
+    wikidata: Q3616
+    retrieved: "2026-07-20"
+  - key: it:milan
+    blurb: Milan is the regional capital of Lombardy, in northern Italy, and the seat of the Metropolitan City of Milan. It is the second-most populous city in Italy after Rome, with a population of 1,362,863 in 2026.
+    source_title: Milan
+    source_url: https://en.wikipedia.org/wiki/Milan
+    wikidata: Q490
+    retrieved: "2026-07-20"
+  - key: it:rome
+    blurb: Rome is the capital city and most populated comune (municipality) of Italy. It is also the administrative centre of the Lazio region and of the Metropolitan City of Rome.
+    source_title: Rome
+    source_url: https://en.wikipedia.org/wiki/Rome
+    wikidata: Q220
+    retrieved: "2026-07-20"
+  - key: jo:amman
+    blurb: Amman is the capital and the largest city of Jordan, and the country's economic, political, and cultural center. With a population of five million as of 2024, Amman is Jordan's primate city and is the largest city in the Levant region, the seventh-largest city in the Arab world, and the eighth-largest metropolitan area in the Middle East.
+    source_title: Amman
+    source_url: https://en.wikipedia.org/wiki/Amman
+    wikidata: Q3805
+    retrieved: "2026-07-20"
+  - key: jp:fukuoka
+    blurb: Fukuoka  is a designated city in the Kyushu region of Japan and the capital city of Fukuoka Prefecture. The city is built along the shores of Hakata Bay, and has been a center of international commerce since ancient times.
+    source_title: Fukuoka
+    source_url: https://en.wikipedia.org/wiki/Fukuoka
+    wikidata: Q26600
+    retrieved: "2026-07-20"
+  - key: jp:hiroshima
+    blurb: Hiroshima  is the capital of Hiroshima Prefecture in Japan. As of June 1, 2019, the city had an estimated population of 1,199,391.
+    source_title: Hiroshima
+    source_url: https://en.wikipedia.org/wiki/Hiroshima
+    wikidata: Q34664
+    retrieved: "2026-07-20"
+  - key: jp:kawasaki
+    blurb: Kawasaki Stadium  is a stadium in Kawasaki, Kanagawa, Japan. The stadium was opened in 1952 and had a capacity of 30,000 people, but was demolished and rebuilt in 2003 as an American football venue and is now the home of the Fujitsu Frontiers of the X-League.
+    source_title: Kawasaki Stadium
+    source_url: https://en.wikipedia.org/wiki/Kawasaki_Stadium
+    retrieved: "2026-07-20"
+  - key: jp:kobe
+    blurb: Kobe, officially Kobe City , is the capital city of Hyōgo Prefecture, Japan. With a population of around 1.5 million, Kobe is Japan's seventh-largest city and the third-largest port city after Tokyo and Yokohama.
+    source_title: Kobe
+    source_url: https://en.wikipedia.org/wiki/Kobe
+    wikidata: Q48320
+    retrieved: "2026-07-20"
+  - key: jp:kyoto
+    blurb: Kyoto, officially Kyoto City , is the capital city of Kyoto Prefecture in the Kansai region of Japan's largest and most populous island of Honshu. As of 2020, the city had a population of 1.46 million, making it the ninth-most populous city in Japan.
+    source_title: Kyoto
+    source_url: https://en.wikipedia.org/wiki/Kyoto
+    wikidata: Q34600
+    retrieved: "2026-07-20"
+  - key: jp:nagoya
+    blurb: Nagoya  is the capital and most populous city of Aichi Prefecture in Japan. It is the largest city in the Chūbu region, the fourth-most populous city in Japan, and the principal city of the Chūkyō metropolitan area, which is itself the third-most populous metropolitan area in Japan.
+    source_title: Nagoya
+    source_url: https://en.wikipedia.org/wiki/Nagoya
+    wikidata: Q11751
+    retrieved: "2026-07-20"
+  - key: jp:osaka
+    blurb: Osaka  is a designated city in the Kansai region of Honshu in Japan. It is the capital of and most populous city in Osaka Prefecture, and the second biggest prefectural city, third-most populous city proper in Japan, following the special wards of Tokyo and Yokohama.
+    source_title: Osaka
+    source_url: https://en.wikipedia.org/wiki/Osaka
+    wikidata: Q35765
+    retrieved: "2026-07-20"
+  - key: jp:saitama
+    blurb: Ōwada Station  is a passenger railway station on the Tobu Urban Park Line located in Minuma-ku, Saitama, Saitama Prefecture, Japan, operated by the private railway operator Tōbu Railway.
+    source_title: Ōwada Station (Saitama)
+    source_url: https://en.wikipedia.org/wiki/%C5%8Cwada_Station_(Saitama)
+    retrieved: "2026-07-20"
+  - key: jp:sapporo
+    blurb: Sapporo is a designated city in Hokkaido, Japan. Located in the southwest of Hokkaido, it lies within the alluvial fan of the Toyohira River, a tributary of the Ishikari River.
+    source_title: Sapporo
+    source_url: https://en.wikipedia.org/wiki/Sapporo
+    wikidata: Q37951
+    retrieved: "2026-07-20"
+  - key: jp:sendai
+    blurb: Sendai  is the capital city of Miyagi Prefecture and the largest city in the Tōhoku region. As of 1 August 2023, the city had a population of 1,098,335 in 539,698 households, making it the twelfth most populated city in Japan.
+    source_title: Sendai
+    source_url: https://en.wikipedia.org/wiki/Sendai
+    wikidata: Q46747
+    retrieved: "2026-07-20"
+  - key: jp:tokyo
+    blurb: Tokyo, officially the Tokyo Metropolis, is the capital and most populous city of Japan. The population of the city proper was over 14 million as of 2023.
+    source_title: Tokyo
+    source_url: https://en.wikipedia.org/wiki/Tokyo
+    wikidata: Q1490
+    retrieved: "2026-07-20"
+  - key: jp:yokohama
+    blurb: Yokohama  is the second-largest city in Japan by population as well as by area, and the country's most populous municipality. It is the capital and most populous city in Kanagawa Prefecture, with a population of 3.7 million in 2023.
+    source_title: Yokohama
+    source_url: https://en.wikipedia.org/wiki/Yokohama
+    wikidata: Q38283
+    retrieved: "2026-07-20"
+  - key: ke:kakamega
+    blurb: Kakamega is a town in western Kenya lying about 30 km north of the Equator. It is the headquarters of Kakamega County that has a population of 1,867,579.
+    source_title: Kakamega
+    source_url: https://en.wikipedia.org/wiki/Kakamega
+    wikidata: Q302912
+    retrieved: "2026-07-20"
+  - key: ke:mombasa
+    blurb: Mombasa is a coastal city in southeastern Kenya along the Indian Ocean. It was the first capital of British East Africa, before Nairobi was elevated to capital status in 1907.
+    source_title: Mombasa
+    source_url: https://en.wikipedia.org/wiki/Mombasa
+    wikidata: Q225641
+    retrieved: "2026-07-20"
+  - key: ke:nairobi
+    blurb: Nairobi is the capital and largest city of Kenya, located in the south-central part of the country. As of 2024, it has a population of 4.8 million and a metropolitan population of 5.7 million, making it the 8th most populous city in Africa.
+    source_title: Nairobi
+    source_url: https://en.wikipedia.org/wiki/Nairobi
+    wikidata: Q3870
+    retrieved: "2026-07-20"
+  - key: kh:phnom-penh
+    blurb: Phnom Penh is the capital and most populous city of Cambodia. It has been the national capital since 1865 and has grown to become the nation's primate city and its political, economic, industrial, and cultural centre.
+    source_title: Phnom Penh
+    source_url: https://en.wikipedia.org/wiki/Phnom_Penh
+    wikidata: Q1850
+    retrieved: "2026-07-20"
+  - key: kp:pyongyang
+    blurb: Pyongyang (Korean: 평양) is the capital and largest city of North Korea. According to the 2008 population census, it has a population of 3,255,288.
+    source_title: Pyongyang
+    source_url: https://en.wikipedia.org/wiki/Pyongyang
+    retrieved: "2026-07-20"
+  - key: kr:busan
+    blurb: Busan, officially Busan Metropolitan City, is the second most populous city in South Korea, after Seoul; it has a population of over 3.3 million as of 2024. Alternatively romanized as Pusan, it is the economic, cultural and educational center of southeastern South Korea, with its port being South Korea's busiest and the sixth-busiest in the world.
+    source_title: Busan
+    source_url: https://en.wikipedia.org/wiki/Busan
+    wikidata: Q16520
+    retrieved: "2026-07-20"
+  - key: kr:changwon
+    blurb: Changwon is the capital and largest city of South Gyeongsang Province, South Korea, and the 11th largest city of the country. A port city, Changwon is bordered by Masan Bay to the south, and the cities of Busan and Gimhae to the east.
+    source_title: Changwon
+    source_url: https://en.wikipedia.org/wiki/Changwon
+    wikidata: Q243327
+    retrieved: "2026-07-20"
+  - key: kr:daegu
+    blurb: Daegu, formerly spelled Taegu and officially Daegu Metropolitan City (대구광역시), is a city in southeastern South Korea.
+    source_title: Daegu
+    source_url: https://en.wikipedia.org/wiki/Daegu
+    retrieved: "2026-07-20"
+  - key: kr:daejeon
+    blurb: Daejeon is South Korea's fifth-largest metropolis, with a population of nearly 1.5 million. Located in a central lowland valley between the Sobaek Mountains and the Geum River, the city is known both as a technology and research center, and for its close relationship with the natural environment.
+    source_title: Daejeon
+    source_url: https://en.wikipedia.org/wiki/Daejeon
+    retrieved: "2026-07-20"
+  - key: kr:goyang-si
+    blurb: Goyang is a city in Gyeonggi Province in the northern part of South Korea. It is part of the Seoul Metropolitan Area, making Goyang one of Seoul's satellite cities.
+    source_title: Goyang
+    source_url: https://en.wikipedia.org/wiki/Goyang
+    wikidata: Q42061
+    retrieved: "2026-07-20"
+  - key: kr:gwangju
+    blurb: Gwangju, formerly romanized as Kwangju, was a city in South Korea. In July 2026, the city was merged with South Jeolla Province into a new provincial-level city called Jeonnam-Gwangju.
+    source_title: Gwangju
+    source_url: https://en.wikipedia.org/wiki/Gwangju
+    wikidata: Q41283
+    retrieved: "2026-07-20"
+  - key: kr:incheon
+    blurb: Incheon is a city located in northwestern South Korea, bordering Seoul and Gyeonggi Province to the east. Inhabited since the Neolithic, Incheon was home to just 4,700 people when it became an international port in 1883.
+    source_title: Incheon
+    source_url: https://en.wikipedia.org/wiki/Incheon
+    retrieved: "2026-07-20"
+  - key: kr:seoul
+    blurb: Seoul, officially Seoul Special Metropolitan City, is the capital and largest city of South Korea, and the largest city in the whole of Korea.
+    source_title: Seoul
+    source_url: https://en.wikipedia.org/wiki/Seoul
+    wikidata: Q8684
+    retrieved: "2026-07-20"
+  - key: kr:suwon
+    blurb: Suwon is the largest city and capital of Gyeonggi Province, South Korea's most populous province. The city lies approximately 30 km (19 mi) south of the national capital, Seoul.
+    source_title: Suwon
+    source_url: https://en.wikipedia.org/wiki/Suwon
+    wikidata: Q20714
+    retrieved: "2026-07-20"
+  - key: kr:ulsan
+    blurb: Ulsan, officially the Ulsan Metropolitan City, is South Korea's seventh-largest metropolitan city and the eighth-largest city overall, with a population of over 1.1 million inhabitants. It is located in the south-east of the country, neighboring Busan to the south and facing Gyeongju to the north.
+    source_title: Ulsan
+    source_url: https://en.wikipedia.org/wiki/Ulsan
+    retrieved: "2026-07-20"
+  - key: kz:almaty
+    blurb: Almaty is the most populous city in Kazakhstan, with more than two million residents.
+    source_title: Almaty
+    source_url: https://en.wikipedia.org/wiki/Almaty
+    wikidata: Q35493
+    retrieved: "2026-07-20"
+  - key: kz:nur-sultan
+    blurb: Astana is the capital city of Kazakhstan. With a population of 1,622,245 within the city limits, it is the second-largest in the country after Almaty, the national capital until 1997.
+    source_title: Astana
+    source_url: https://en.wikipedia.org/wiki/Astana
+    wikidata: Q1520
+    retrieved: "2026-07-20"
+  - key: kz:shymkent
+    blurb: Shymkent is a city in southern Kazakhstan, close to the border with Uzbekistan. For administration, it is one of three cities of republican significance in Kazakhstan, the others being Almaty and Astana.
+    source_title: Shymkent
+    source_url: https://en.wikipedia.org/wiki/Shymkent
+    wikidata: Q485496
+    retrieved: "2026-07-20"
+  - key: lb:beirut
+    blurb: Beirut is the capital and largest city of Lebanon. As of 2025, Greater Beirut has a population of 2.4 million, just under half of Lebanon's population, which makes it the twelfth-largest city in the Levant region and the sixteenth-largest in the Arab world.
+    source_title: Beirut
+    source_url: https://en.wikipedia.org/wiki/Beirut
+    wikidata: Q3820
+    retrieved: "2026-07-20"
+  - key: lb:ra-s-bayrut
+    blurb: Ras Beirut is an upscale residential neighborhood in Beirut, Lebanon. It has a mixed population of Christians, Muslims and Druze, and is associated with nonsectarian relations between members of the groupings.
+    source_title: Ras Beirut
+    source_url: https://en.wikipedia.org/wiki/Ras_Beirut
+    retrieved: "2026-07-20"
+  - key: lr:monrovia
+    blurb: Monrovia is the capital and largest city of Liberia, located on the Atlantic coast at Cape Mesurado in Montserrado County. It serves as the country's political, administrative, economic, and cultural center.
+    source_title: Monrovia
+    source_url: https://en.wikipedia.org/wiki/Monrovia
+    wikidata: Q3748
+    retrieved: "2026-07-20"
+  - key: ly:tripoli
+    blurb: Tripoli, historically known as Tripoli-of-the-West, is the capital and largest city of Libya, with a population of about 1.317 million people in 2021. It is located in the northwest of Libya on the edge of the desert, on a point of rocky land projecting into the Mediterranean Sea and forming a bay.
+    source_title: Tripoli, Libya
+    source_url: https://en.wikipedia.org/wiki/Tripoli%2C_Libya
+    wikidata: Q3579
+    retrieved: "2026-07-20"
+  - key: ma:casablanca
+    blurb: Casablanca is the largest city in Morocco and the country's economic and business centre.
+    source_title: Casablanca
+    source_url: https://en.wikipedia.org/wiki/Casablanca
+    wikidata: Q7903
+    retrieved: "2026-07-20"
+  - key: ma:fes
+    blurb: Fez or Fes is a city in northern inland Morocco and the capital of the Fez-Meknes administrative region. It is one of the largest cities in Morocco, with a population of 1.256 million, according to the 2024 census.
+    source_title: Fez, Morocco
+    source_url: https://en.wikipedia.org/wiki/Fez%2C_Morocco
+    wikidata: Q80985
+    retrieved: "2026-07-20"
+  - key: ma:rabat
+    blurb: Rabat is the capital city of Morocco, located on the northwestern coasts of the Atlantic Ocean. Rabat is the country's seventh-largest city with a population of 515,619 (2024) and the second largest metropolitan area after Casablanca, with a population of approximately 2.1 million (2025).
+    source_title: Rabat
+    source_url: https://en.wikipedia.org/wiki/Rabat
+    wikidata: Q3551
+    retrieved: "2026-07-20"
+  - key: ma:tangier
+    blurb: Tangier is a city in northwestern Morocco, on the coasts of the Mediterranean Sea and the Atlantic Ocean. The city is the capital of the Tangier-Tetouan-Al Hoceima region, as well as the Tangier-Assilah Prefecture of Morocco.
+    source_title: Tangier
+    source_url: https://en.wikipedia.org/wiki/Tangier
+    retrieved: "2026-07-20"
+  - key: mg:antananarivo
+    blurb: Antananarivo, also known by its colonial shorthand form Tana, is the capital and largest city of Madagascar. The administrative area of the city, known as Antananarivo-Renivohitra, is the capital of Analamanga region.
+    source_title: Antananarivo
+    source_url: https://en.wikipedia.org/wiki/Antananarivo
+    wikidata: Q3915
+    retrieved: "2026-07-20"
+  - key: ml:bamako
+    blurb: Bamako is the capital and largest city of Mali with a 2022 population of 4,227,569. It is located on the Niger River, near the rapids that divide the upper and middle Niger valleys in the southwestern part of the country, and the city is surrounded on all sides by the Koulikoro Region.
+    source_title: Bamako
+    source_url: https://en.wikipedia.org/wiki/Bamako
+    retrieved: "2026-07-20"
+  - key: mm:mandalay
+    blurb: Mandalay is the second-largest city in Myanmar, after Yangon. It is located on the east bank of the Irrawaddy River, 631 km (392 mi) north of Yangon.
+    source_title: Mandalay
+    source_url: https://en.wikipedia.org/wiki/Mandalay
+    wikidata: Q185518
+    retrieved: "2026-07-20"
+  - key: mm:yangon
+    blurb: Yangon, sometimes romanised in English as Rangoon, is the capital city of the Yangon Region and the most populous city of Myanmar.
+    source_title: Yangon
+    source_url: https://en.wikipedia.org/wiki/Yangon
+    wikidata: Q37995
+    retrieved: "2026-07-20"
+  - key: mr:nouakchott
+    blurb: Nouakchott is the capital and largest city of Mauritania. Located in the southwestern part of the country, it is one of the largest cities in the Sahara.
+    source_title: Nouakchott
+    source_url: https://en.wikipedia.org/wiki/Nouakchott
+    wikidata: Q3688
+    retrieved: "2026-07-20"
+  - key: mw:lilongwe
+    blurb: Lilongwe is the capital and largest city of Malawi. It has a population of 989,318 as of the 2018 Census, up from a population of 674,448 in 2008.
+    source_title: Lilongwe
+    source_url: https://en.wikipedia.org/wiki/Lilongwe
+    wikidata: Q3876
+    retrieved: "2026-07-20"
+  - key: mx:ciudad-juarez
+    blurb: Ciudad Juárez, commonly referred to as just Juárez, is the most populous city in the Mexican state of Chihuahua. It was known until 1888 as El Paso del Norte.
+    source_title: Ciudad Juárez
+    source_url: https://en.wikipedia.org/wiki/Ciudad_Ju%C3%A1rez
+    wikidata: Q26590
+    retrieved: "2026-07-20"
+  - key: mx:ciudad-nezahualcoyotl
+    blurb: Ciudad Nezahualcóyotl, or more commonly Neza, is a city and municipal seat of the municipality of Nezahualcóyotl in Mexico. It is located in the state of Mexico, adjacent to the east side of Mexico City.
+    source_title: Ciudad Nezahualcóyotl
+    source_url: https://en.wikipedia.org/wiki/Ciudad_Nezahualc%C3%B3yotl
+    wikidata: Q210307
+    retrieved: "2026-07-20"
+  - key: mx:ecatepec
+    blurb: Ecatepec, officially Ecatepec de Morelos, is a municipality in the State of Mexico situated in the north of the Greater Mexico City urban area. The municipal seat is San Cristóbal Ecatepec.
+    source_title: Ecatepec de Morelos
+    source_url: https://en.wikipedia.org/wiki/Ecatepec_de_Morelos
+    retrieved: "2026-07-20"
+  - key: mx:guadalajara
+    blurb: Guadalajara is the capital and most populous city of the western Mexican state of Jalisco, as well as the most densely populated municipality in Jalisco.
+    source_title: Guadalajara
+    source_url: https://en.wikipedia.org/wiki/Guadalajara
+    wikidata: Q9022
+    retrieved: "2026-07-20"
+  - key: mx:gustavo-adolfo-madero
+    blurb: Gustavo Adolfo Madero González, born in Parras de la Fuente, Coahuila, Mexico, was a participant in the Mexican Revolution against Porfirio Díaz along with other members of his wealthy family. He was also known as "Ojo Parado" since he had one glass eye.
+    source_title: Gustavo A. Madero
+    source_url: https://en.wikipedia.org/wiki/Gustavo_A._Madero
+    retrieved: "2026-07-20"
+  - key: mx:iztapalapa
+    blurb: Iztapalapa is a borough in Mexico City located on the eastern side of the city. The borough is named after and centered on the formerly independent municipality of Iztapalapa.
+    source_title: Iztapalapa
+    source_url: https://en.wikipedia.org/wiki/Iztapalapa
+    wikidata: Q741771
+    retrieved: "2026-07-20"
+  - key: mx:leon-de-los-aldama
+    blurb: León, officially León de Los Aldama, is the most populous city and municipal seat of the municipality of León in the Mexican state of Guanajuato.
+    source_title: León, Guanajuato
+    source_url: https://en.wikipedia.org/wiki/Le%C3%B3n%2C_Guanajuato
+    wikidata: Q189128
+    retrieved: "2026-07-20"
+  - key: mx:merida
+    blurb: Mérida is the capital of the Mexican state of Yucatán, and the largest city in southern Mexico. The city is also the seat of the eponymous municipality.
+    source_title: Mérida, Yucatán
+    source_url: https://en.wikipedia.org/wiki/M%C3%A9rida%2C_Yucat%C3%A1n
+    wikidata: Q165204
+    retrieved: "2026-07-20"
+  - key: mx:mexicali
+    blurb: Mexicali is the capital city of the Mexican state of Baja California. The city, which abuts the Mexico–United States border and the U.S. city of Calexico, California, is the seat of the Mexicali Municipality.
+    source_title: Mexicali
+    source_url: https://en.wikipedia.org/wiki/Mexicali
+    wikidata: Q199440
+    retrieved: "2026-07-20"
+  - key: mx:mexico-city
+    blurb: Mexico City is the capital and largest city of Mexico, as well as the most populous city in North America. It is one of the world's leading cultural and financial centers and, according to the Globalization and World Cities Research Network's 2024 ranking, is classified as an Alpha world city.
+    source_title: Mexico City
+    source_url: https://en.wikipedia.org/wiki/Mexico_City
+    wikidata: Q1489
+    retrieved: "2026-07-20"
+  - key: mx:monterrey
+    blurb: Monterrey is the capital and largest city of the northeastern Mexican state of Nuevo León. The city anchors the Monterrey metropolitan area, Mexico's second largest metropolitan area with a population of 5,347,000 as of 2026, and is often considered the richest city in Latin America.
+    source_title: Monterrey
+    source_url: https://en.wikipedia.org/wiki/Monterrey
+    wikidata: Q81033
+    retrieved: "2026-07-20"
+  - key: mx:puebla
+    blurb: Puebla de Zaragoza, formally Heroica Puebla de Zaragoza, formerly Puebla de los Ángeles during colonial times, or known simply as Puebla, is the seat of Puebla Municipality. It is the capital and largest city of the state of Puebla, and the fourth-largest city in Mexico, after Mexico City, Monterrey, and Guadalajara.
+    source_title: Puebla (city)
+    source_url: https://en.wikipedia.org/wiki/Puebla_(city)
+    wikidata: Q125293
+    retrieved: "2026-07-20"
+  - key: mx:santiago-de-queretaro
+    blurb: Santiago de Querétaro, most commonly known as Querétaro, is the capital and largest city of the state of Querétaro, located in central Mexico. It is part of the macroregion of Bajío.
+    source_title: Querétaro (city)
+    source_url: https://en.wikipedia.org/wiki/Quer%C3%A9taro_(city)
+    wikidata: Q173121
+    retrieved: "2026-07-20"
+  - key: mx:tijuana
+    blurb: Tijuana is the most populous city of the Mexican state of Baja California, located on the northwestern Pacific Coast of Mexico. It is the municipal seat of the Tijuana Municipality, the hub of the Tijuana metropolitan area and the most populous city in northern Mexico.
+    source_title: Tijuana
+    source_url: https://en.wikipedia.org/wiki/Tijuana
+    wikidata: Q124739
+    retrieved: "2026-07-20"
+  - key: mx:zapopan
+    blurb: Zapopan is a city and municipality located in the Mexican state of Jalisco. It is part of the Guadalajara Metropolitan Area.
+    source_title: Zapopan
+    source_url: https://en.wikipedia.org/wiki/Zapopan
+    wikidata: Q147402
+    retrieved: "2026-07-20"
+  - key: my:kuala-lumpur
+    blurb: Kuala Lumpur (KL), officially the Federal Territory of Kuala Lumpur, is the capital city and a federal territory of Malaysia. It is the most populous city in the country, covering an area of 243 km2 (94 sq mi) with a population of 2,075,600 as of 2024.
+    source_title: Kuala Lumpur
+    source_url: https://en.wikipedia.org/wiki/Kuala_Lumpur
+    wikidata: Q1865
+    retrieved: "2026-07-20"
+  - key: mz:maputo
+    blurb: Maputo is the capital and largest city of Mozambique. Located near the southern end of the country, it is within 120 kilometres of the borders with Eswatini and South Africa.
+    source_title: Maputo
+    source_url: https://en.wikipedia.org/wiki/Maputo
+    wikidata: Q3889
+    retrieved: "2026-07-20"
+  - key: mz:matola
+    blurb: Matola is the largest suburb of the Mozambique capital, Maputo, adjacent to its westernmost side. It is the nation's most populated city.
+    source_title: Matola
+    source_url: https://en.wikipedia.org/wiki/Matola
+    retrieved: "2026-07-20"
+  - key: ne:niamey
+    blurb: Niamey is the capital and largest city of Niger. It is in the western part of the country, surrounded by the Tillabéri Region.
+    source_title: Niamey
+    source_url: https://en.wikipedia.org/wiki/Niamey
+    wikidata: Q3674
+    retrieved: "2026-07-20"
+  - key: ng:aba
+    blurb: Aba is a city in southeastern Nigeria. It lies along the west bank of the Aba River and is at the intersection of roads leading to cities such as Port Harcourt, Owerri, Umuahia, Ikot Ekpene, and Ikot-Abasi.
+    source_title: Aba, Nigeria
+    source_url: https://en.wikipedia.org/wiki/Aba%2C_Nigeria
+    wikidata: Q202162
+    retrieved: "2026-07-20"
+  - key: ng:abuja
+    blurb: Abuja is the capital city of Nigeria, strategically situated at the geographic midpoint of the country within the Federal Capital Territory (FCT). As the seat of the Federal Government of Nigeria, it hosts key national institutions, landmarks, and buildings spread across its over 50 districts.
+    source_title: Abuja
+    source_url: https://en.wikipedia.org/wiki/Abuja
+    wikidata: Q3787
+    retrieved: "2026-07-20"
+  - key: ng:benin-city
+    blurb: Benin City is the capital and largest city of Edo State, southern Nigeria. It is the fourth-largest city in Nigeria according to the 2006 census, after Lagos, Kano, and Ibadan.
+    source_title: Benin City
+    source_url: https://en.wikipedia.org/wiki/Benin_City
+    wikidata: Q320704
+    retrieved: "2026-07-20"
+  - key: ng:ibadan
+    blurb: Ibadan is the capital and most populous city of Oyo State, in Nigeria. It is one of the largest cities by population in Nigeria with a population of 4.3 million within its metropolitan area.
+    source_title: Ibadan
+    source_url: https://en.wikipedia.org/wiki/Ibadan
+    wikidata: Q183298
+    retrieved: "2026-07-20"
+  - key: ng:ilorin
+    blurb: Ilorin is the capital city of Kwara State located in the Western region of Nigeria. Although Ilorin is classified under the North-Central geopolitical zone, the city is considered a Yoruba city by all historical and sociological standards.
+    source_title: Ilorin
+    source_url: https://en.wikipedia.org/wiki/Ilorin
+    wikidata: Q587085
+    retrieved: "2026-07-20"
+  - key: ng:jos
+    blurb: Jos is a city in Plateau State of North-Central region of Nigeria with a population of about 900,000 residents based on the 2006 census. Popularly called "J-Town", it is the administrative capital and largest city of Plateau State.
+    source_title: Jos
+    source_url: https://en.wikipedia.org/wiki/Jos
+    wikidata: Q321079
+    retrieved: "2026-07-20"
+  - key: ng:kaduna
+    blurb: Kaduna is the capital city of Kaduna State, and the former political capital of Northern Nigeria. It is located in north-western Nigeria, on the Kaduna River.
+    source_title: Kaduna
+    source_url: https://en.wikipedia.org/wiki/Kaduna
+    wikidata: Q208318
+    retrieved: "2026-07-20"
+  - key: ng:kano
+    blurb: Kano is a city in northern Nigeria and the capital of Kano State. It is the second largest city in Nigeria after Lagos, with over four million citizens living within 449 km2 (173 sq mi).
+    source_title: Kano (city)
+    source_url: https://en.wikipedia.org/wiki/Kano_(city)
+    wikidata: Q182984
+    retrieved: "2026-07-20"
+  - key: ng:lagos
+    blurb: Lagos, or Lagos City, is a large metropolitan port city in southwestern Nigeria. As of November 2025, the size of the city's population has been estimated to be between 17 and 21 million residents, making Lagos the largest city in Nigeria, the most populous urban area on the African continent, and one of the fastest-growing megacities in the world.
+    source_title: Lagos
+    source_url: https://en.wikipedia.org/wiki/Lagos
+    wikidata: Q8673
+    retrieved: "2026-07-20"
+  - key: ng:maiduguri
+    blurb: Maiduguri is the capital and the largest city of Borno State in north-eastern Nigeria, on the continent of Africa. The city sits along the seasonal Ngadda River which disappears into the Firki swamps in the areas around Lake Chad.
+    source_title: Maiduguri
+    source_url: https://en.wikipedia.org/wiki/Maiduguri
+    wikidata: Q221436
+    retrieved: "2026-07-20"
+  - key: ng:onitsha
+    blurb: Onitsha is a city on the eastern bank of the Niger River, in Anambra State, Nigeria. Onitsha along with various cities and towns in southern Anambra State, northern Imo State and neighboring Delta State on the western bank of the Niger River, form a continuous metropolitan area.
+    source_title: Onitsha
+    source_url: https://en.wikipedia.org/wiki/Onitsha
+    wikidata: Q852238
+    retrieved: "2026-07-20"
+  - key: ng:port-harcourt
+    blurb: Port Harcourt is a port city, capital and largest city of Rivers State in Nigeria. It is the fifth most populous city in Nigeria after Lagos, Kano, Ibadan and Benin.
+    source_title: Port Harcourt
+    source_url: https://en.wikipedia.org/wiki/Port_Harcourt
+    wikidata: Q217432
+    retrieved: "2026-07-20"
+  - key: ng:sokoto
+    blurb: "Sokoto \n is a major city located in extreme north-western Nigeria, near the confluence of the Sokoto River and the Rima River. As of 2006, it had a population of over 427,760."
+    source_title: Sokoto (city)
+    source_url: https://en.wikipedia.org/wiki/Sokoto_(city)
+    wikidata: Q336350
+    retrieved: "2026-07-20"
+  - key: no:oslo
+    blurb: Oslo is the capital and most populous city of Norway. It constitutes both a county and a municipality.
+    source_title: Oslo
+    source_url: https://en.wikipedia.org/wiki/Oslo
+    wikidata: Q585
+    retrieved: "2026-07-20"
+  - key: np:kathmandu
+    blurb: Kathmandu is the capital and largest city of Nepal, situated in the central part of the country within the Kathmandu Valley. The city is in Kathmandu District.
+    source_title: Kathmandu
+    source_url: https://en.wikipedia.org/wiki/Kathmandu
+    wikidata: Q3037
+    retrieved: "2026-07-20"
+  - key: nz:auckland
+    blurb: Auckland is a large metropolitan city in the North Island of New Zealand. It has an urban population of about 1,547,200.
+    source_title: Auckland
+    source_url: https://en.wikipedia.org/wiki/Auckland
+    wikidata: Q37100
+    retrieved: "2026-07-20"
+  - key: pe:arequipa
+    blurb: Arequipa is a city in southern Peru and the capital of Arequipa Province and the Department of Arequipa. With a projected population of 1,195,700 in 2025, it is the country's second most populous city after Lima.
+    source_title: Arequipa
+    source_url: https://en.wikipedia.org/wiki/Arequipa
+    wikidata: Q159273
+    retrieved: "2026-07-20"
+  - key: pe:callao
+    blurb: Callao is a seaside city and constitutional province in Peru. Located next to the Pacific Ocean, it forms part of the Lima metropolitan area alongside Lima province.
+    source_title: Callao
+    source_url: https://en.wikipedia.org/wiki/Callao
+    wikidata: Q105037
+    retrieved: "2026-07-20"
+  - key: pe:lima
+    blurb: Lima is the capital and largest city of Peru, as well as a primate city. It is located in the valleys of the Chillón, Rímac and Lurín Rivers, in the desert zone of the central coastal part of the country, overlooking the Pacific Ocean.
+    source_title: Lima
+    source_url: https://en.wikipedia.org/wiki/Lima
+    wikidata: Q2868
+    retrieved: "2026-07-20"
+  - key: pe:trujillo
+    blurb: Trujillo is a city in coastal northwestern Peru and the capital of the Department of La Libertad. It is the third most populous city and center of the third most populous metropolitan area of Peru.
+    source_title: Trujillo, Peru
+    source_url: https://en.wikipedia.org/wiki/Trujillo%2C_Peru
+    wikidata: Q214173
+    retrieved: "2026-07-20"
+  - key: ph:caloocan
+    blurb: Caloocan, officially the City of Caloocan, is a highly urbanized city in the National Capital Region of the Philippines. According to the 2024 census, it has a population of 1,712,945 people, making it the fourth-most populous city in the Philippines.
+    source_title: Caloocan
+    source_url: https://en.wikipedia.org/wiki/Caloocan
+    retrieved: "2026-07-20"
+  - key: ph:davao-city
+    blurb: Davao City, officially the City of Davao, is a highly urbanized city in the Davao Region, Philippines. The city has a total land area of 2,443.61 km2 (943.48 sq mi), making it the largest city in the Philippines in terms of land area.
+    source_title: Davao City
+    source_url: https://en.wikipedia.org/wiki/Davao_City
+    wikidata: Q1473
+    retrieved: "2026-07-20"
+  - key: ph:manila
+    blurb: Manila, officially the City of Manila, is the capital and second-most populous city of the Philippines after Quezon City. According to the 2024 census, it has a population of 1,902,590 people.
+    source_title: Manila
+    source_url: https://en.wikipedia.org/wiki/Manila
+    wikidata: Q1461
+    retrieved: "2026-07-20"
+  - key: ph:quezon-city
+    blurb: Quezon City, also known as the City of Quezon and Q.C., is the most populous city in the Philippines. According to the 2024 census, it has a population of 3,084,270 people.
+    source_title: Quezon City
+    source_url: https://en.wikipedia.org/wiki/Quezon_City
+    wikidata: Q1475
+    retrieved: "2026-07-20"
+  - key: ph:taguig
+    blurb: Taguig, officially the City of Taguig, is a highly urbanized city in the National Capital Region of the Philippines. According to the 2024 census, it has a population of 1,308,085 people.
+    source_title: Taguig
+    source_url: https://en.wikipedia.org/wiki/Taguig
+    wikidata: Q1643
+    retrieved: "2026-07-20"
+  - key: ph:zamboanga
+    blurb: The Ateneo de Zamboanga University, also referred to by its acronym AdZU, is a private, Catholic, co-educational, basic and higher education institution in Zamboanga City, Philippines.
+    source_title: Ateneo de Zamboanga University
+    source_url: https://en.wikipedia.org/wiki/Ateneo_de_Zamboanga_University
+    retrieved: "2026-07-20"
+  - key: pk:bannu
+    blurb: Bannu, also called Bani Gul or Bani is a city located on the Kurram River in southern Khyber Pakhtunkhwa, Pakistan. It is the capital of Bannu Division.
+    source_title: Bannu
+    source_url: https://en.wikipedia.org/wiki/Bannu
+    wikidata: Q806916
+    retrieved: "2026-07-20"
+  - key: pk:faisalabad
+    blurb: Faisalabad, formerly known as Lyallpur, is the second-largest city and primary industrial center of the Pakistani province of Punjab. Located in the Rachna Doab of the central Punjab, it is the third-most populous city in Pakistan.
+    source_title: Faisalabad
+    source_url: https://en.wikipedia.org/wiki/Faisalabad
+    wikidata: Q173985
+    retrieved: "2026-07-20"
+  - key: pk:gujranwala
+    blurb: Gujranwala is the fifth-largest city in Pakistan, located in the province of Punjab, serving as the headquarters of its eponymous district and division. It is nicknamed the "City of Wrestlers" and is famous for its cuisine and historical significance.
+    source_title: Gujranwala
+    source_url: https://en.wikipedia.org/wiki/Gujranwala
+    wikidata: Q243322
+    retrieved: "2026-07-20"
+  - key: pk:hyderabad
+    blurb: Hyderabad, also known as Neroonkot, is the capital and largest city of the Hyderabad Division in the Sindh province of Pakistan. It is the second-largest city in Sindh, after Karachi, and the 7th largest in Pakistan.
+    source_title: Hyderabad, Pakistan
+    source_url: https://en.wikipedia.org/wiki/Hyderabad%2C_Pakistan
+    wikidata: Q1640079
+    retrieved: "2026-07-20"
+  - key: pk:karachi
+    blurb: Karachi is the largest city in Pakistan and 11th largest in the world, with a population of over 20 million. It is the capital city of the Pakistani province of Sindh.
+    source_title: Karachi
+    source_url: https://en.wikipedia.org/wiki/Karachi
+    wikidata: Q8660
+    retrieved: "2026-07-20"
+  - key: pk:lahore
+    blurb: Lahore is the capital and largest city of the Pakistani province of Punjab. It is the second-largest city in Pakistan, after Karachi, and 27th largest in the world, with a population of over 14 million.
+    source_title: Lahore
+    source_url: https://en.wikipedia.org/wiki/Lahore
+    wikidata: Q11739
+    retrieved: "2026-07-20"
+  - key: pk:multan
+    blurb: Multan is a city in the Punjab province of Pakistan. Located along the eastern bank of the Chenab River, it is the sixth-largest city in the country; and serves as the administrative headquarters of its eponymous division and district.
+    source_title: Multan
+    source_url: https://en.wikipedia.org/wiki/Multan
+    wikidata: Q185453
+    retrieved: "2026-07-20"
+  - key: pk:peshawar
+    blurb: Peshawar is the capital and largest city of the Pakistani province of Khyber Pakhtunkhwa. It is the eighth-most populous Pakistani city, with a population of over 1.9 million.
+    source_title: Peshawar
+    source_url: https://en.wikipedia.org/wiki/Peshawar
+    wikidata: Q1113311
+    retrieved: "2026-07-20"
+  - key: pk:quetta
+    blurb: Quetta is the capital and largest city of the Pakistani province of Balochistan.
+    source_title: Quetta
+    source_url: https://en.wikipedia.org/wiki/Quetta
+    wikidata: Q185458
+    retrieved: "2026-07-20"
+  - key: pk:rawalpindi
+    blurb: Rawalpindi, colloquially known as Pindi, is the third-largest city in the Pakistani province of Punjab and the fourth-most populous city in Pakistan. Located along the Soan River in north-western Punjab, Rawalpindi lies adjacent to Pakistan's capital, Islamabad, and the two are jointly known as the "twin cities".
+    source_title: Rawalpindi
+    source_url: https://en.wikipedia.org/wiki/Rawalpindi
+    wikidata: Q93230
+    retrieved: "2026-07-20"
+  - key: pl:warsaw
+    blurb: Warsaw, officially the Capital City of Warsaw, is the capital and most populous city of Poland. The metropolis stands on the River Vistula in east-central Poland.
+    source_title: Warsaw
+    source_url: https://en.wikipedia.org/wiki/Warsaw
+    wikidata: Q270
+    retrieved: "2026-07-20"
+  - key: py:asuncion
+    blurb: Asunción is the capital and the largest city of Paraguay. The city lies on the eastern bank of the Paraguay River, immediately north northeast of the confluence where it is joined by the Pilcomayo River.
+    source_title: Asunción
+    source_url: https://en.wikipedia.org/wiki/Asunci%C3%B3n
+    wikidata: Q2933
+    retrieved: "2026-07-20"
+  - key: ro:bucharest
+    blurb: Bucharest is the capital and largest city of Romania. The metropolis stands on the River Dâmbovița in south-eastern Romania.
+    source_title: Bucharest
+    source_url: https://en.wikipedia.org/wiki/Bucharest
+    wikidata: Q19660
+    retrieved: "2026-07-20"
+  - key: rs:belgrade
+    blurb: Belgrade is the capital and historic largest city of Serbia. It is located at the confluence of the Sava and Danube rivers and at the crossroads of the Pannonian Plain and the Balkan Peninsula.
+    source_title: Belgrade
+    source_url: https://en.wikipedia.org/wiki/Belgrade
+    wikidata: Q3711
+    retrieved: "2026-07-20"
+  - key: ru:chelyabinsk
+    blurb: Chelyabinsk is the administrative center and largest city of Chelyabinsk Oblast, Russia. It is the seventh-largest city in Russia, with a population of over 1.1 million people, and the second-largest city in the Ural Federal District, after Yekaterinburg.
+    source_title: Chelyabinsk
+    source_url: https://en.wikipedia.org/wiki/Chelyabinsk
+    wikidata: Q906
+    retrieved: "2026-07-20"
+  - key: ru:kazan
+    blurb: Kazan is the capital and largest city of Tatarstan, Russia. The city lies at the confluence of the Volga and the Kazanka rivers, covering an area of 425.3 square kilometres, with a population of over 1.3 million residents, and up to nearly 2 million residents in the greater metropolitan area.
+    source_title: Kazan
+    source_url: https://en.wikipedia.org/wiki/Kazan
+    wikidata: Q900
+    retrieved: "2026-07-20"
+  - key: ru:krasnoyarsk
+    blurb: Krasnoyarsk is the largest city and administrative centre of Krasnoyarsk Krai, Russia. It is situated along the Yenisey River, and is the second-largest city in Siberia after Novosibirsk, with a population of over 1.1 million.
+    source_title: Krasnoyarsk
+    source_url: https://en.wikipedia.org/wiki/Krasnoyarsk
+    wikidata: Q919
+    retrieved: "2026-07-20"
+  - key: ru:moscow
+    blurb: Moscow is the capital and largest city of Russia, standing on the Moskva River in Central Russia. It has a population estimated at over 13 million residents within the city limits, over 19.1 million residents in the urban area, and over 21.5 million residents in its metropolitan area.
+    source_title: Moscow
+    source_url: https://en.wikipedia.org/wiki/Moscow
+    wikidata: Q649
+    retrieved: "2026-07-20"
+  - key: ru:nizhny-novgorod
+    blurb: Nizhny Novgorod, colloquially shortened to Nizhny and from 1932 to 1990 known as Gorky, is both a city and the administrative centre of Nizhny Novgorod Oblast and the Volga Federal District in Russia.
+    source_title: Nizhny Novgorod
+    source_url: https://en.wikipedia.org/wiki/Nizhny_Novgorod
+    wikidata: Q891
+    retrieved: "2026-07-20"
+  - key: ru:novosibirsk
+    blurb: Novosibirsk is the administrative centre and largest city of Novosibirsk Oblast and the Siberian Federal District in Russia. As of the 2021 census, it had a population of 1,633,595, making it the third-most populous city in Russia after Moscow and Saint Petersburg.
+    source_title: Novosibirsk
+    source_url: https://en.wikipedia.org/wiki/Novosibirsk
+    wikidata: Q883
+    retrieved: "2026-07-20"
+  - key: ru:omsk
+    blurb: Omsk is the administrative center and largest city of Omsk Oblast, Russia. It is situated in southwestern Siberia and has a population of over one million.
+    source_title: Omsk
+    source_url: https://en.wikipedia.org/wiki/Omsk
+    wikidata: Q898
+    retrieved: "2026-07-20"
+  - key: ru:rostov-on-don
+    blurb: Rostov-on-Don, or simply Rostov, is a port city and the administrative centre of Rostov Oblast and the Southern Federal District of Russia. It lies in the southeastern part of the East European Plain on the Don River, 32 kilometers (20 mi) from the Sea of Azov, directly north of the North Caucasus.
+    source_title: Rostov-on-Don
+    source_url: https://en.wikipedia.org/wiki/Rostov-on-Don
+    wikidata: Q908
+    retrieved: "2026-07-20"
+  - key: ru:samara
+    blurb: Samara, formerly known as Kuybyshev (1935–1991), is the largest city and administrative centre of Samara Oblast in Russia.
+    source_title: Samara
+    source_url: https://en.wikipedia.org/wiki/Samara
+    wikidata: Q894
+    retrieved: "2026-07-20"
+  - key: ru:st-petersburg
+    blurb: Saint Petersburg, formerly known as Petrograd (Петроград) and later Leningrad (Ленинград), is the second-largest city in Russia, after Moscow, the nation's capital.
+    source_title: Saint Petersburg
+    source_url: https://en.wikipedia.org/wiki/Saint_Petersburg
+    wikidata: Q656
+    retrieved: "2026-07-20"
+  - key: ru:ufa
+    blurb: Ufa is the capital and largest city of Bashkortostan, Russia. The city lies at the confluence of the Belaya and Ufa rivers, in the centre-north of Bashkortostan, on hills forming the Ufa Plateau to the west of the southern Ural Mountains, with a population of over 1.1 million residents, up to 1.4 million residents in the urban agglomeration.
+    source_title: Ufa
+    source_url: https://en.wikipedia.org/wiki/Ufa
+    wikidata: Q911
+    retrieved: "2026-07-20"
+  - key: ru:volgograd
+    blurb: Volgograd, formerly Tsaritsyn (1589–1925) and Stalingrad (1925–1961), is the largest city and the administrative centre of Volgograd Oblast, Russia. The city lies on the western bank of the Volga, covering an area of 859.4 square kilometres, with a population of slightly over one million residents.
+    source_title: Volgograd
+    source_url: https://en.wikipedia.org/wiki/Volgograd
+    wikidata: Q914
+    retrieved: "2026-07-20"
+  - key: ru:voronezh
+    blurb: Voronezh is a city and the administrative centre of Voronezh Oblast in southwestern Russia, straddling the Voronezh River 12 kilometers (7.5 mi) from where it flows into the Don River.
+    source_title: Voronezh
+    source_url: https://en.wikipedia.org/wiki/Voronezh
+    wikidata: Q3426
+    retrieved: "2026-07-20"
+  - key: ru:yekaterinburg
+    blurb: Yekaterinburg, alternatively romanized as Ekaterinburg and formerly known as Sverdlovsk (1924–1991), is a city and the administrative centre of Sverdlovsk Oblast and the Ural Federal District, Russia.
+    source_title: Yekaterinburg
+    source_url: https://en.wikipedia.org/wiki/Yekaterinburg
+    wikidata: Q887
+    retrieved: "2026-07-20"
+  - key: rw:kigali
+    blurb: Kigali, officially the City of Kigali also known as Kigali City, is the capital, largest city, and a province-level administrative unit of Rwanda. It is located near the country's geographic centre, in a landscape of rolling hills marked by valleys and ridges connected by steep slopes.
+    source_title: Kigali
+    source_url: https://en.wikipedia.org/wiki/Kigali
+    wikidata: Q3859
+    retrieved: "2026-07-20"
+  - key: sa:dammam
+    blurb: Dammam is the seat and largest city of the Eastern Province of Saudi Arabia. An industrial port city on the coast of the Persian Gulf, it had a population of 1,386,166 as of 2022, making it the country's fifth-largest city after Riyadh, Jeddah, Mecca, and Medina.
+    source_title: Dammam
+    source_url: https://en.wikipedia.org/wiki/Dammam
+    wikidata: Q160320
+    retrieved: "2026-07-20"
+  - key: sa:jeddah
+    blurb: Jeddah is the largest city in Mecca Province, the second-largest city in Saudi Arabia after Riyadh, and the country’s main commercial center. It is in the Hejaz region along the Red Sea coast.
+    source_title: Jeddah
+    source_url: https://en.wikipedia.org/wiki/Jeddah
+    wikidata: Q374365
+    retrieved: "2026-07-20"
+  - key: sa:madinah
+    blurb: Medina, officially al-Madinah al-Munawwarah, also known as al-Madinah an-Nabawiyyah and Taybah, and known in pre-Islamic times as Yathrib, is the capital and administrative centre of Medina Province in the Hejaz region of western Saudi Arabia. It is one of the oldest and most important places in Islamic history.
+    source_title: Medina
+    source_url: https://en.wikipedia.org/wiki/Medina
+    wikidata: Q35484
+    retrieved: "2026-07-20"
+  - key: sa:makkah
+    blurb: Mecca, officially Makkah al-Mukarramah, is a city in the Hejaz region of western Saudi Arabia and is the capital of Mecca Province. Mecca is considered the birthplace of Islam and the Islamic prophet Muhammad, as well as being the holiest city in Islam.
+    source_title: Mecca
+    source_url: https://en.wikipedia.org/wiki/Mecca
+    wikidata: Q5806
+    retrieved: "2026-07-20"
+  - key: sa:riyadh
+    blurb: Riyadh is the capital and largest city of Saudi Arabia. It is also the capital of the Riyadh Province and the centre of the Riyadh Governorate.
+    source_title: Riyadh
+    source_url: https://en.wikipedia.org/wiki/Riyadh
+    wikidata: Q3692
+    retrieved: "2026-07-20"
+  - key: sd:khartoum
+    blurb: Khartoum, also spelled Khartum, is the capital city of Sudan as well as Khartoum State. With an estimated population of 7.1 million people, Greater Khartoum is the largest urban area in Sudan.
+    source_title: Khartoum
+    source_url: https://en.wikipedia.org/wiki/Khartoum
+    wikidata: Q1963
+    retrieved: "2026-07-20"
+  - key: sd:khartoum-north
+    blurb: Khartoum North, or Khartoum Bahri or simply Bahri, is a city in Khartoum State, lying to the north of Khartoum city, the capital of Sudan. It has a population of 1,012,211 people, making it the third-largest city proper in Sudan, behind the neighbouring cities of Omdurman and Khartoum.
+    source_title: Khartoum North
+    source_url: https://en.wikipedia.org/wiki/Khartoum_North
+    wikidata: Q310114
+    retrieved: "2026-07-20"
+  - key: sd:omdurman
+    blurb: Omdurman is a major city in Sudan. It is the second most populous city in the country, located in the State of Khartoum.
+    source_title: Omdurman
+    source_url: https://en.wikipedia.org/wiki/Omdurman
+    wikidata: Q180921
+    retrieved: "2026-07-20"
+  - key: se:stockholm
+    blurb: Stockholm is the capital and most populous city of Sweden, as well as the largest urban area in the Nordic countries. Approximately 1 million people live in the municipality, with 1.6 million in the urban area, and 2.5 million in the metropolitan area.
+    source_title: Stockholm
+    source_url: https://en.wikipedia.org/wiki/Stockholm
+    wikidata: Q1754
+    retrieved: "2026-07-20"
+  - key: sg:singapore
+    blurb: Singapore, officially the Republic of Singapore, is an island country in Southeast Asia. Its territory comprises a main island, over 60 satellite islands and islets, and one outlying islet.
+    source_title: Singapore
+    source_url: https://en.wikipedia.org/wiki/Singapore
+    retrieved: "2026-07-20"
+  - key: sn:dakar
+    blurb: Dakar is the capital and largest city of Senegal. The department of Dakar has a population of 1,278,469, and the population of the Dakar metropolitan area was at 4.0 million in 2023.
+    source_title: Dakar
+    source_url: https://en.wikipedia.org/wiki/Dakar
+    wikidata: Q3718
+    retrieved: "2026-07-20"
+  - key: sn:pikine
+    blurb: Pikine is a city and the capital of the Pikine department, in the Dakar region in Senegal. The largest suburb of Senegalese capital Dakar, as of the 2013 Census, it had a population of 1,170,791.
+    source_title: Pikine
+    source_url: https://en.wikipedia.org/wiki/Pikine
+    wikidata: Q1273644
+    retrieved: "2026-07-20"
+  - key: sn:touba
+    blurb: Ṭouba is a city in central Senegal, part of Diourbel Region and Mbacké district. With a population of 1,120,824 in 2023, it is the second most populated Senegalese city after Dakar.
+    source_title: Touba
+    source_url: https://en.wikipedia.org/wiki/Touba
+    wikidata: Q657072
+    retrieved: "2026-07-20"
+  - key: so:mogadishu
+    blurb: Mogadishu, locally known as Xamar or Hamar, is the capital and most populous city of Somalia. The city has served as an important port connecting traders across the Indian Ocean for millennia and has an estimated urban population of 4,126,815.
+    source_title: Mogadishu
+    source_url: https://en.wikipedia.org/wiki/Mogadishu
+    wikidata: Q2449
+    retrieved: "2026-07-20"
+  - key: sy:aleppo
+    blurb: Aleppo is a city in northern Syria, which serves as the capital of the Aleppo Governorate, the country's most populous governorate. With an estimated population of 2,098,000 residents as of 2021, it is Syria's largest city by urban area, and was the largest by population until it was surpassed by Damascus, the capital of Syria.
+    source_title: Aleppo
+    source_url: https://en.wikipedia.org/wiki/Aleppo
+    wikidata: Q41183
+    retrieved: "2026-07-20"
+  - key: sy:damascus
+    blurb: Damascus is the capital and largest city of Syria. It is the oldest capital city in the world.
+    source_title: Damascus
+    source_url: https://en.wikipedia.org/wiki/Damascus
+    wikidata: Q3766
+    retrieved: "2026-07-20"
+  - key: td:n-djamena
+    blurb: N'Djamena is the capital and largest city of Chad. It is also a Special Status Province, divided into 10 districts or arrondissements.
+    source_title: N'Djamena
+    source_url: https://en.wikipedia.org/wiki/N'Djamena
+    wikidata: Q3659
+    retrieved: "2026-07-20"
+  - key: tg:lome
+    blurb: Lomé is the capital and largest city of Togo. It has an urban population of 837,437 while there were 2,188,376 permanent residents in its metropolitan area as of the 2022 census.
+    source_title: Lomé
+    source_url: https://en.wikipedia.org/wiki/Lom%C3%A9
+    wikidata: Q3792
+    retrieved: "2026-07-20"
+  - key: th:bangkok
+    blurb: Bangkok, known in Thai as Krung Thep Maha Nakhon and colloquially as Krung Thep, is the capital and most populous city of Thailand. The city occupies 1,568.7 square kilometres (605.7 sq mi) in the Chao Phraya River delta in central Thailand and has an estimated population of 9.1 million people as of 2024, 15.9% of the country's population.
+    source_title: Bangkok
+    source_url: https://en.wikipedia.org/wiki/Bangkok
+    wikidata: Q1861
+    retrieved: "2026-07-20"
+  - key: tm:ashgabat
+    blurb: Ashgabat is the capital and largest city of Turkmenistan. It lies between the Karakum Desert and the Köpetdag mountain range in Central Asia, approximately 50 km (30 mi) away from the Iran-Turkmenistan border.
+    source_title: Ashgabat
+    source_url: https://en.wikipedia.org/wiki/Ashgabat
+    wikidata: Q23438
+    retrieved: "2026-07-20"
+  - key: tr:adana
+    blurb: Adana is a large city in southern Turkey. The city is situated on the Seyhan River, 35 km (22 mi) inland from the northeastern shores of the Mediterranean Sea.
+    source_title: Adana
+    source_url: https://en.wikipedia.org/wiki/Adana
+    wikidata: Q38545
+    retrieved: "2026-07-20"
+  - key: tr:ankara
+    blurb: Ankara is the capital city of Turkey. Located in the central part of Anatolia, the city has a population of over 5.3 million residents in its urban center, out of 6 million residents in Ankara Province.
+    source_title: Ankara
+    source_url: https://en.wikipedia.org/wiki/Ankara
+    wikidata: Q3640
+    retrieved: "2026-07-20"
+  - key: tr:antalya
+    blurb: Antalya is one of the largest cities in Turkey and the capital of Antalya Province, the fifth-most populous province. Recognized as the "capital of tourism" in Turkey and a pivotal part of the Turkish Riviera, Antalya sits on Anatolia's southwest coast, flanked by the Taurus Mountains.
+    source_title: Antalya
+    source_url: https://en.wikipedia.org/wiki/Antalya
+    wikidata: Q6487
+    retrieved: "2026-07-20"
+  - key: tr:bursa
+    blurb: Bursa is a city in northwestern Turkey and the administrative center of Bursa Province. It is the fourth-most populous city in Turkey and second-most populous in the Marmara Region after Istanbul.
+    source_title: Bursa
+    source_url: https://en.wikipedia.org/wiki/Bursa
+    wikidata: Q40738
+    retrieved: "2026-07-20"
+  - key: tr:diyarbakir
+    blurb: Diyarbakır is the largest Kurdish-majority city in Turkey. It is the administrative center of Diyarbakır Province.
+    source_title: Diyarbakır
+    source_url: https://en.wikipedia.org/wiki/Diyarbak%C4%B1r
+    wikidata: Q83387
+    retrieved: "2026-07-20"
+  - key: tr:gaziantep
+    blurb: Gaziantep, historically Aintab and still informally called Antep, is a major city in south-central Turkey. It is the capital of the Gaziantep Province, in the westernmost part of Turkey's Southeastern Anatolia Region and partially in the Mediterranean Region.
+    source_title: Gaziantep
+    source_url: https://en.wikipedia.org/wiki/Gaziantep
+    wikidata: Q93338
+    retrieved: "2026-07-20"
+  - key: tr:istanbul
+    blurb: Istanbul is the largest city in Turkey, constituting the country's economic, cultural, and historical center. With a population of over 15 million, it is home to 18% of the population of Turkey.
+    source_title: Istanbul
+    source_url: https://en.wikipedia.org/wiki/Istanbul
+    wikidata: Q406
+    retrieved: "2026-07-20"
+  - key: tr:izmir
+    blurb: İzmir is the third most populous city in Turkey, after Istanbul and Ankara, and the largest metropolitan area on the Aegean Sea. It is on the Aegean coast of Anatolia, and is the capital of İzmir Province.
+    source_title: İzmir
+    source_url: https://en.wikipedia.org/wiki/%C4%B0zmir
+    wikidata: Q35997
+    retrieved: "2026-07-20"
+  - key: tr:kayseri
+    blurb: Kayseri is a large city in Central Anatolia, Turkey, and the capital of Kayseri province. Historically known as Caesarea, it has been the historical capital of Cappadocia since ancient times.
+    source_title: Kayseri
+    source_url: https://en.wikipedia.org/wiki/Kayseri
+    wikidata: Q48338
+    retrieved: "2026-07-20"
+  - key: tr:konya
+    blurb: Konya is a major city in central Turkey, on the southwestern edge of the Central Anatolian Plateau, and is the capital of Konya Province. During antiquity and into Seljuk times it was known as Iconium.
+    source_title: Konya
+    source_url: https://en.wikipedia.org/wiki/Konya
+    wikidata: Q79857
+    retrieved: "2026-07-20"
+  - key: tw:kaohsiung
+    blurb: Kaohsiung, officially Kaohsiung City, is a special municipality located in southern Taiwan. It ranges from the coastal urban center to the rural Yushan Range with an area of 2,952 km2 (1,140 mi2) making it the largest city in Taiwan by area.
+    source_title: Kaohsiung
+    source_url: https://en.wikipedia.org/wiki/Kaohsiung
+    wikidata: Q181557
+    retrieved: "2026-07-20"
+  - key: tw:new-taipei-city
+    blurb: New Taipei City is a special municipality located in northern Taiwan. The city is home to an estimated population of 4,004,367 as of January 2023, making it the most populous city in Taiwan and the ROC-controlled territories, as well as the second largest special municipality by area, behind Kaohsiung.
+    source_title: New Taipei City
+    source_url: https://en.wikipedia.org/wiki/New_Taipei_City
+    retrieved: "2026-07-20"
+  - key: tw:taichung
+    blurb: Taichung, officially Taichung City, is a special municipality in central Taiwan. Taichung is Taiwan's second-largest city, with more than 2.86 million residents, making it the largest city in Central Taiwan.
+    source_title: Taichung
+    source_url: https://en.wikipedia.org/wiki/Taichung
+    retrieved: "2026-07-20"
+  - key: tw:tainan
+    blurb: Tainan, officially Tainan City, is a special municipality in southern Taiwan, facing the Taiwan Strait on its western coast. Tainan is the oldest city on the island and commonly called the "prefectural capital" for its 263-year history as the capital of Taiwan under Dutch rule, the Kingdom of Tungning and later Qing dynasty rule until 1887.
+    source_title: Tainan
+    source_url: https://en.wikipedia.org/wiki/Tainan
+    wikidata: Q140631
+    retrieved: "2026-07-20"
+  - key: tw:taipei
+    blurb: Taipei, officially Taipei City, is the capital and a special municipality of Taiwan. Located in Northern Taiwan, Taipei City is an enclave of the municipality of New Taipei City that sits about 25 kilometres (16 mi) southwest of the northern port city of Keelung.
+    source_title: Taipei
+    source_url: https://en.wikipedia.org/wiki/Taipei
+    wikidata: Q1867
+    retrieved: "2026-07-20"
+  - key: tz:dar-es-salaam
+    blurb: Dar es Salaam is the largest city and financial hub of Tanzania and capital of the Dar es Salaam Region. It is located on the Swahili coast.
+    source_title: Dar es Salaam
+    source_url: https://en.wikipedia.org/wiki/Dar_es_Salaam
+    wikidata: Q1960
+    retrieved: "2026-07-20"
+  - key: tz:mwanza
+    blurb: Mwanza City, also known as Rock City to the residents, is a port city and capital of Mwanza Region on the southern shore of Lake Victoria in north-western Tanzania. With an urban population of 1,104,521 and a population of 3,699,872 in the region, it is Tanzania's second largest city, after Dar es Salaam.
+    source_title: Mwanza
+    source_url: https://en.wikipedia.org/wiki/Mwanza
+    wikidata: Q110218
+    retrieved: "2026-07-20"
+  - key: ua:kharkiv
+    blurb: Kharkiv, also known as Kharkov, is the second-largest city in Ukraine. Located in the northeast of the country, it is the largest city of the historic region of Sloboda Ukraine.
+    source_title: Kharkiv
+    source_url: https://en.wikipedia.org/wiki/Kharkiv
+    wikidata: Q42308
+    retrieved: "2026-07-20"
+  - key: ua:kyiv
+    blurb: Kyiv, also Kiev, is the capital and most populous city of Ukraine. Located in the north-central part of the country, it straddles both banks of the Dnieper River.
+    source_title: Kyiv
+    source_url: https://en.wikipedia.org/wiki/Kyiv
+    wikidata: Q1899
+    retrieved: "2026-07-20"
+  - key: ua:odesa
+    blurb: Odesa, also spelled Odessa, is the third-most populous city and municipality in Ukraine and a major seaport and transport hub located in the south-west of the country, on the northwestern shore of the Black Sea. The city is also the administrative centre of the Odesa Raion and Odesa Oblast, as well as a multiethnic cultural centre.
+    source_title: Odesa
+    source_url: https://en.wikipedia.org/wiki/Odesa
+    wikidata: Q1874
+    retrieved: "2026-07-20"
+  - key: ug:kampala
+    blurb: Kampala is the capital and largest city of Uganda. The city proper has a population of 1,797,722 and is divided into the five political divisions of Kampala Central, Kawempe, Makindye, Nakawa, and Rubaga.
+    source_title: Kampala
+    source_url: https://en.wikipedia.org/wiki/Kampala
+    wikidata: Q3894
+    retrieved: "2026-07-20"
+  - key: us:brooklyn
+    blurb: Brooklyn, coextensive with Kings County, is the most populous of the five boroughs and counties in New York City, United States. Located at the westernmost end of Long Island and formerly an independent city, Brooklyn shares a land border with the borough and county of Queens.
+    source_title: Brooklyn
+    source_url: https://en.wikipedia.org/wiki/Brooklyn
+    wikidata: Q18419
+    retrieved: "2026-07-20"
+  - key: us:chicago
+    blurb: Chicago is the most populous city in the U.S. state of Illinois and in the Midwestern United States. Located on the western shore of Lake Michigan, it is the third-most populous city in the United States, with a population of 2.74 million at the 2020 census.
+    source_title: Chicago
+    source_url: https://en.wikipedia.org/wiki/Chicago
+    wikidata: Q1297
+    retrieved: "2026-07-20"
+  - key: us:dallas
+    blurb: Dallas is a city in the U.S. state of Texas. Located in northern Texas, it is the ninth-most populous city in the United States and third-most populous city in Texas, with a population of 1.3 million at the 2020 census.
+    source_title: Dallas
+    source_url: https://en.wikipedia.org/wiki/Dallas
+    wikidata: Q16557
+    retrieved: "2026-07-20"
+  - key: us:fort-worth
+    blurb: Fort Worth is a city in the U.S. state of Texas. It is the county seat of Tarrant County, covering nearly 350 square miles (910 km2) and extending into Denton, Johnson, Parker, and Wise counties.
+    source_title: Fort Worth, Texas
+    source_url: https://en.wikipedia.org/wiki/Fort_Worth%2C_Texas
+    wikidata: Q16558
+    retrieved: "2026-07-20"
+  - key: us:houston
+    blurb: Houston is the most populous city in the U.S. state of Texas and the Southern United States. It is the fourth-most populous city in the United States, with a population of 2.3 million at the 2020 census.
+    source_title: Houston
+    source_url: https://en.wikipedia.org/wiki/Houston
+    wikidata: Q16555
+    retrieved: "2026-07-20"
+  - key: us:jacksonville
+    blurb: Jacksonville, colloquially nicknamed Jax, is the most populous city proper in the U.S. state of Florida, located on the Atlantic coast of northeastern Florida. It is the county seat of Duval County, with which the city consolidated in 1968.
+    source_title: Jacksonville, Florida
+    source_url: https://en.wikipedia.org/wiki/Jacksonville%2C_Florida
+    wikidata: Q16568
+    retrieved: "2026-07-20"
+  - key: us:los-angeles
+    blurb: Los Angeles is the most populous city in the U.S. state of California, and the commercial, financial, and cultural center of Southern California.
+    source_title: Los Angeles
+    source_url: https://en.wikipedia.org/wiki/Los_Angeles
+    wikidata: Q65
+    retrieved: "2026-07-20"
+  - key: us:manhattan
+    blurb: Manhattan is the most densely populated and geographically smallest of the five boroughs of New York City. Coextensive with New York County, Manhattan is the smallest county by area in the U.S. state of New York, and one of the smallest in the United States.
+    source_title: Manhattan
+    source_url: https://en.wikipedia.org/wiki/Manhattan
+    wikidata: Q11299
+    retrieved: "2026-07-20"
+  - key: us:new-york
+    blurb: New York, often called New York City (NYC), is the most populous city in the United States. It is located at the southern tip of New York State on New York Harbor, one of the world's largest natural harbors.
+    source_title: New York City
+    source_url: https://en.wikipedia.org/wiki/New_York_City
+    wikidata: Q60
+    retrieved: "2026-07-20"
+  - key: us:philadelphia
+    blurb: Philadelphia, colloquially referred to as Philly, is the most populous city in the U.S. state of Pennsylvania and the sixth-most populous city in the United States. Its population was 1.60 million at the 2020 census and estimated at 1.57 million in 2025.
+    source_title: Philadelphia
+    source_url: https://en.wikipedia.org/wiki/Philadelphia
+    wikidata: Q1345
+    retrieved: "2026-07-20"
+  - key: us:phoenix
+    blurb: Phoenix is the capital and most populous city of the U.S. state of Arizona. With over 1.6 million residents at the 2020 census, Phoenix is the fifth-most populous city in the United States and the most populous state capital.
+    source_title: Phoenix, Arizona
+    source_url: https://en.wikipedia.org/wiki/Phoenix%2C_Arizona
+    wikidata: Q16556
+    retrieved: "2026-07-20"
+  - key: us:queens
+    blurb: Queens, coextensive with Queens County, is the largest by area of the five boroughs and counties in New York City, New York, United States.
+    source_title: Queens
+    source_url: https://en.wikipedia.org/wiki/Queens
+    wikidata: Q18424
+    retrieved: "2026-07-20"
+  - key: us:san-antonio
+    blurb: San Antonio is a city in the U.S. state of Texas. It is the seventh-most populous city in the United States, the second-most populous city in Texas, and the second-most populous city in the Southern U.S., with a population of 1.43 million at the 2020 census.
+    source_title: San Antonio
+    source_url: https://en.wikipedia.org/wiki/San_Antonio
+    wikidata: Q975
+    retrieved: "2026-07-20"
+  - key: us:san-diego
+    blurb: San Diego is a city on the Pacific coast of Southern California, adjacent to the Mexico–United States border.
+    source_title: San Diego
+    source_url: https://en.wikipedia.org/wiki/San_Diego
+    wikidata: Q16552
+    retrieved: "2026-07-20"
+  - key: us:the-bronx
+    blurb: The Bronx is the northernmost of the five boroughs of New York City. The Bronx has a land area of 42 square miles (109 km2) and a population of 1,472,654 at the 2020 census.
+    source_title: The Bronx
+    source_url: https://en.wikipedia.org/wiki/The_Bronx
+    wikidata: Q18426
+    retrieved: "2026-07-20"
+  - key: uy:montevideo
+    blurb: Montevideo, is the capital and largest city of Uruguay. As of the 2023 census, the city proper has a population of 1,287,452, making up about 36.8% of the country's total population, in an area of 201 square kilometers (78 sq mi).
+    source_title: Montevideo
+    source_url: https://en.wikipedia.org/wiki/Montevideo
+    wikidata: Q1335
+    retrieved: "2026-07-20"
+  - key: uz:tashkent
+    blurb: Tashkent, also known as Toshkent, is the capital and largest city of Uzbekistan. It is the most populous city in Central Asia, with a population of more than 3.1 million people as of July 1, 2025.
+    source_title: Tashkent
+    source_url: https://en.wikipedia.org/wiki/Tashkent
+    wikidata: Q269
+    retrieved: "2026-07-20"
+  - key: ve:barquisimeto
+    blurb: Barquisimeto is the capital city of Lara and seat of the Iribarren Municipality in Venezuela. Barquisimeto is located in the Central-Western Region.
+    source_title: Barquisimeto
+    source_url: https://en.wikipedia.org/wiki/Barquisimeto
+    wikidata: Q4709
+    retrieved: "2026-07-20"
+  - key: ve:caracas
+    blurb: Caracas, officially Santiago de León de Caracas (CCS), is the capital and largest city of Venezuela, and the center of the Metropolitan Region of Caracas. It is located along the Guaire River in the northern part of Venezuela, within the Caracas Valley of the Venezuelan coastal mountain range.
+    source_title: Caracas
+    source_url: https://en.wikipedia.org/wiki/Caracas
+    wikidata: Q1533
+    retrieved: "2026-07-20"
+  - key: ve:maracaibo
+    blurb: Maracaibo is a city and municipality in northwestern Venezuela, located on the western shore of the strait that connects Lake Maracaibo to the Gulf of Venezuela. It is the capital of Zulia and is the second-largest city proper in Venezuela, after the national capital, Caracas.
+    source_title: Maracaibo
+    source_url: https://en.wikipedia.org/wiki/Maracaibo
+    wikidata: Q171632
+    retrieved: "2026-07-20"
+  - key: ve:valencia
+    blurb: Valencia is the capital city of Carabobo State and the third-largest city in Venezuela.
+    source_title: Valencia, Venezuela
+    source_url: https://en.wikipedia.org/wiki/Valencia%2C_Venezuela
+    wikidata: Q54880
+    retrieved: "2026-07-20"
+  - key: vn:bien-hoa
+    blurb: Biên Hòa is a former city in Vietnam and was the capital city of Đồng Nai Province. Situated northeast of Ho Chi Minh City, Biên Hòa is connected to it via Hanoi Highway.
+    source_title: Biên Hòa
+    source_url: https://en.wikipedia.org/wiki/Bi%C3%AAn_H%C3%B2a
+    wikidata: Q19316
+    retrieved: "2026-07-20"
+  - key: vn:can-tho
+    blurb: Cần Thơ is the third largest municipality in Vietnam and is in the Mekong Delta region. It is noted for its floating markets, Bánh tráng-making village, and rural canals.
+    source_title: Cần Thơ
+    source_url: https://en.wikipedia.org/wiki/C%E1%BA%A7n_Th%C6%A1
+    retrieved: "2026-07-20"
+  - key: vn:da-nang
+    blurb: Da Nang, also spelt Danang, is the fourth largest municipality in Vietnam by population and the largest by geographical area. As one of the country's seven direct-controlled municipalities, it falls under the administration of the central government.
+    source_title: Da Nang
+    source_url: https://en.wikipedia.org/wiki/Da_Nang
+    retrieved: "2026-07-20"
+  - key: vn:hai-phong
+    blurb: Haiphong or Hai Phong is the third-largest city in Vietnam, with an area of 3,194.72 km2 (1,233.49 mi2). It includes Bạch Long Vĩ and Cát Hải islands in the Gulf of Tonkin.
+    source_title: Haiphong
+    source_url: https://en.wikipedia.org/wiki/Haiphong
+    retrieved: "2026-07-20"
+  - key: vn:hanoi
+    blurb: Hanoi is the capital and second-most populous municipality of Vietnam. It encompasses an area of 3,358.6 km2 (1,296.8 mi2), and as of 2025 has a population of 8,807,523.
+    source_title: Hanoi
+    source_url: https://en.wikipedia.org/wiki/Hanoi
+    wikidata: Q1858
+    retrieved: "2026-07-20"
+  - key: vn:ho-chi-minh
+    blurb: Ho Chi Minh City, also known as Saigon, is the most populous city and municipality of Vietnam, with a population of more than 14 million in 2025. Its geography is defined by rivers and canals, of which the largest is Saigon River.
+    source_title: Ho Chi Minh City
+    source_url: https://en.wikipedia.org/wiki/Ho_Chi_Minh_City
+    wikidata: Q1854
+    retrieved: "2026-07-20"
+  - key: vn:hue
+    blurb: Huế is a former provincial city of Vietnam. The city was the capital of Thừa Thiên Huế province in the North Central Coast region of Vietnam, located near the center of Vietnam.
+    source_title: Huế (provincial city)
+    source_url: https://en.wikipedia.org/wiki/Hu%E1%BA%BF_(provincial_city)
+    wikidata: Q36167
+    retrieved: "2026-07-20"
+  - key: ye:aden
+    blurb: Aden is an ancient port city in the southern part of the Arabian peninsula, on the north coast of the Gulf of Aden, positioned near the eastern approach to the Red Sea, and has been the de facto capital of Yemen since 2014. It is approximately 170 km (110 mi) east of the Bab-el-Mandeb strait.
+    source_title: Aden
+    source_url: https://en.wikipedia.org/wiki/Aden
+    wikidata: Q131694
+    retrieved: "2026-07-20"
+  - key: ye:sanaa
+    blurb: Sanaa, officially the Sanaa Municipality, is the capital and largest city of Yemen. The city is the capital of the Sanaa Governorate, but is not part of the governorate, as it forms a separate administrative unit.
+    source_title: Sanaa
+    source_url: https://en.wikipedia.org/wiki/Sanaa
+    wikidata: Q2471
+    retrieved: "2026-07-20"
+  - key: za:cape-town
+    blurb: Cape Town is the legislative capital of South Africa. It is the country's oldest city and the seat of the Parliament of South Africa.
+    source_title: Cape Town
+    source_url: https://en.wikipedia.org/wiki/Cape_Town
+    wikidata: Q5465
+    retrieved: "2026-07-20"
+  - key: za:durban
+    blurb: Durban is the third-most populous city in South Africa, after Johannesburg and Cape Town, and the largest city in the province of KwaZulu-Natal. Situated on the east coast of South Africa, on the Natal Bay of the Indian Ocean, Durban is the busiest port city in sub-Saharan Africa and was formerly named Port Natal.
+    source_title: Durban
+    source_url: https://en.wikipedia.org/wiki/Durban
+    wikidata: Q5468
+    retrieved: "2026-07-20"
+  - key: za:johannesburg
+    blurb: Johannesburg, colloquially known as Jozi, Joburg, or "the City of Gold", is the most populous city in South Africa. In 2022, the City of Johannesburg Metropolitan Municipality had a population of 4,803,262, and the wider metropolitan area a population of 15,099,422, making it one of the 100 largest urban areas in the world.
+    source_title: Johannesburg
+    source_url: https://en.wikipedia.org/wiki/Johannesburg
+    wikidata: Q34647
+    retrieved: "2026-07-20"
+  - key: za:port-elizabeth
+    blurb: Gqeberha, also known by its former name Port Elizabeth and colloquially referred to as P.E., is a major seaport and the most populous city in the Eastern Cape province of South Africa. It is the seat of the Nelson Mandela Bay Metropolitan Municipality, South Africa's second-smallest metropolitan municipality by area.
+    source_title: Gqeberha
+    source_url: https://en.wikipedia.org/wiki/Gqeberha
+    wikidata: Q125434
+    retrieved: "2026-07-20"
+  - key: za:pretoria
+    blurb: Pretoria is the executive capital of South Africa, serving as the seat of the executive branch of government, and as the host to all foreign embassies to the country.
+    source_title: Pretoria
+    source_url: https://en.wikipedia.org/wiki/Pretoria
+    wikidata: Q3926
+    retrieved: "2026-07-20"
+  - key: za:soweto
+    blurb: Soweto is a township of the City of Johannesburg Metropolitan Municipality in Gauteng, South Africa, bordering the city's mining belt in the south. Its name is an English syllabic abbreviation for South Western Townships.
+    source_title: Soweto
+    source_url: https://en.wikipedia.org/wiki/Soweto
+    wikidata: Q217426
+    retrieved: "2026-07-20"
+  - key: zm:lusaka
+    blurb: Lusaka is the capital and largest city of Zambia. It is one of the fastest-developing cities in southern Africa.
+    source_title: Lusaka
+    source_url: https://en.wikipedia.org/wiki/Lusaka
+    wikidata: Q3881
+    retrieved: "2026-07-20"
+  - key: zw:harare
+    blurb: Harare is the capital and largest city of Zimbabwe. The city proper has an area of 982.3 km2 (379.3 sq mi), a population of 1,849,600 as of the 2022 census, and an estimated 2,487,209 people in its metropolitan province.
+    source_title: Harare
+    source_url: https://en.wikipedia.org/wiki/Harare
+    wikidata: Q3921
+    retrieved: "2026-07-20"
