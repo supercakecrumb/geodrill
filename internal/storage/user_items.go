@@ -160,9 +160,11 @@ func (s *Store) CountKnownItems(ctx context.Context, userID uuid.UUID) (int, err
 
 // ListCandidateIntroItems returns candidate items for the introduction queue:
 // active, tier-unlocked (allowedTiers), and either never seen by this user or
-// still lifecycle=new. Ordered tier, then topic position, then item position
-// — the priority order engram.NextIntroductions expects the caller to supply
-// (architecture §1.4/§4.2).
+// still lifecycle=new. Ordered tier, then within-topic position, then topic
+// position — a topic round-robin (see the query comment) that rotates
+// introductions across topics instead of draining one topic before the next,
+// while preserving tier as the top-level priority engram.NextIntroductions
+// expects the caller to supply (architecture §1.4/§4.2).
 func (s *Store) ListCandidateIntroItems(ctx context.Context, userID uuid.UUID, allowedTiers []int16) ([]IntroCandidate, error) {
 	rows, err := s.q.ListCandidateIntroItems(ctx, db.ListCandidateIntroItemsParams{UserID: userID, Tiers: allowedTiers})
 	if err != nil {

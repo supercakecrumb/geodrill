@@ -127,8 +127,17 @@ type Querier interface {
 	ListAttemptsSince(ctx context.Context, arg ListAttemptsSinceParams) ([]ListAttemptsSinceRow, error)
 	// Candidate items for the introduction queue: active, tier-unlocked
 	// (parameterized allowed-tiers array), and either no user_items row yet or
-	// still lifecycle=new. Ordered tier, then topic position, then item position
-	// — the app-supplied priority order engram.NextIntroductions preserves.
+	// still lifecycle=new. Ordered tier, then within-topic position, then topic
+	// position — a topic round-robin (items.position is a stable per-topic rank,
+	// assigned 0..n at seed time), so consecutive introductions rotate across
+	// topics (t0.i0, t1.i0, t2.i0, t0.i1, …) instead of draining one whole topic
+	// before the next. NextIntro re-runs this query and takes the first row every
+	// call; because position is a rank fixed at seed time (not recomputed over the
+	// shrinking candidate set), dropping an introduced row exposes the NEXT
+	// topic's leading item, so the rotation holds statelessly across calls. i.id
+	// is the final, total-order tiebreak (t.position is only unique among sibling
+	// topics, so two leaves under different parents can share it). This is the
+	// app-supplied priority order engram.NextIntroductions preserves.
 	// GeoGuessr-only filtered (see ListDueUserItems): non-coverage items are
 	// never introduced while the user's gg_only is set.
 	ListCandidateIntroItems(ctx context.Context, arg ListCandidateIntroItemsParams) ([]ListCandidateIntroItemsRow, error)

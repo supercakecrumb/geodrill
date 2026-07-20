@@ -15,7 +15,9 @@ package storage_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -491,6 +493,97 @@ func TestUserItemLifecycle(t *testing.T) {
 	}
 	if known[0].KnownAt.IsZero() {
 		t.Fatalf("known_at should be set")
+	}
+}
+
+// TestCandidateIntroRoundRobin pins the topic round-robin ordering of
+// ListCandidateIntroItems: with several topics unlocked at once, consecutive
+// candidates must rotate across topics (topic0.item0, topic1.item0, ...,
+// topic0.item1, ...) rather than draining one topic before the next — and,
+// crucially, the rotation must hold statelessly as NextIntro re-runs the
+// query after each introduction (dropping the just-introduced row must expose
+// the NEXT topic's leading item, not the same topic's next item).
+func TestCandidateIntroRoundRobin(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	u, err := st.UpsertUser(ctx, 651, "roundrobin-tester")
+	if err != nil {
+		t.Fatalf("upsert user: %v", err)
+	}
+
+	// three tier-0 topics (positions 0,1,2), three items each (positions 0,1,2,
+	// the per-topic rank the seeder assigns). Keys encode topic/item so order
+	// assertions read clearly.
+	const nTopics, nItems = 3, 3
+	items := map[string]uuid.UUID{} // key -> item id
+	for tp := 0; tp < nTopics; tp++ {
+		topic, err := st.UpsertTopic(ctx, nil,
+			fmt.Sprintf("rr-topic-%d", tp), fmt.Sprintf("RR Topic %d", tp),
+			tp, 0, "word_language", nil, true, []byte(`{}`))
+		if err != nil {
+			t.Fatalf("upsert topic %d: %v", tp, err)
+		}
+		for it := 0; it < nItems; it++ {
+			key := fmt.Sprintf("t%d-i%d", tp, it)
+			row, err := st.UpsertItem(ctx, topic.ID, key, key, nil, []byte(`{}`), nil, it, true)
+			if err != nil {
+				t.Fatalf("upsert item %s: %v", key, err)
+			}
+			items[key] = row.ID
+		}
+	}
+
+	// Full candidate list must be a topic round-robin: rank 0 across all topics,
+	// then rank 1, then rank 2.
+	wantOrder := []string{
+		"t0-i0", "t1-i0", "t2-i0",
+		"t0-i1", "t1-i1", "t2-i1",
+		"t0-i2", "t1-i2", "t2-i2",
+	}
+	candidates, err := st.ListCandidateIntroItems(ctx, u.ID, []int16{0})
+	if err != nil {
+		t.Fatalf("list candidate intro items: %v", err)
+	}
+	gotOrder := make([]string, len(candidates))
+	for i, c := range candidates {
+		gotOrder[i] = c.Key
+	}
+	if !reflect.DeepEqual(gotOrder, wantOrder) {
+		t.Fatalf("candidate order = %v, want %v", gotOrder, wantOrder)
+	}
+
+	// Drive the stateless per-call rotation the way NextIntro does: take the
+	// first candidate, mark it introduced (lifecycle=1, no longer a candidate),
+	// re-query, and expect the sequence to keep rotating across topics.
+	now := time.Now().UTC().Truncate(time.Second)
+	for step, want := range wantOrder {
+		got, err := st.ListCandidateIntroItems(ctx, u.ID, []int16{0})
+		if err != nil {
+			t.Fatalf("re-query candidates at step %d: %v", step, err)
+		}
+		if len(got) == 0 {
+			t.Fatalf("candidates exhausted at step %d, want %s", step, want)
+		}
+		if got[0].Key != want {
+			t.Fatalf("step %d: first candidate = %s, want %s (rotation broke)", step, got[0].Key, want)
+		}
+		if err := st.PutUserItem(ctx, u.ID, items[want], 1, storage.CardFields{Due: now, State: 0}, now, time.Time{}); err != nil {
+			t.Fatalf("introduce %s: %v", want, err)
+		}
+	}
+
+	// Everything introduced -> no candidates left.
+	empty, err := st.ListCandidateIntroItems(ctx, u.ID, []int16{0})
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("candidates after introducing all = %+v, %v", empty, err)
 	}
 }
 

@@ -19,7 +19,9 @@ var _ telegram.StudyService = (*Service)(nil)
 
 // candidatesFor returns userID's current introduction candidates: active
 // items in their currently-unlocked tiers, not yet introduced (architecture
-// §1.4/§4.2), ordered tier -> topic position -> item position.
+// §1.4/§4.2), ordered tier -> within-topic position -> topic position: a topic
+// round-robin so consecutive introductions rotate across topics rather than
+// draining one topic before the next (see ListCandidateIntroItems).
 func (s *Service) candidatesFor(ctx context.Context, userID uuid.UUID) ([]storage.IntroCandidate, error) {
 	allowed, err := s.gating.AllowedTiers(ctx, userID)
 	if err != nil {
