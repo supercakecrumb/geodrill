@@ -45,11 +45,11 @@ const maxEdits = 2
 
 // Domain is the answer-kind an Entry belongs to — the scoping unit for
 // MatchDomain/DomainForAnswer (kanban card "Autocomplete must be scoped to
-// the question's answer domain"). There are only two autocomplete answer
-// domains in the whole app today: city→country, capital→country,
-// tld→country, and flags all answer a COUNTRY; only country→capital answers
-// a CAPITAL (country→tld is plain text, no autocomplete at all) — so these
-// two values are the complete set.
+// the question's answer domain"). There are three autocomplete answer domains
+// in the app today: city→country, capital→country, tld→country, and flags all
+// answer a COUNTRY; country→capital answers a CAPITAL (country→tld is plain
+// text, no autocomplete at all); and the special-characters "which language
+// uses «x»?" text question answers a LANGUAGE.
 type Domain int8
 
 const (
@@ -61,6 +61,11 @@ const (
 	// DomainCapital tags capital-city entries (NewFromCountriesAndCapitals's
 	// merged-in capitals).
 	DomainCapital
+	// DomainLanguage tags language-name entries
+	// (NewFromCountriesCapitalsAndLanguages's merged-in languages) — the
+	// answer domain for the special-characters "which language uses «x»?"
+	// text questions, which answer a LANGUAGE, not a country or capital.
+	DomainLanguage
 )
 
 // Entry is one suggestion candidate: a display label, an optional emoji
@@ -151,11 +156,47 @@ type CapitalEntry struct {
 // exercise's own Accept/CorrectAnswer (not the suggestion list) is what
 // actually grades the typed answer.
 func NewFromCountriesAndCapitals(countries []storage.Country, capitals []CapitalEntry) *Index {
+	return New(countriesAndCapitalsEntries(countries, capitals))
+}
+
+// LanguageEntry is one language the special-characters topic can ask about,
+// adapted by the caller (cmd/bot/main.go) from that topic's exported language
+// list into this shape — kept free of any specialchars-topic-specific import
+// so this package stays generic (mirrors how CapitalEntry keeps the capitals
+// topic out of this package).
+type LanguageEntry struct {
+	Code string // ISO 639-3 code, used to build Key ("lang:" + Code)
+	Name string // English display name, e.g. "Spanish"
+}
+
+// NewFromCountriesCapitalsAndLanguages builds ONE merged Index over all three
+// suggestion sources the app needs: every country and capital (exactly as
+// NewFromCountriesAndCapitals) PLUS one entry per language (label = English
+// name, no emoji, key = "lang:<iso3>", Domain DomainLanguage). Language
+// entries are always Coverage:true — a language isn't a country and has no
+// GeoGuessr coverage of its own, so the gg_only filter must never drop it (it
+// would silently blank the special-characters autocomplete for gg_only
+// users). Same single-global-index rationale as NewFromCountriesAndCapitals:
+// the inline OnQuery handler answers from one index and can't know which
+// exercise is open, so all sources merge into one.
+func NewFromCountriesCapitalsAndLanguages(countries []storage.Country, capitals []CapitalEntry, languages []LanguageEntry) *Index {
+	entries := countriesAndCapitalsEntries(countries, capitals)
+	for _, l := range languages {
+		entries = append(entries, Entry{Label: l.Name, Emoji: "", Key: "lang:" + l.Code, Domain: DomainLanguage, Coverage: true})
+	}
+	return New(entries)
+}
+
+// countriesAndCapitalsEntries is the shared builder for the country+capital
+// entry list, used by both NewFromCountriesAndCapitals and
+// NewFromCountriesCapitalsAndLanguages so the language-aware constructor never
+// duplicates (or drifts from) the country/capital entry shape.
+func countriesAndCapitalsEntries(countries []storage.Country, capitals []CapitalEntry) []Entry {
 	entries := countryEntries(countries)
 	for _, c := range capitals {
 		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "cap:" + c.CountryISO, Domain: DomainCapital, Coverage: c.Coverage})
 	}
-	return New(entries)
+	return entries
 }
 
 func countryEntries(countries []storage.Country) []Entry {
@@ -228,16 +269,18 @@ func (idx *Index) MatchDomain(query string, domain Domain, ggOnly bool, limit in
 
 // DomainForAnswer resolves which Domain an open exercise's CorrectAnswer
 // belongs to, so a caller (internal/telegram's handleQuery) can pass the
-// right Domain to MatchDomain instead of always merging both suggestion
-// sources. Membership is COUNTRY-FIRST: idx's DomainCountry entries are
-// checked before its DomainCapital entries, so a city-state whose capital
+// right Domain to MatchDomain instead of always merging every suggestion
+// source. Membership precedence is COUNTRY-FIRST, then CAPITAL, then
+// LANGUAGE: idx's DomainCountry entries are checked before its DomainCapital
+// entries before its DomainLanguage entries, so a city-state whose capital
 // shares its country's name (Singapore, Monaco) resolves to DomainCountry —
 // only a name that is genuinely a capital-and-nothing-else (Canberra,
-// Ottawa) resolves to DomainCapital. An unrecognized answer, an empty
-// string, or a nil Index all default to DomainCountry, the same default a
-// caller falls back to when no exercise is open at all. Comparison is
-// casefolded via quiz.Normalize, consistent with Match's own notion of "the
-// same label".
+// Ottawa) resolves to DomainCapital, and only a name that is a language and
+// neither a country nor a capital (Spanish, Russian) resolves to
+// DomainLanguage. An unrecognized answer, an empty string, or a nil Index all
+// default to DomainCountry, the same default a caller falls back to when no
+// exercise is open at all. Comparison is casefolded via quiz.Normalize,
+// consistent with Match's own notion of "the same label".
 func (idx *Index) DomainForAnswer(correct string) Domain {
 	if idx == nil {
 		return DomainCountry
@@ -255,6 +298,11 @@ func (idx *Index) DomainForAnswer(correct string) Domain {
 	for _, e := range idx.entries {
 		if e.Domain == DomainCapital && quiz.Normalize(e.Label) == norm {
 			return DomainCapital
+		}
+	}
+	for _, e := range idx.entries {
+		if e.Domain == DomainLanguage && quiz.Normalize(e.Label) == norm {
+			return DomainLanguage
 		}
 	}
 	return DomainCountry

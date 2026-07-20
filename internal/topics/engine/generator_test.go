@@ -234,6 +234,28 @@ func TestBuildExercise_Text(t *testing.T) {
 	if !reflect.DeepEqual(ex.Accept, []string{"apple", "the apple"}) {
 		t.Fatalf("Accept = %v", ex.Accept)
 	}
+	if ex.Autocomplete {
+		t.Fatalf("Autocomplete = true, want false by default (descriptor didn't opt in)")
+	}
+}
+
+// TestBuildExercise_Text_Autocomplete pins the descriptor.Autocomplete →
+// Exercise.Autocomplete wiring: a text descriptor that opts in stamps every
+// buildText result, independent of the exercise_modes "autocomplete" string
+// route (internal/study.trainer).
+func TestBuildExercise_Text_Autocomplete(t *testing.T) {
+	d := sampledDescriptor()
+	d.Autocomplete = true
+	gen := New(d)
+	item := mkTestItem(t, "g1", "apple", "apple")
+
+	ex, err := gen.BuildExercise(context.Background(), newRNG(1), topics.ExerciseRequest{Item: item, Mode: quiz.ModeText})
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	if !ex.Autocomplete {
+		t.Fatalf("Autocomplete = false, want true when the descriptor opts in")
+	}
 }
 
 // ── mode/shape dispatch ────────────────────────────────────────────────────

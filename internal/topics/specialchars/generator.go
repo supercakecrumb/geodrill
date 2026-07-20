@@ -164,6 +164,11 @@ var descriptor = engine.Descriptor{
 	PromptText:   "Type the language that uses “%s”:",
 	Distractors:  engine.DistractorPolicy{Max: maxSingleDistractors, SameGroup: true},
 	Accept:       acceptSpellings,
+	// Autocomplete: the typed answer is a language name, for which the global
+	// suggestion index carries a DomainLanguage source (Languages() feeds it
+	// in cmd/bot) — so these text questions get the same "⌨️ Type your answer"
+	// prefill button + inline suggestions country questions already have.
+	Autocomplete: true,
 	BuildSet:     buildSetMCQ,
 }
 

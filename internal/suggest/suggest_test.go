@@ -265,6 +265,63 @@ func TestMatchDomain_GGOnlyDropsNonCoverage(t *testing.T) {
 	}
 }
 
+// ── DomainLanguage (special-characters language answers) ────────────────
+
+func testCountriesCapitalsAndLanguagesIndex() *Index {
+	countries := []storage.Country{
+		{ID: uuid.New(), Name: "France", FlagEmoji: "🇫🇷", ISOA2: "FR", GGCoverage: true},
+		{ID: uuid.New(), Name: "Spain", FlagEmoji: "🇪🇸", ISOA2: "ES", GGCoverage: true},
+	}
+	capitalEntries := []CapitalEntry{
+		{CountryISO: "FR", Name: "Paris", FlagEmoji: "🇫🇷", Coverage: true},
+	}
+	languageEntries := []LanguageEntry{
+		{Code: "spa", Name: "Spanish"},
+		{Code: "rus", Name: "Russian"},
+	}
+	return NewFromCountriesCapitalsAndLanguages(countries, capitalEntries, languageEntries)
+}
+
+func TestDomainForAnswer_LanguageNameResolvesLanguage(t *testing.T) {
+	idx := testCountriesCapitalsAndLanguagesIndex()
+	if got := idx.DomainForAnswer("Spanish"); got != DomainLanguage {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainLanguage", "Spanish", got)
+	}
+}
+
+func TestDomainForAnswer_CountryStillResolvesCountry(t *testing.T) {
+	idx := testCountriesCapitalsAndLanguagesIndex()
+	// A country name must still resolve to DomainCountry even with languages
+	// merged into the same index (country-first precedence unchanged).
+	if got := idx.DomainForAnswer("France"); got != DomainCountry {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainCountry", "France", got)
+	}
+}
+
+func TestMatchDomain_ScopesToLanguageOnly(t *testing.T) {
+	idx := testCountriesCapitalsAndLanguagesIndex()
+	got := labels(idx.MatchDomain("span", DomainLanguage, false, 10))
+	want := []string{"Spanish"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MatchDomain(DomainLanguage, %q) = %v, want %v", "span", got, want)
+	}
+	// Spain (a country) must never surface from a language-scoped match even
+	// though it's a close prefix for the same query.
+	if leaked := idx.MatchDomain("spai", DomainLanguage, false, 10); len(leaked) != 0 {
+		t.Fatalf("MatchDomain(DomainLanguage) leaked a country entry: %v", leaked)
+	}
+}
+
+func TestMatchDomain_LanguageSurvivesGGOnly(t *testing.T) {
+	// A language entry is Coverage:true, so the gg_only filter must never
+	// drop it (a language has no GeoGuessr coverage of its own).
+	idx := testCountriesCapitalsAndLanguagesIndex()
+	on := labels(idx.MatchDomain("russ", DomainLanguage, true, 10))
+	if len(on) != 1 || on[0] != "Russian" {
+		t.Fatalf("ggOnly=true dropped a language entry, got %v, want [Russian]", on)
+	}
+}
+
 func TestNew_CopiesInputSlice(t *testing.T) {
 	entries := []Entry{{Label: "France"}}
 	idx := New(entries)

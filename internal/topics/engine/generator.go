@@ -164,5 +164,6 @@ func (g *Generator) buildText(card Card) topics.Exercise {
 		Prompt:        fmt.Sprintf(g.d.PromptText, card.Subject),
 		Accept:        g.d.Accept(target),
 		CorrectAnswer: g.d.Label(target),
+		Autocomplete:  g.d.Autocomplete,
 	}
 }

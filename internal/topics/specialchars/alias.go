@@ -1,6 +1,30 @@
 package specialchars
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
+
+// Language is one language this topic can ask about, exported for callers
+// (cmd/bot) that build the inline-autocomplete suggestion index and need the
+// language list without importing the private alias table.
+type Language struct {
+	Code string // ISO 639-3 code, e.g. "spa"
+	Name string // English display name, e.g. "Spanish"
+}
+
+// Languages returns every language in the alias table as {Code, Name} pairs,
+// sorted by Name for a deterministic order (so the built suggestion index and
+// its tests don't depend on Go's randomized map iteration). Read-only: it
+// does not expose or mutate the alias table itself.
+func Languages() []Language {
+	out := make([]Language, 0, len(languageAliases))
+	for code, a := range languageAliases {
+		out = append(out, Language{Code: code, Name: a.Name})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
 
 // languageAlias is one entry of the internal language-name table used for
 // MCQ labels, set labels, intro-card text, and ModeText's accepted

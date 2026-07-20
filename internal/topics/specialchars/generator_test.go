@@ -240,6 +240,24 @@ func TestBuildExercise_Text(t *testing.T) {
 	}
 }
 
+// TestBuildExercise_Text_Autocomplete asserts the language text question opts
+// into the inline-autocomplete button + language suggestions (descriptor's
+// Autocomplete:true → Exercise.Autocomplete), the same treatment country
+// questions get.
+func TestBuildExercise_Text_Autocomplete(t *testing.T) {
+	gen := New()
+	item := mustItem(t, "ñ", "latin", []string{"spa"}, "")
+	req := topics.ExerciseRequest{Item: item, Siblings: siblingFixture(t), Mode: quiz.ModeText}
+
+	ex, err := gen.BuildExercise(context.Background(), newRNG(1), req)
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	if !ex.Autocomplete {
+		t.Fatalf("Autocomplete = false, want true for a char_language text question")
+	}
+}
+
 func TestBuildExercise_Text_UnknownLanguageFallsBackToCode(t *testing.T) {
 	gen := New()
 	item := mustItem(t, "x", "latin", []string{"xyz"}, "")

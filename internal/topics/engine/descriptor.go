@@ -164,6 +164,15 @@ type Descriptor struct {
 	// is the key's display label.
 	Accept func(key string) []string
 
+	// Autocomplete opts this topic's ModeText exercises into the inline
+	// autocomplete button ("⌨️ Type your answer") + domain suggestions, by
+	// stamping Exercise.Autocomplete on every buildText result. It is
+	// independent of the exercise_modes "autocomplete" string route
+	// (internal/study.trainer): that route is per-topic-config data, this is a
+	// descriptor-level opt-in for topics (e.g. special characters) whose typed
+	// answers have a suggestion domain in internal/suggest.
+	Autocomplete bool
+
 	// BuildSet, when non-nil, handles set-shaped items (len(Card.Keys) > 1,
 	// ModeSet only). Set-choice option building is the one generation
 	// mechanic that stayed custom (specialchars' one-member-swap distractor

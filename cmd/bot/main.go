@@ -109,12 +109,14 @@ func run() error {
 
 	// suggestIdx powers inline-mode autocomplete answers
 	// (vibe/spike-autocomplete-inline.md): built once at startup as ONE
-	// merged index over every country (name + flag emoji + iso2) plus every
-	// country's primary capital (name + flag emoji + "cap:iso2") — the
-	// capitals quiz's country->capital direction needs capital-name
-	// suggestions, and the OnQuery handler answers from a single global
-	// index regardless of which exercise is open (see
-	// internal/suggest.NewFromCountriesAndCapitals's doc). Capitals are
+	// merged index over every country (name + flag emoji + iso2), every
+	// country's primary capital (name + flag emoji + "cap:iso2"), and every
+	// special-characters language (name + "lang:iso3") — the capitals quiz's
+	// country->capital direction needs capital-name suggestions, the
+	// special-characters "which language uses «x»?" text question needs
+	// language-name suggestions, and the OnQuery handler answers from a single
+	// global index regardless of which exercise is open (see
+	// internal/suggest.NewFromCountriesCapitalsAndLanguages's doc). Capitals are
 	// sourced from the already-seeded country_facts row
 	// (capitals.FactKeyCapital), the same "query the store, don't re-parse
 	// yaml here" pattern countries themselves use.
@@ -141,7 +143,16 @@ func run() error {
 		}
 		capitalEntries = append(capitalEntries, suggest.CapitalEntry{CountryISO: c.ISOA2, Name: *f.ValText, FlagEmoji: c.FlagEmoji, Coverage: c.GGCoverage})
 	}
-	suggestIdx := suggest.NewFromCountriesAndCapitals(countries, capitalEntries)
+	// Language suggestions for the special-characters "which language uses
+	// «x»?" text questions (specialchars.Languages() is the read-only view of
+	// that topic's alias table). Merged into the same global index so the
+	// single OnQuery handler can answer language, capital, and country
+	// questions alike.
+	languageEntries := make([]suggest.LanguageEntry, 0)
+	for _, l := range specialchars.Languages() {
+		languageEntries = append(languageEntries, suggest.LanguageEntry{Code: l.Code, Name: l.Name})
+	}
+	suggestIdx := suggest.NewFromCountriesCapitalsAndLanguages(countries, capitalEntries, languageEntries)
 
 	// snagbox feedback reporting ([[snagbox-integration]]): wired only when
 	// both SNAGBOX_URL and SNAGBOX_INGEST_TOKEN are set, otherwise left nil so
