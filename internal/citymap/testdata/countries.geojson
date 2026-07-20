@@ -1,0 +1,46 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "TA", "ISO_A2": "TA", "ADMIN": "Testia"},
+      "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "-99", "ISO_A2": "-99", "ADMIN": "France"},
+      "geometry": {"type": "Polygon", "coordinates": [[[2, 48], [4, 48], [4, 50], [2, 50], [2, 48]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "-99", "ISO_A2": "-99", "ADMIN": "Norway"},
+      "geometry": {"type": "Polygon", "coordinates": [[[8, 60], [12, 60], [12, 62], [8, 62], [8, 60]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "-99", "ISO_A2": "ZA", "ADMIN": "Zedland"},
+      "geometry": {"type": "Polygon", "coordinates": [[[20, -35], [25, -35], [25, -30], [20, -30], [20, -35]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "US", "ISO_A2": "US", "ADMIN": "United States"},
+      "geometry": {"type": "MultiPolygon", "coordinates": [
+        [[[-120, 30], [-100, 30], [-100, 40], [-120, 40], [-120, 30]]],
+        [[[-160, 19], [-155, 19], [-155, 22], [-160, 22], [-160, 19]]]
+      ]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "FJ", "ISO_A2": "FJ", "ADMIN": "Fiji"},
+      "geometry": {"type": "Polygon", "coordinates": [[[179, -19], [-179, -19], [-179, -17], [179, -17], [179, -19]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2_EH": "HO", "ISO_A2": "HO", "ADMIN": "Holeland"},
+      "geometry": {"type": "Polygon", "coordinates": [
+        [[20, 20], [30, 20], [30, 30], [20, 30], [20, 20]],
+        [[23, 23], [27, 23], [27, 27], [23, 27], [23, 23]]
+      ]}
+    }
+  ]
+}
