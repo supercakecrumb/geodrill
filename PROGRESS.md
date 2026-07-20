@@ -147,3 +147,28 @@ verification.
   correct; only the label is slightly off. History was left intact rather than
   rewritten.
 - **Phase 7 (Mini App)** is out of scope for this run, as planned.
+
+---
+
+## 2026-07-21 — Cities cut over to map-based questions
+
+The Cities topic was flipped from "which country is this city in?" to a **map-with-a-dot →
+type the city name** question, with a rich "city discovered" info card and per-user progress
+reset. Shipped as 6 atomic commits (see `vibe/design-cities-on-map.md` for the plan):
+
+- **Data:** `cmd/citygen` + `scripts/fetch-cities.sh` extended to emit lat/lng/region/elevation
+  into `seeds/cities.yaml` (also fixed a latent alternatename false-match bug: Manhattan was
+  matching NYC's population). `cmd/cityfacts` scrapes Wikipedia page-summaries (CC BY-SA, matched
+  via Wikidata P1566) → `seeds/city_facts.yaml` (383 tier-0–2 blurbs).
+- **Rendering:** `internal/citymap` + `cmd/citymaps` — pure-Go, label-free maps from Natural
+  Earth vectors (antimeridian + microstate + component-pick framing), no tile servers.
+- **Storage:** city-map PNGs live in **Garage S3** (`internal/storage/objstore`, minio-go);
+  `SendPhoto` reads S3 only on the first send to seed the `file_id` cache. `cmd/citymapsync`
+  uploads + registers them.
+- **Topic:** `internal/topics/cities` rewritten in place to `city_on_map`; the seeder renames
+  the legacy `city-to-country` topic (preserving item IDs) and resets per-user city progress in
+  one transaction. New `suggest.DomainCity` for city-name autocomplete.
+
+All under the single `scripts/pre-commit.sh` gate. Operational cutover (render → upload → seed on
+the box) is documented in the README. Flags images stay on local disk — migrating them to Garage
+is a follow-up ticket.

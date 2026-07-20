@@ -74,6 +74,11 @@ Set via environment (see `.env.example`):
 | `DATABASE_URL` | yes | — | e.g. `postgres://geodrill:geodrill@localhost:5432/geodrill?sslmode=disable` |
 | `LOG_LEVEL` | no | `info` | `debug` \| `info` \| `warn` \| `error` (slog). |
 | `FSRS_RETENTION` | no | `0.9` | FSRS target retention in `(0,1)`. |
+| `SNAGBOX_URL` / `SNAGBOX_INGEST_TOKEN` | no | — | `/feedback` files reports into snagbox; unset → "not available". |
+| `GARAGE_S3_ENDPOINT` | no | — | Garage S3 endpoint for city-map images, e.g. `http://garage:3900`. Unset → city maps degrade to text. |
+| `GARAGE_S3_REGION` | no | `garage` | S3 region for Garage. |
+| `GARAGE_ACCESS_KEY_ID` / `GARAGE_SECRET_ACCESS_KEY` | no | — | Garage credentials (server-side; from OpenBao `kv/apps/geodrill/s3_*`). |
+| `GARAGE_BUCKET` | no | `apps-geodrill` | Garage bucket holding `citymaps/<key>.png`. |
 
 ### Getting a bot token
 
@@ -112,6 +117,48 @@ DATABASE_URL='postgres://geodrill:geodrill@localhost:5432/geodrill?sslmode=disab
 (max rows/language), `-min 20 -max 120` (sentence length in runes), `-seed 42`
 (deterministic sampling), `-skip-download` (use the gitignored `data/` cache),
 `-seed-only` (upsert decks/skills only). Dumps are cached in `data/`.
+
+### Cities map-based topic (data + image pipeline)
+
+The **Cities** topic shows a self-rendered map with a red dot marking a city and asks you to
+type the city's name; each newly-discovered city first appears as an info card (country,
+region, population, elevation, and — for the biggest cities — a short fact). The maps are
+label-free (a label would give away the answer), rendered offline from **Natural Earth**
+public-domain vectors, and served from **Garage S3** (read once per image on first send, then
+cached as a Telegram `file_id`). All data steps are one-time offline compilations — no runtime
+API calls.
+
+Pipeline (each step is idempotent; raw downloads land in the gitignored `data/`):
+
+```bash
+# 1. City dataset: GeoNames cities15000 + admin1 -> seeds/cities.yaml
+#    (population/tier + lat/lng/region/elevation; committed, derived, CC-BY GeoNames)
+./scripts/fetch-cities.sh && go run ./cmd/citygen
+
+# 2. Facts for the biggest cities (tier 0-2) -> seeds/city_facts.yaml
+#    (Wikidata match by GeoNames ID + Wikipedia page-summary extracts, CC BY-SA 4.0)
+go run ./cmd/cityfacts
+
+# 3. Render the map PNGs offline (no tile servers) -> data/citymaps/
+./scripts/fetch-naturalearth.sh && go run ./cmd/citymaps          # -only <key> for one city
+
+# 4. Upload the PNGs to Garage + register them in media_files (needs GARAGE_* env)
+go run ./cmd/citymapsync
+
+# 5. (Re)seed the topic — reads media_files to set map_image only for uploaded cities,
+#    folds in facts, and (first run over a legacy DB) renames the old city->country topic
+#    in place and resets per-user city progress so cities re-introduce biggest-first.
+go run ./cmd/ingest -seed-topics
+```
+
+> **Operational cutover** (moving a live/dev DB from the old `city-to-country` quiz to the map
+> question): `pg_dump` first, then run steps 3→4→5 with Garage configured, and restart the bot
+> (as a built binary). `cmd/ingest`'s seed performs the topic rename + progress reset exactly
+> once (idempotent — it no-ops once the legacy `cities/city-to-country` path is gone). The
+> `user_tier_progress` cache is intentionally left to self-heal on each user's next answer
+> rather than recomputed (recomputing would re-lock tiers earned partly through cities). The
+> `apps-geodrill` Garage bucket + `kv/apps/geodrill/s3_*` key are provisioned via the platform
+> tooling (see the companion wiki's `deployment`/`maintain-infra`).
 
 ### Everything in Docker
 
