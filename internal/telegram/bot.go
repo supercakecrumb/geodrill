@@ -130,6 +130,13 @@ type Bot struct {
 	logger *slog.Logger
 	now    func() time.Time
 
+	// username is the bot's own @handle (telebot.Bot.Me.Username, no leading
+	// "@"), set once in New() after tb is constructed. handleText uses it to
+	// strip a leading "@<username>" mention that Telegram's inline
+	// autocomplete inserts into a tapped suggestion (train.go's
+	// stripBotMention) before grading the reply text.
+	username string
+
 	// media powers SendPhoto's file_id cache (mediaStore's doc comment). Set
 	// from Config.Store, which already satisfies mediaStore directly — the
 	// same "nil is fine, caching just falls back to always sending from
@@ -206,6 +213,7 @@ func New(cfg Config) (*Bot, error) {
 		media:         cfg.Store,
 		logger:        logger,
 		now:           now,
+		username:      tb.Me.Username,
 		study:         cfg.StudyService,
 		topics:        cfg.TopicService,
 		trainer:       cfg.Trainer,

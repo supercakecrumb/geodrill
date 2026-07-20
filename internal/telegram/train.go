@@ -199,6 +199,36 @@ func (b *Bot) answerAndAdvance(ctx context.Context, s Session, exerciseID uuid.U
 
 // ── free-typed answers (telebot.OnText) ─────────────────────────────────
 
+// stripBotMention strips a LEADING "@<botUsername>" token (and any
+// surrounding whitespace) from text, returning the remainder. It exists
+// because Telegram's inline-mode autocomplete (spike-autocomplete-inline.md)
+// inserts the bot's own @mention ahead of the tapped suggestion when a user
+// replies via that autocomplete in a group chat, so the raw message text
+// becomes "@geodriller_bot Japan" instead of "Japan" — grading that raw
+// text against "Japan" fails even though the answer is correct (the
+// "Nagoya→Japan marked wrong" bug; it also masqueraded as a case-insensitive
+// matching bug, since quiz.TextMatcher already casefolds via quiz.Normalize
+// once the mention is out of the way).
+//
+// The username comparison is case-insensitive (Telegram usernames are
+// case-insensitive), but only a mention at the very START of the text is
+// stripped — a "@bot" appearing mid-answer is left alone, since that's part
+// of whatever the user actually typed, not autocomplete noise. An empty
+// botUsername (unresolved b.username) or a non-matching leading token
+// leaves text unchanged apart from trimming. Pure (no I/O), so it's
+// unit-tested directly without a bot token or Session.
+func stripBotMention(text, botUsername string) string {
+	trimmed := strings.TrimSpace(text)
+	if botUsername == "" {
+		return trimmed
+	}
+	mention := "@" + botUsername
+	if !strings.HasPrefix(strings.ToLower(trimmed), strings.ToLower(mention)) {
+		return trimmed
+	}
+	return strings.TrimSpace(trimmed[len(mention):])
+}
+
 // handleText routes a plain-text message to Trainer.AnswerText when
 // Trainer is wired and the message isn't a command (telebot still
 // dispatches OnText for an UNREGISTERED "/foo" command after its command
@@ -214,6 +244,7 @@ func (b *Bot) handleText(ctx context.Context, s Session) error {
 	if text == "" || strings.HasPrefix(strings.TrimSpace(text), "/") {
 		return nil
 	}
+	text = stripBotMention(text, b.username)
 
 	user, err := b.loadOrCreateUser(ctx, s)
 	if err != nil {

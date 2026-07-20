@@ -368,6 +368,40 @@ func TestHandleAnswerCallback_NilTrainerIsInert(t *testing.T) {
 	}
 }
 
+// ── stripBotMention ──────────────────────────────────────────────────────
+
+// TestStripBotMention covers handleText's fix for "Nagoya→Japan marked
+// wrong (answer parsing)" / "Case-insensitive answer matching": Telegram's
+// inline autocomplete inserts the bot's own @mention ahead of a tapped
+// suggestion in a group chat, so the raw message becomes
+// "@geodriller_bot Japan" instead of "Japan" — grading that raw text fails
+// even though the answer is correct, and looked like a case-sensitivity bug
+// to the reporter (quiz.TextMatcher already casefolds via quiz.Normalize
+// once the mention is out of the way).
+func TestStripBotMention(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		bot  string
+		want string
+	}{
+		{"leading mention stripped", "@geodriller_bot Japan", "geodriller_bot", "Japan"},
+		{"username match is case-insensitive", "@GeoDriller_Bot Japan", "geodriller_bot", "Japan"},
+		{"surrounding and internal whitespace trimmed", "  @geodriller_bot   spain  ", "geodriller_bot", "spain"},
+		{"no mention present", "Japan", "geodriller_bot", "Japan"},
+		{"multi-word answer preserved", "Costa Rica", "geodriller_bot", "Costa Rica"},
+		{"mid-string mention not stripped", "email me @geodriller_bot", "geodriller_bot", "email me @geodriller_bot"},
+		{"empty bot username leaves text unchanged", "@geodriller_bot Japan", "", "@geodriller_bot Japan"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := stripBotMention(c.text, c.bot); got != c.want {
+				t.Fatalf("stripBotMention(%q, %q) = %q, want %q", c.text, c.bot, got, c.want)
+			}
+		})
+	}
+}
+
 // ── OnText / handleText ──────────────────────────────────────────────────
 
 func TestHandleText_NilTrainerIsNoop(t *testing.T) {
