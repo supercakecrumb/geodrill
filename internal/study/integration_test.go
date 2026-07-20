@@ -569,6 +569,9 @@ func TestFullLoop(t *testing.T) {
 	if !textRes.Correct {
 		t.Fatalf("typing the exact persisted correct_answer should grade correct, got %+v", textRes)
 	}
+	if textRes.CorrectAnswer != "" {
+		t.Fatalf("a correct ModeText answer needs no reveal, got CorrectAnswer=%q", textRes.CorrectAnswer)
+	}
 	textReviews, err := store.GetReviewsByItem(ctx, singleItem.ID)
 	if err != nil {
 		t.Fatalf("GetReviewsByItem (text): %v", err)

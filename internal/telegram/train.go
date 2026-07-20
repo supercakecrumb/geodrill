@@ -262,10 +262,26 @@ func (b *Bot) handleText(ctx context.Context, s Session) error {
 	}
 
 	b.applyAnswerEdit(s, res)
-	if err := s.Send(answerToast(res.Correct)); err != nil {
+	// On a wrong free-text answer the in-place edit that reveals the correct
+	// answer is scrolled up out of view, so the bare wrong toast would leave
+	// the user with no answer. Fold the correct spelling into the sent reply
+	// (ModeText only — res.CorrectAnswer is empty for button modes, which
+	// already ✅-mark the right option).
+	reply := answerToast(res.Correct)
+	if !res.Correct && res.CorrectAnswer != "" {
+		reply = wrongReveal(res.CorrectAnswer)
+	}
+	if err := s.Send(reply); err != nil {
 		return err
 	}
 	return b.sendNextTrain(ctx, s, user)
+}
+
+// wrongReveal is the free-text wrong-answer reply that includes the correct
+// spelling, since the in-place message edit revealing it is scrolled out of
+// view by the time the follow-up arrives. Pure, so it's unit-testable.
+func wrongReveal(correctAnswer string) string {
+	return "❌ Wrong — the answer is " + correctAnswer
 }
 
 // ── shared grading render ────────────────────────────────────────────────

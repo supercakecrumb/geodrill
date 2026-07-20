@@ -235,6 +235,32 @@ func TestAnswerTextChoiceModeReliesOnOptionMarks(t *testing.T) {
 	}
 }
 
+func TestRevealAnswerPopulatesCorrectAnswerOnWrongTextMode(t *testing.T) {
+	ex := storage.Exercise{
+		Mode:          int16(quiz.ModeText),
+		Prompt:        "What is the capital of Australia?",
+		CorrectAnswer: "Canberra",
+	}
+
+	// Wrong ModeText: the sent reply must carry the correct spelling, since
+	// there is no ✅-marked button to reveal it.
+	if got := revealAnswer(ex, false); got != "Canberra" {
+		t.Fatalf("wrong text-mode answer should reveal %q, got %q", "Canberra", got)
+	}
+
+	// Correct ModeText: nothing to reveal.
+	if got := revealAnswer(ex, true); got != "" {
+		t.Fatalf("a correct text-mode answer needs no reveal, got %q", got)
+	}
+
+	// Button modes already highlight the correct option with ✅, so a wrong
+	// choice-mode answer carries no reveal string.
+	single := storage.Exercise{Mode: int16(quiz.ModeSingle), CorrectAnswer: "spa"}
+	if got := revealAnswer(single, false); got != "" {
+		t.Fatalf("wrong choice-mode answer should rely on the ✅ mark, not a reveal string, got %q", got)
+	}
+}
+
 func TestModeRotationOrder(t *testing.T) {
 	modes := []string{"single", "set", "text"}
 	cases := []struct {

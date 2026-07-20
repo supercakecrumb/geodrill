@@ -336,6 +336,12 @@ type AnswerResult struct {
 	MediaPath string
 	Options   []GradedOption
 
+	// CorrectAnswer is the display-ready correct spelling, populated for
+	// wrong ModeText answers so the sent reply can reveal it; empty for
+	// button modes (the ✅-marked button already reveals it) and for correct
+	// answers (nothing to reveal).
+	CorrectAnswer string
+
 	MessageID  int64
 	HasMessage bool
 }

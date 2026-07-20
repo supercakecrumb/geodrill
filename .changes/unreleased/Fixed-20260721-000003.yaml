@@ -1,0 +1,3 @@
+kind: Fixed
+body: On a wrong free-text (type-your-answer) question, the follow-up reply now reveals the correct answer ("❌ Wrong — the answer is Spain") instead of a bare "❌ wrong". The original question message is edited with the answer too, but it scrolls out of view, so the sent reply was leaving the user with no idea what the right answer was. Button questions are unchanged (they already highlight the correct option with ✅).
+time: 2026-07-21T00:00:03Z

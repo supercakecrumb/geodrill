@@ -478,6 +478,38 @@ func TestHandleText_GradesAndAdvances(t *testing.T) {
 	}
 }
 
+func TestWrongReveal(t *testing.T) {
+	if got := wrongReveal("Spain"); got != "❌ Wrong — the answer is Spain" {
+		t.Fatalf("unexpected wrong-reveal reply: %q", got)
+	}
+}
+
+// TestHandleText_WrongTextAnswer_RevealsCorrectAnswer covers the free-text
+// gap: on a wrong ModeText answer the in-place edit that appends the correct
+// answer is scrolled out of view, so the SENT reply must itself carry the
+// answer (res.CorrectAnswer) instead of the bare wrong toast.
+func TestHandleText_WrongTextAnswer_RevealsCorrectAnswer(t *testing.T) {
+	st := &stubStore{user: newTestUser()}
+	b := newTestBot(st)
+	stub := &stubTrainer{
+		textOK: true,
+		answer: AnswerResult{Correct: false, Text: "España", CorrectAnswer: "Spain", HasMessage: true, MessageID: 5},
+		next:   Prompt{Kind: PromptKindNothingDue},
+	}
+	b.trainer = stub
+
+	s := &fakeSession{userID: 1, msgText: "Portugal"}
+	if err := b.handleText(context.Background(), s); err != nil {
+		t.Fatalf("handleText: %v", err)
+	}
+	if len(s.sent) != 1 {
+		t.Fatalf("expected a single reply message, got %d sends: %v", len(s.sent), s.sent)
+	}
+	if s.sent[0] != wrongReveal("Spain") {
+		t.Fatalf("expected the wrong reply to reveal the correct answer, got %q", s.sent[0])
+	}
+}
+
 // TestHandleText_SuggestionArrival_UsesExistingFreeTextGradingPath documents
 // vibe/spike-autocomplete-inline.md §2's verdict: a message that lands in
 // the chat from a tapped inline suggestion is an ordinary OnText update,

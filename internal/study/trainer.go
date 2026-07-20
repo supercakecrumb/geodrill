@@ -562,10 +562,28 @@ func (s *Service) finishAnswer(ctx context.Context, userID uuid.UUID, ex storage
 
 	tip := s.tipFor(ctx, itemID, ex, chosen, correct)
 	return telegram.AnswerResult{
-		Correct: correct,
-		Text:    answerText(ex, correct, tip),
-		Options: gradedOptions,
+		Correct:       correct,
+		Text:          answerText(ex, correct, tip),
+		Options:       gradedOptions,
+		CorrectAnswer: revealAnswer(ex, correct),
 	}, nil
+}
+
+// revealAnswer is AnswerResult.CorrectAnswer: the display-ready correct
+// spelling the SENT reply must carry, populated only on a WRONG ModeText
+// answer. ModeText renders no option buttons, so — unlike ModeSingle/ModeSet,
+// where the ✅-marked button already reveals the answer — the follow-up reply
+// is the only place a wrong typed answer can surface the correct spelling
+// (the in-place message edit answerText builds is scrolled out of view by
+// then). Empty for button modes (the ✅ mark reveals it) and for correct
+// answers (nothing to reveal). ex.CorrectAnswer is already the display-ready
+// spelling for ModeText (see answerText's doc). Pure — unit-testable without
+// a database.
+func revealAnswer(ex storage.Exercise, correct bool) string {
+	if !correct && quiz.Mode(ex.Mode) == quiz.ModeText {
+		return ex.CorrectAnswer
+	}
+	return ""
 }
 
 // answerText composes the AnswerResult.Text shown after grading: the
