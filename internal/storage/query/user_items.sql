@@ -24,6 +24,15 @@ DO UPDATE SET
   known_at = EXCLUDED.known_at,
   updated_at = now();
 
+-- name: DeleteUserItemsByTopic :execrows
+-- Delete every user_items row for items under a topic — the cities cutover's
+-- decided per-user progress reset, so every city becomes re-introducible
+-- (biggest-first) via ListCandidateIntroItems's user_items-derived "new"
+-- check. Items and their answered exercise/review archive are untouched.
+DELETE FROM user_items ui
+USING items i
+WHERE ui.item_id = i.id AND i.topic_id = $1;
+
 -- name: ListUserItemsByLifecycle :many
 SELECT * FROM user_items WHERE user_id = $1 AND lifecycle = $2 ORDER BY updated_at;
 

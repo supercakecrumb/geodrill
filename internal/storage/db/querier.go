@@ -42,6 +42,21 @@ type Querier interface {
 	// Clears every fact value for one country+def (used to replace multi-valued
 	// facts wholesale on reseed).
 	DeleteCountryFactsByDef(ctx context.Context, arg DeleteCountryFactsByDefParams) error
+	// Delete only the OPEN (unanswered) exercises of every item under a topic —
+	// the cities cutover's reset. Answered exercises stay as archive (reviews
+	// reference only answered exercises, so this never trips the reviews->exercises
+	// FK), and items themselves are untouched (exercises->items has no cascade).
+	DeleteOpenExercisesByTopic(ctx context.Context, topicID uuid.UUID) (int64, error)
+	// Delete only the OPEN (unanswered) introduction cards of every item under a
+	// topic — the cities cutover's reset drops stale, still-on-screen intro cards
+	// for the renamed topic. Answered introductions stay as archive; items are
+	// untouched.
+	DeleteOpenIntroductionsByTopic(ctx context.Context, topicID uuid.UUID) (int64, error)
+	// Delete every user_items row for items under a topic — the cities cutover's
+	// decided per-user progress reset, so every city becomes re-introducible
+	// (biggest-first) via ListCandidateIntroItems's user_items-derived "new"
+	// check. Items and their answered exercise/review archive are untouched.
+	DeleteUserItemsByTopic(ctx context.Context, topicID uuid.UUID) (int64, error)
 	GetContentByID(ctx context.Context, id uuid.UUID) (GetContentByIDRow, error)
 	// internal/study's bridge content row: exact (kind,key) lookup, unlike
 	// SampleContent/SampleContentAny which are hardcoded to kind='sentence' and
@@ -227,6 +242,12 @@ type Querier interface {
 	// quizzable topic holds items directly, never a mix of items and child
 	// topics), for one user.
 	RecomputeTopicTierBreakdown(ctx context.Context, arg RecomputeTopicTierBreakdownParams) ([]RecomputeTopicTierBreakdownRow, error)
+	// Rename a topic in place (slug + display name), preserving its id and all
+	// item/exercise/review references — the cities cutover's one-time legacy
+	// rename (cities/city-to-country -> cities/city-on-map) so engine.Seed
+	// converges the renamed row rather than orphaning its ~4.5k items under a
+	// second leaf keyed on the new slug.
+	RenameTopic(ctx context.Context, arg RenameTopicParams) error
 	// Re-parenting is a single-row UPDATE (architecture §2.1) — the tree is tiny,
 	// so the topic_paths recursive view stays cheap even after this.
 	ReparentTopic(ctx context.Context, arg ReparentTopicParams) error

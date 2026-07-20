@@ -144,3 +144,11 @@ func (s *Store) CountIntroductionsToday(ctx context.Context, userID uuid.UUID, f
 	})
 	return int(n), err
 }
+
+// DeleteOpenIntroductionsByTopic deletes only the OPEN (unanswered)
+// introduction cards of every item under a topic and returns how many rows
+// were removed — the cities cutover's reset drops stale, still-on-screen intro
+// cards for the renamed topic. Answered introductions stay as archive.
+func (s *Store) DeleteOpenIntroductionsByTopic(ctx context.Context, topicID uuid.UUID) (int64, error) {
+	return s.q.DeleteOpenIntroductionsByTopic(ctx, topicID)
+}

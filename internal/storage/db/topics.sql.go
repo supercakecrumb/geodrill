@@ -326,6 +326,26 @@ func (q *Queries) ListUserTopics(ctx context.Context, userID uuid.UUID) ([]ListU
 	return items, nil
 }
 
+const renameTopic = `-- name: RenameTopic :exec
+UPDATE topics SET slug = $2, name = $3 WHERE id = $1
+`
+
+type RenameTopicParams struct {
+	ID   uuid.UUID
+	Slug string
+	Name string
+}
+
+// Rename a topic in place (slug + display name), preserving its id and all
+// item/exercise/review references — the cities cutover's one-time legacy
+// rename (cities/city-to-country -> cities/city-on-map) so engine.Seed
+// converges the renamed row rather than orphaning its ~4.5k items under a
+// second leaf keyed on the new slug.
+func (q *Queries) RenameTopic(ctx context.Context, arg RenameTopicParams) error {
+	_, err := q.db.Exec(ctx, renameTopic, arg.ID, arg.Slug, arg.Name)
+	return err
+}
+
 const reparentTopic = `-- name: ReparentTopic :exec
 UPDATE topics SET parent_id = $2 WHERE id = $1
 `

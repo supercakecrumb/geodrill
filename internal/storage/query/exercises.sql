@@ -45,3 +45,12 @@ LIMIT 1;
 -- internal/study.Service.Answer: fetch one exercise by id with the full
 -- mode-aware column set.
 SELECT * FROM exercises WHERE id = $1;
+
+-- name: DeleteOpenExercisesByTopic :execrows
+-- Delete only the OPEN (unanswered) exercises of every item under a topic —
+-- the cities cutover's reset. Answered exercises stay as archive (reviews
+-- reference only answered exercises, so this never trips the reviews->exercises
+-- FK), and items themselves are untouched (exercises->items has no cascade).
+DELETE FROM exercises e
+USING items i
+WHERE e.item_id = i.id AND i.topic_id = $1 AND e.answered_at IS NULL;

@@ -33,6 +33,14 @@ RETURNING *;
 -- name: GetTopicByID :one
 SELECT * FROM topics WHERE id = $1;
 
+-- name: RenameTopic :exec
+-- Rename a topic in place (slug + display name), preserving its id and all
+-- item/exercise/review references — the cities cutover's one-time legacy
+-- rename (cities/city-to-country -> cities/city-on-map) so engine.Seed
+-- converges the renamed row rather than orphaning its ~4.5k items under a
+-- second leaf keyed on the new slug.
+UPDATE topics SET slug = $2, name = $3 WHERE id = $1;
+
 -- name: ListRootTopics :many
 SELECT * FROM topics WHERE parent_id IS NULL ORDER BY position, slug;
 

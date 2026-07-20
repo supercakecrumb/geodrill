@@ -95,6 +95,24 @@ func (q *Queries) CountIntroductionsToday(ctx context.Context, arg CountIntroduc
 	return count, err
 }
 
+const deleteOpenIntroductionsByTopic = `-- name: DeleteOpenIntroductionsByTopic :execrows
+DELETE FROM introductions x
+USING items i
+WHERE x.item_id = i.id AND i.topic_id = $1 AND x.answered_at IS NULL
+`
+
+// Delete only the OPEN (unanswered) introduction cards of every item under a
+// topic — the cities cutover's reset drops stale, still-on-screen intro cards
+// for the renamed topic. Answered introductions stay as archive; items are
+// untouched.
+func (q *Queries) DeleteOpenIntroductionsByTopic(ctx context.Context, topicID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOpenIntroductionsByTopic, topicID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getIntroductionByID = `-- name: GetIntroductionByID :one
 SELECT id, user_id, item_id, seq, outcome, shown_at, answered_at, message_id FROM introductions WHERE id = $1
 `

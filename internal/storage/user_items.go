@@ -182,3 +182,12 @@ func (s *Store) ListCandidateIntroItems(ctx context.Context, userID uuid.UUID, a
 	}
 	return out, nil
 }
+
+// DeleteUserItemsByTopic deletes every user_items row for items under a topic
+// and returns how many rows were removed — the cities cutover's decided
+// per-user progress reset, so every city becomes re-introducible (biggest
+// first) via ListCandidateIntroItems's user_items-derived "new" check. Items
+// and their answered exercise/review archive are untouched.
+func (s *Store) DeleteUserItemsByTopic(ctx context.Context, topicID uuid.UUID) (int64, error) {
+	return s.q.DeleteUserItemsByTopic(ctx, topicID)
+}

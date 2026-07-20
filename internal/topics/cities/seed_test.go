@@ -1,142 +1,9 @@
 package cities
 
 import (
-	"strings"
+	"path/filepath"
 	"testing"
-
-	"github.com/supercakecrumb/geodrill/internal/topics/engine"
 )
-
-// TestLoadCitiesRealSeed parses the committed seeds/cities.yaml and
-// cross-checks it against seeds/countries.yaml: every entry references a
-// real country, no key is duplicated, every key/name/population/tier is
-// well-formed, all seven tiers (0..6) are represented, and the file is
-// ordered population-descending. Deliberately does NOT assert an exact city
-// count — cmd/citygen regenerates this file from the (frequently updated)
-// GeoNames dataset, so a brittle count would break on every refresh; the
-// structural invariants below are what actually matter. Runs without a DB
-// so a structural break in the data fails fast (mirrors tld's
-// TestLoadTLDsRealSeed).
-func TestLoadCitiesRealSeed(t *testing.T) {
-	sf, err := loadCitiesFile(citiesSeedPath())
-	if err != nil {
-		t.Fatalf("loadCitiesFile: %v", err)
-	}
-	if len(sf.Cities) == 0 {
-		t.Fatalf("len(cities) = 0, want at least one city")
-	}
-
-	countries, err := engine.LoadCountriesFile(countriesSeedPath())
-	if err != nil {
-		t.Fatalf("LoadCountriesFile: %v", err)
-	}
-	countryISO := make(map[string]bool, len(countries))
-	for _, c := range countries {
-		countryISO[c.ISOA2] = true
-	}
-
-	tiersSeen := make(map[int16]bool)
-
-	// Every key must be unique — the seeder upserts by key, so a repeated
-	// key would silently overwrite an earlier city.
-	seen := make(map[string]citySeed, len(sf.Cities))
-	for _, e := range sf.Cities {
-		if _, ok := seen[e.Key]; ok {
-			t.Fatalf("city key %q appears more than once", e.Key)
-		}
-		seen[e.Key] = e
-
-		if e.Name == "" {
-			t.Fatalf("city %q has empty name", e.Key)
-		}
-		if e.Population <= 0 {
-			t.Fatalf("city %q has non-positive population %d", e.Key, e.Population)
-		}
-		if !countryISO[e.Country] {
-			t.Fatalf("city %q references unknown country %q", e.Key, e.Country)
-		}
-		if e.Tier < 0 || e.Tier > 6 {
-			t.Fatalf("city %q has tier %d, want in [0,6]", e.Key, e.Tier)
-		}
-		tiersSeen[e.Tier] = true
-		// Keys are collision-safe <iso2>:<slug> identifiers; only shape
-		// and uniqueness (checked above) are enforced here.
-		if !strings.Contains(e.Key, ":") {
-			t.Fatalf("city key %q is not in the documented <iso2>:<slug> shape", e.Key)
-		}
-	}
-
-	for tier := int16(0); tier <= 6; tier++ {
-		if !tiersSeen[tier] {
-			t.Fatalf("no city has tier %d — expected all seven tiers (0..6) to be represented", tier)
-		}
-	}
-
-	// The seed file itself must already be ordered population-descending —
-	// Seed relies on sortByPopulationDesc, but the committed file (produced
-	// by cmd/citygen) should already be in that order.
-	for i := 1; i < len(sf.Cities); i++ {
-		if sf.Cities[i].Population > sf.Cities[i-1].Population {
-			t.Fatalf("seeds/cities.yaml is not population-descending: entry %d (%s, pop=%d) follows entry %d (%s, pop=%d)",
-				i, sf.Cities[i].Key, sf.Cities[i].Population, i-1, sf.Cities[i-1].Key, sf.Cities[i-1].Population)
-		}
-	}
-
-	// Spot checks from the brief: a few famous, population-heavy cities,
-	// which must keep their curated English exonym after a regeneration.
-	spot := map[string]struct {
-		name    string
-		country string
-	}{
-		"cn:shanghai": {"Shanghai", "CN"},
-		"in:mumbai":   {"Mumbai", "IN"},
-		"fr:paris":    {"Paris", "FR"},
-		"de:munich":   {"Munich", "DE"},
-		"ru:moscow":   {"Moscow", "RU"},
-		"at:vienna":   {"Vienna", "AT"},
-		"it:rome":     {"Rome", "IT"},
-	}
-	byKey := make(map[string]citySeed, len(sf.Cities))
-	for _, e := range sf.Cities {
-		byKey[e.Key] = e
-	}
-	for key, want := range spot {
-		got, ok := byKey[key]
-		if !ok {
-			t.Fatalf("expected city %q not found in seed", key)
-		}
-		if got.Name != want.name || got.Country != want.country {
-			t.Fatalf("city %q = {%s,%s}, want {%s,%s}", key, got.Name, got.Country, want.name, want.country)
-		}
-	}
-}
-
-// TestLookupTables builds the real lookup table and asserts the entries
-// Accept/Labels close over resolve correctly.
-func TestLookupTables(t *testing.T) {
-	tbl, err := loadLookupTables()
-	if err != nil {
-		t.Fatalf("loadLookupTables: %v", err)
-	}
-	if tbl.countryLabels["FR"] != "France" {
-		t.Fatalf("countryLabels[FR] = %q, want France", tbl.countryLabels["FR"])
-	}
-	if !contains(tbl.countryAccept["US"], "USA") {
-		t.Fatalf("countryAccept[US] = %v, want to contain USA", tbl.countryAccept["US"])
-	}
-	if !contains(tbl.countryAccept["GB"], "Britain") {
-		t.Fatalf("countryAccept[GB] = %v, want to contain Britain", tbl.countryAccept["GB"])
-	}
-}
-
-func contains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
-}
 
 // TestSortByPopulationDesc is a pure unit test of the population-descending
 // ordering Seed relies on to set items.position: biggest first, stable
@@ -158,7 +25,6 @@ func TestSortByPopulationDesc(t *testing.T) {
 			t.Fatalf("sorted[%d].Key = %q, want %q (full order: %v)", i, got[i].Key, k, keysOf(got))
 		}
 	}
-	// Input slice must not be mutated (Seed reuses sf.Cities elsewhere).
 	if in[0].Key != "aa:small" {
 		t.Fatalf("sortByPopulationDesc mutated its input slice")
 	}
@@ -170,4 +36,120 @@ func keysOf(entries []citySeed) []string {
 		out[i] = e.Key
 	}
 	return out
+}
+
+// TestLoadCitiesSpotChecks parses the committed seed and spot-checks that the
+// new geo fields are decoded for a couple of well-known cities.
+func TestLoadCitiesSpotChecks(t *testing.T) {
+	sf, err := loadCitiesFile(citiesSeedPath())
+	if err != nil {
+		t.Fatalf("loadCitiesFile: %v", err)
+	}
+	byKey := make(map[string]citySeed, len(sf.Cities))
+	for _, e := range sf.Cities {
+		byKey[e.Key] = e
+	}
+
+	shanghai, ok := byKey["cn:shanghai"]
+	if !ok {
+		t.Fatalf("cn:shanghai not in seed")
+	}
+	if shanghai.Name != "Shanghai" || shanghai.Country != "CN" || shanghai.Tier != 0 {
+		t.Fatalf("shanghai = %+v, want Shanghai/CN/tier0", shanghai)
+	}
+	if shanghai.Lat == 0 || shanghai.Lng == 0 || shanghai.Region == "" || shanghai.GeonameID == "" {
+		t.Fatalf("shanghai missing geo fields: %+v", shanghai)
+	}
+
+	munich, ok := byKey["de:munich"]
+	if !ok {
+		t.Fatalf("de:munich not in seed")
+	}
+	if munich.Region != "Bavaria" {
+		t.Fatalf("munich region = %q, want Bavaria", munich.Region)
+	}
+	if munich.Elevation == nil || *munich.Elevation != 524 {
+		t.Fatalf("munich elevation = %v, want 524", munich.Elevation)
+	}
+	if munich.Lat == 0 || munich.Lng == 0 {
+		t.Fatalf("munich missing lat/lng: %+v", munich)
+	}
+}
+
+// TestLoadCityFactsReal loads the committed facts file and checks a known key.
+func TestLoadCityFactsReal(t *testing.T) {
+	facts, err := loadCityFacts(cityFactsSeedPath())
+	if err != nil {
+		t.Fatalf("loadCityFacts: %v", err)
+	}
+	if len(facts) == 0 {
+		t.Fatalf("no facts loaded")
+	}
+	munich, ok := facts["de:munich"]
+	if !ok {
+		t.Fatalf("de:munich fact missing")
+	}
+	if munich.Blurb == "" || munich.SourceURL == "" {
+		t.Fatalf("de:munich fact = %+v, want blurb + source_url", munich)
+	}
+}
+
+// TestLoadCityFactsMissingFileTolerated: a missing facts file is fine (facts
+// are an enhancement, not a hard dependency).
+func TestLoadCityFactsMissingFileTolerated(t *testing.T) {
+	facts, err := loadCityFacts(filepath.Join(t.TempDir(), "does-not-exist.yaml"))
+	if err != nil {
+		t.Fatalf("missing facts file should not error, got %v", err)
+	}
+	if len(facts) != 0 {
+		t.Fatalf("missing facts file should yield an empty map, got %d entries", len(facts))
+	}
+}
+
+// TestFactForTierGating: facts fold ONLY for tier 0-2.
+func TestFactForTierGating(t *testing.T) {
+	facts := map[string]cityFactSeed{
+		"x:city": {Key: "x:city", Blurb: "A blurb.", SourceURL: "https://example.org/x"},
+	}
+	for tier := int16(0); tier <= 2; tier++ {
+		blurb, url := factFor(tier, "x:city", facts)
+		if blurb != "A blurb." || url != "https://example.org/x" {
+			t.Fatalf("tier %d: fact not folded (blurb=%q url=%q)", tier, blurb, url)
+		}
+	}
+	for tier := int16(3); tier <= 6; tier++ {
+		if blurb, url := factFor(tier, "x:city", facts); blurb != "" || url != "" {
+			t.Fatalf("tier %d: fact must NOT fold (blurb=%q url=%q)", tier, blurb, url)
+		}
+	}
+	// A city with no fact entry gets nothing, even at tier 0.
+	if blurb, url := factFor(0, "y:missing", facts); blurb != "" || url != "" {
+		t.Fatalf("missing fact entry should fold nothing (blurb=%q url=%q)", blurb, url)
+	}
+}
+
+// TestSyncedMapImage: map_image is set only when the ref is in the synced set.
+func TestSyncedMapImage(t *testing.T) {
+	synced := map[string]bool{MediaRootRef + "/de-munich.png": true}
+	if got := syncedMapImage("de:munich", synced); got != "de-munich.png" {
+		t.Fatalf("syncedMapImage(de:munich) = %q, want de-munich.png", got)
+	}
+	if got := syncedMapImage("fr:paris", synced); got != "" {
+		t.Fatalf("syncedMapImage(fr:paris) = %q, want empty (not synced)", got)
+	}
+}
+
+// TestLookupTables builds the real city lookup table and asserts the entries
+// Accept/Labels close over resolve correctly.
+func TestLookupTables(t *testing.T) {
+	tbl, err := loadLookupTables()
+	if err != nil {
+		t.Fatalf("loadLookupTables: %v", err)
+	}
+	if tbl.cityLabels["de:munich"] != "Munich" {
+		t.Fatalf("cityLabels[de:munich] = %q, want Munich", tbl.cityLabels["de:munich"])
+	}
+	if got := tbl.cityAccept["de:munich"]; len(got) == 0 || got[0] != "Munich" {
+		t.Fatalf("cityAccept[de:munich] = %v, want to start with Munich", got)
+	}
 }

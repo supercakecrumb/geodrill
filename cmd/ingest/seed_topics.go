@@ -75,9 +75,9 @@ func runSeedTopics(ctx context.Context, logger *slog.Logger, store *storage.Stor
 	// country references against the already-seeded country data rather
 	// than seeding countries itself.
 	if err := cities.Seed(ctx, store); err != nil {
-		return fmt.Errorf("seed cities (cities/city-to-country): %w", err)
+		return fmt.Errorf("seed cities (cities/city-on-map): %w", err)
 	}
-	logger.Info("seeded topic package", "topic", "cities/city-to-country", "quiz_kind", cities.Kind)
+	logger.Info("seeded topic package", "topic", "cities/city-on-map", "quiz_kind", cities.Kind)
 
 	// flags runs after roadside too, for the same reason: it resolves
 	// country references (both single items and confusable-group members)

@@ -1,0 +1,3 @@
+kind: Changed
+body: The Cities topic now shows a map with a marked location and you type the city's name (previously it asked which country a city was in). Each newly discovered city shows an info card with its country, region, population, elevation, and — for the biggest cities — a short fact. Existing per-city progress is reset so cities are re-introduced biggest-first.
+time: 2026-07-21T00:00:07Z

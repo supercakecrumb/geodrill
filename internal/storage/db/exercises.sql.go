@@ -12,6 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteOpenExercisesByTopic = `-- name: DeleteOpenExercisesByTopic :execrows
+DELETE FROM exercises e
+USING items i
+WHERE e.item_id = i.id AND i.topic_id = $1 AND e.answered_at IS NULL
+`
+
+// Delete only the OPEN (unanswered) exercises of every item under a topic —
+// the cities cutover's reset. Answered exercises stay as archive (reviews
+// reference only answered exercises, so this never trips the reviews->exercises
+// FK), and items themselves are untouched (exercises->items has no cascade).
+func (q *Queries) DeleteOpenExercisesByTopic(ctx context.Context, topicID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOpenExercisesByTopic, topicID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getExerciseByID = `-- name: GetExerciseByID :one
 SELECT id, user_id, item_id, content_id, mode, prompt, options, correct_answer, is_media, practice, created_at, answered_at, message_id FROM exercises WHERE id = $1
 `

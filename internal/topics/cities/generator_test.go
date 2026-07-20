@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"math/rand"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/supercakecrumb/engram/quiz"
 
@@ -13,44 +15,59 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/topics"
 )
 
-// mkItem builds a storage.Item carrying a well-formed cities payload, keyed
-// the way Seed keys items (the yaml's "<iso2>:<slug>" city key, NOT the
-// country iso2 — a country hosts several cities).
-func mkItem(key, city, flag, countryName, iso2, iso3 string) storage.Item {
-	raw, err := json.Marshal(itemPayload{
-		CityName:    city,
-		Flag:        flag,
-		CountryName: countryName,
-		ISOA2:       iso2,
-		ISOA3:       iso3,
-	})
+func intPtr(v int) *int { return &v }
+
+// mkItem builds a storage.Item carrying a well-formed cities payload. opts
+// mutate the payload so a test can toggle map presence / region / elevation /
+// fact.
+func mkItem(key string, opts ...func(*itemPayload)) storage.Item {
+	p := itemPayload{
+		Key:         key,
+		CityName:    "Munich",
+		Flag:        "🇩🇪",
+		CountryName: "Germany",
+		ISOA2:       "DE",
+		ISOA3:       "DEU",
+		Lat:         48.13743,
+		Lng:         11.57549,
+		Region:      "Bavaria",
+		Population:  1512491,
+		ElevationM:  intPtr(520),
+		MapImage:    "de-munich.png",
+	}
+	for _, o := range opts {
+		o(&p)
+	}
+	raw, err := json.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	return storage.Item{Key: key, Label: city, Payload: raw}
+	return storage.Item{Key: key, Label: p.CityName, Payload: raw}
 }
 
 func TestKind(t *testing.T) {
 	if got := New().Kind(); got != Kind {
 		t.Fatalf("Kind() = %q, want %q", got, Kind)
 	}
+	if Kind != "city_on_map" {
+		t.Fatalf("Kind = %q, want city_on_map", Kind)
+	}
 }
 
-// TestTopicMode pins the topic's exercise-mode config — the end-to-end
-// autocomplete wiring depends on the leaf declaring "autocomplete"
-// (internal/study.buildExerciseForItem renders the country-suggestion button
-// on any turn whose configured mode string is literally "autocomplete").
+// TestTopicMode pins the topic's exercise-mode config — the autocomplete
+// wiring depends on the leaf declaring "autocomplete" (internal/study maps
+// that to ModeText + the "⌨️ Type your answer" button).
 func TestTopicMode(t *testing.T) {
 	ct := cityTopic()
 	leaf := ct[len(ct)-1]
-	if leaf.Slug != LeafSlug {
-		t.Fatalf("leaf slug = %q, want %q", leaf.Slug, LeafSlug)
+	if leaf.Slug != LeafSlug || LeafSlug != "city-on-map" {
+		t.Fatalf("leaf slug = %q, want city-on-map", leaf.Slug)
 	}
 	if len(leaf.ExerciseModes) != 1 || leaf.ExerciseModes[0] != "autocomplete" {
 		t.Fatalf("exercise_modes = %v, want [autocomplete]", leaf.ExerciseModes)
 	}
-	if !leaf.IsQuizzable {
-		t.Fatalf("leaf should be quizzable")
+	if leaf.QuizKind != Kind || !leaf.IsQuizzable {
+		t.Fatalf("leaf = %+v, want quizzable with quiz_kind %q", leaf, Kind)
 	}
 	root := ct[0]
 	if root.Slug != RootSlug || root.QuizKind != "" {
@@ -58,13 +75,11 @@ func TestTopicMode(t *testing.T) {
 	}
 }
 
-// TestCityToCountry_Text is the autocomplete answer path: a ModeText
-// exercise whose prompt names the city, accepts the country's name + iso
-// codes + aliases, and whose canonical CorrectAnswer is the country name.
-func TestCityToCountry_Text(t *testing.T) {
+// TestExerciseMapPresent: with a synced map image, the exercise is a photo
+// question — MediaPath is the garage:// ref and the prompt is the map question.
+func TestExerciseMapPresent(t *testing.T) {
 	gen := New()
-	item := mkItem("fr:paris", "Paris", "🇫🇷", "France", "FR", "FRA")
-
+	item := mkItem("de:munich")
 	ex, err := gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)),
 		topics.ExerciseRequest{Item: item, Mode: quiz.ModeText})
 	if err != nil {
@@ -73,54 +88,189 @@ func TestCityToCountry_Text(t *testing.T) {
 	if ex.Mode != quiz.ModeText {
 		t.Fatalf("Mode = %v, want ModeText", ex.Mode)
 	}
-	if want := "🏙 Which country is Paris in?"; ex.Prompt != want {
-		t.Fatalf("Prompt = %q, want %q", ex.Prompt, want)
+	if want := "garage://apps-geodrill/citymaps/de-munich.png"; ex.MediaPath != want {
+		t.Fatalf("MediaPath = %q, want %q", ex.MediaPath, want)
 	}
-	if ex.CorrectAnswer != "France" {
-		t.Fatalf("CorrectAnswer = %q, want %q", ex.CorrectAnswer, "France")
+	if ex.Prompt != reviewSubject {
+		t.Fatalf("Prompt = %q, want the map question %q", ex.Prompt, reviewSubject)
 	}
-	assertAccepts(t, ex.Accept, "France", "FR", "FRA")
-
-	// A picked autocomplete suggestion arrives as the plain country name and
-	// must grade correct through the same free-text matcher the trainer uses.
-	if ok, _ := (quiz.TextMatcher{Accept: ex.Accept, MaxEdits: 2}).Match("france"); !ok {
-		t.Fatalf("typed %q should match accepted spellings %v", "france", ex.Accept)
+	// Answer is the CITY: canonical answer = display name, Accept holds the
+	// city spellings.
+	if ex.CorrectAnswer != "Munich" {
+		t.Fatalf("CorrectAnswer = %q, want Munich", ex.CorrectAnswer)
 	}
 }
 
-// TestAliases checks the curated alias table reaches Accept for the
-// ambiguous big countries autocomplete users type by nickname.
-func TestAliases(t *testing.T) {
-	gen := New()
-	us := mkItem("us:new-york-city", "New York City", "🇺🇸", "United States", "US", "USA")
-	ex, err := gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)),
-		topics.ExerciseRequest{Item: us, Mode: quiz.ModeText})
-	if err != nil {
-		t.Fatalf("BuildExercise: %v", err)
-	}
-	assertAccepts(t, ex.Accept, "United States", "USA", "America")
-
-	gb := mkItem("gb:london", "London", "🇬🇧", "United Kingdom", "GB", "GBR")
-	ex, err = gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)),
-		topics.ExerciseRequest{Item: gb, Mode: quiz.ModeText})
-	if err != nil {
-		t.Fatalf("BuildExercise: %v", err)
-	}
-	assertAccepts(t, ex.Accept, "United Kingdom", "UK", "Britain")
-	if want := "🏙 Which country is London in?"; ex.Prompt != want {
-		t.Fatalf("GB prompt = %q, want %q", ex.Prompt, want)
+// TestExerciseMissingMapFallback: an empty media root (or an item whose image
+// hasn't been synced) degrades to the still-answerable text fallback.
+func TestExerciseMissingMapFallback(t *testing.T) {
+	// Force the fallback two ways: (1) generator with "" media root, and
+	// (2) an item whose payload has no map_image.
+	for _, tc := range []struct {
+		name string
+		gen  *Generator
+		item storage.Item
+	}{
+		{"empty media root", NewWithMediaRoot(""), mkItem("de:munich")},
+		{"no map_image", New(), mkItem("de:munich", func(p *itemPayload) { p.MapImage = "" })},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ex, err := tc.gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)),
+				topics.ExerciseRequest{Item: tc.item, Mode: quiz.ModeText})
+			if err != nil {
+				t.Fatalf("BuildExercise: %v", err)
+			}
+			if ex.MediaPath != "" {
+				t.Fatalf("MediaPath = %q, want empty (fallback)", ex.MediaPath)
+			}
+			want := "🏙 Name the city in 🇩🇪 Germany (Bavaria) with about 1,500,000 people."
+			if ex.Prompt != want {
+				t.Fatalf("fallback Prompt = %q, want %q", ex.Prompt, want)
+			}
+			if ex.CorrectAnswer != "Munich" {
+				t.Fatalf("CorrectAnswer = %q, want Munich", ex.CorrectAnswer)
+			}
+		})
 	}
 }
 
-func TestBuildIntro(t *testing.T) {
+// TestFallbackPromptNoRegion: the region parenthetical is omitted when Region
+// is empty, and population is rounded to 2 significant figures.
+func TestFallbackPromptNoRegion(t *testing.T) {
+	p := itemPayload{Flag: "🇩🇪", CountryName: "Germany", Population: 1512491}
+	if want := "🏙 Name the city in 🇩🇪 Germany with about 1,500,000 people."; fallbackPrompt(p) != want {
+		t.Fatalf("fallbackPrompt = %q, want %q", fallbackPrompt(p), want)
+	}
+}
+
+// TestIntroMapPresent / caption variants.
+func TestIntroCaptionFull(t *testing.T) {
 	gen := New()
-	item := mkItem("fr:paris", "Paris", "🇫🇷", "France", "FR", "FRA")
+	item := mkItem("de:munich", func(p *itemPayload) {
+		p.Fact = "Munich is the capital and most populous city of Bavaria."
+		p.FactURL = "https://en.wikipedia.org/wiki/Munich"
+	})
 	card, err := gen.BuildIntro(context.Background(), item)
 	if err != nil {
 		t.Fatalf("BuildIntro: %v", err)
 	}
-	if want := "🏙 Paris is a city in 🇫🇷 France."; card.Text != want {
-		t.Fatalf("intro = %q, want %q", card.Text, want)
+	if want := "garage://apps-geodrill/citymaps/de-munich.png"; card.MediaPath != want {
+		t.Fatalf("MediaPath = %q, want %q", card.MediaPath, want)
+	}
+	want := "📍 Munich — 🇩🇪 Germany\n" +
+		"🗺 Bavaria\n" +
+		"👥 1,512,491 people\n" +
+		"⛰ 520 m elevation\n\n" +
+		"Munich is the capital and most populous city of Bavaria.\n\n" +
+		"📖 en.wikipedia.org/wiki/Munich · CC BY-SA 4.0"
+	if card.Text != want {
+		t.Fatalf("caption =\n%q\nwant\n%q", card.Text, want)
+	}
+}
+
+func TestIntroCaptionVariants(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*itemPayload)
+		want string
+	}{
+		{
+			name: "no region",
+			mut:  func(p *itemPayload) { p.Region = "" },
+			want: "📍 Munich — 🇩🇪 Germany\n👥 1,512,491 people\n⛰ 520 m elevation",
+		},
+		{
+			name: "no elevation",
+			mut:  func(p *itemPayload) { p.ElevationM = nil },
+			want: "📍 Munich — 🇩🇪 Germany\n🗺 Bavaria\n👥 1,512,491 people",
+		},
+		{
+			name: "no population",
+			mut:  func(p *itemPayload) { p.Population = 0 },
+			want: "📍 Munich — 🇩🇪 Germany\n🗺 Bavaria\n⛰ 520 m elevation",
+		},
+		{
+			name: "no fact (no attribution line)",
+			mut:  func(p *itemPayload) { p.Fact = ""; p.FactURL = "https://example.org/x" },
+			want: "📍 Munich — 🇩🇪 Germany\n🗺 Bavaria\n👥 1,512,491 people\n⛰ 520 m elevation",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := itemPayload{
+				Key: "de:munich", CityName: "Munich", Flag: "🇩🇪", CountryName: "Germany",
+				ISOA2: "DE", Region: "Bavaria", Population: 1512491, ElevationM: intPtr(520),
+			}
+			tc.mut(&p)
+			if got := introCaption(p); got != tc.want {
+				t.Fatalf("introCaption =\n%q\nwant\n%q", got, tc.want)
+			}
+			if strings.Contains(tc.name, "no fact") && strings.Contains(introCaption(p), "CC BY-SA") {
+				t.Fatalf("attribution line must be gated on a non-empty fact")
+			}
+		})
+	}
+}
+
+// TestFormatInt covers the comma grouping used by the caption + fallback.
+func TestFormatInt(t *testing.T) {
+	cases := map[int64]string{0: "0", 5: "5", 999: "999", 1000: "1,000", 1512491: "1,512,491", 24874500: "24,874,500"}
+	for in, want := range cases {
+		if got := formatInt(in); got != want {
+			t.Fatalf("formatInt(%d) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestRoundToSigFigs(t *testing.T) {
+	cases := []struct {
+		in   int64
+		sig  int
+		want int64
+	}{
+		{1512491, 2, 1500000},
+		{24874500, 2, 25000000},
+		{99, 2, 99},
+		{1234, 2, 1200},
+		{1250, 2, 1300},
+		{0, 2, 0},
+	}
+	for _, c := range cases {
+		if got := roundToSigFigs(c.in, c.sig); got != c.want {
+			t.Fatalf("roundToSigFigs(%d,%d) = %d, want %d", c.in, c.sig, got, c.want)
+		}
+	}
+}
+
+// TestAcceptNameAndAltNames: the Accept list for a real city is its name plus
+// its alt_names (São Paulo -> "São Paulo", "Sao Paulo").
+func TestAcceptNameAndAltNames(t *testing.T) {
+	gen := New()
+	item := mkItem("br:sao-paulo", func(p *itemPayload) {
+		p.CityName = "São Paulo"
+		p.MapImage = ""
+	})
+	item.Label = "São Paulo"
+	ex, err := gen.BuildExercise(context.Background(), rand.New(rand.NewSource(1)),
+		topics.ExerciseRequest{Item: item, Mode: quiz.ModeText})
+	if err != nil {
+		t.Fatalf("BuildExercise: %v", err)
+	}
+	have := map[string]bool{}
+	for _, a := range ex.Accept {
+		have[a] = true
+	}
+	for _, w := range []string{"São Paulo", "Sao Paulo"} {
+		if !have[w] {
+			t.Fatalf("Accept %v missing %q", ex.Accept, w)
+		}
+	}
+	if ex.CorrectAnswer != "São Paulo" {
+		t.Fatalf("CorrectAnswer = %q, want São Paulo", ex.CorrectAnswer)
+	}
+	// The typed exonym must grade correct through the free-text matcher.
+	if ok, _ := (quiz.TextMatcher{Accept: ex.Accept, MaxEdits: 2}).Match("sao paulo"); !ok {
+		t.Fatalf("typed %q should match %v", "sao paulo", ex.Accept)
 	}
 }
 
@@ -131,9 +281,10 @@ func TestMalformedPayload(t *testing.T) {
 	}{
 		{"empty", nil},
 		{"invalid json", []byte(`{"city_name":`)},
-		{"missing city_name", []byte(`{"iso_a2":"FR","country_name":"France"}`)},
-		{"missing iso2", []byte(`{"city_name":"Paris","country_name":"France"}`)},
-		{"missing country_name", []byte(`{"city_name":"Paris","iso_a2":"FR"}`)},
+		{"missing key", []byte(`{"city_name":"Munich","iso_a2":"DE","country_name":"Germany"}`)},
+		{"missing city_name", []byte(`{"key":"de:munich","iso_a2":"DE","country_name":"Germany"}`)},
+		{"missing iso2", []byte(`{"key":"de:munich","city_name":"Munich","country_name":"Germany"}`)},
+		{"missing country_name", []byte(`{"key":"de:munich","city_name":"Munich","iso_a2":"DE"}`)},
 	}
 	gen := New()
 	for _, tc := range cases {
@@ -148,18 +299,15 @@ func TestMalformedPayload(t *testing.T) {
 	}
 }
 
-// TestSingleFallbackDeterministic spot-checks that the
-// (production-unused but descriptor-valid) single-choice fallback is
-// deterministic given rng and includes the correct answer — cheap insurance
-// the descriptor is well-formed (mirrors tld's equivalent test).
+// TestSingleFallbackDeterministic spot-checks the (production-unused but
+// descriptor-valid) single-choice fallback: deterministic given rng, includes
+// the correct city key.
 func TestSingleFallbackDeterministic(t *testing.T) {
 	gen := New()
-	item := mkItem("fr:paris", "Paris", "🇫🇷", "France", "FR", "FRA")
+	item := mkItem("de:munich", func(p *itemPayload) { p.MapImage = "" })
 	siblings := []storage.Item{
-		mkItem("de:berlin", "Berlin", "🇩🇪", "Germany", "DE", "DEU"),
-		mkItem("it:rome", "Rome", "🇮🇹", "Italy", "IT", "ITA"),
-		mkItem("es:madrid", "Madrid", "🇪🇸", "Spain", "ES", "ESP"),
-		mkItem("jp:tokyo", "Tokyo", "🇯🇵", "Japan", "JP", "JPN"),
+		mkItem("fr:paris", func(p *itemPayload) { p.Key = "fr:paris"; p.CityName = "Paris"; p.MapImage = "" }),
+		mkItem("it:rome", func(p *itemPayload) { p.Key = "it:rome"; p.CityName = "Rome"; p.MapImage = "" }),
 	}
 	var first []topics.Option
 	for i := 0; i < 3; i++ {
@@ -168,8 +316,8 @@ func TestSingleFallbackDeterministic(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BuildExercise: %v", err)
 		}
-		if ex.CorrectAnswer != "FR" {
-			t.Fatalf("single CorrectAnswer = %q, want FR", ex.CorrectAnswer)
+		if ex.CorrectAnswer != "de:munich" {
+			t.Fatalf("single CorrectAnswer = %q, want de:munich", ex.CorrectAnswer)
 		}
 		if i == 0 {
 			first = ex.Options
@@ -180,26 +328,22 @@ func TestSingleFallbackDeterministic(t *testing.T) {
 		}
 		for j := range first {
 			if ex.Options[j] != first[j] {
-				t.Fatalf("option order not deterministic at %d across same rng seed", j)
+				t.Fatalf("option order not deterministic at %d", j)
 			}
-		}
-	}
-	for _, o := range first {
-		if o.Key == "FR" && o.Label != "France" {
-			t.Fatalf("correct option label = %q, want %q", o.Label, "France")
 		}
 	}
 }
 
-func assertAccepts(t *testing.T, accept []string, want ...string) {
-	t.Helper()
-	have := make(map[string]bool, len(accept))
-	for _, a := range accept {
-		have[a] = true
+// TestCaptionUnderLimit is a cheap guard on the constant (the full seed audit
+// lives in audit_test.go).
+func TestCaptionUnderLimit(t *testing.T) {
+	p := itemPayload{
+		Key: "de:munich", CityName: "Munich", Flag: "🇩🇪", CountryName: "Germany",
+		Region: "Bavaria", Population: 1512491, ElevationM: intPtr(520),
+		Fact:    strings.Repeat("x", 400),
+		FactURL: "https://en.wikipedia.org/wiki/Munich",
 	}
-	for _, w := range want {
-		if !have[w] {
-			t.Fatalf("Accept %v missing %q", accept, w)
-		}
+	if n := utf8.RuneCountInString(introCaption(p)); n >= captionLimit {
+		t.Fatalf("caption rune count = %d, want < %d", n, captionLimit)
 	}
 }

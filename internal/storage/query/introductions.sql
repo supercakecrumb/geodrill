@@ -43,6 +43,15 @@ WHERE user_id = $1 AND seq = 1 AND outcome IS NOT NULL AND outcome != 1
 -- callback refers to.
 SELECT * FROM introductions WHERE id = $1;
 
+-- name: DeleteOpenIntroductionsByTopic :execrows
+-- Delete only the OPEN (unanswered) introduction cards of every item under a
+-- topic — the cities cutover's reset drops stale, still-on-screen intro cards
+-- for the renamed topic. Answered introductions stay as archive; items are
+-- untouched.
+DELETE FROM introductions x
+USING items i
+WHERE x.item_id = i.id AND i.topic_id = $1 AND x.answered_at IS NULL;
+
 -- name: AnswerIntroductionOnce :one
 -- Single-use answer guard for introductions (mirrors MarkExerciseAnswered):
 -- flips outcome/answered_at only if still open. A returned row means this

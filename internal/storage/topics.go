@@ -142,6 +142,14 @@ func (s *Store) ListAllTopics(ctx context.Context) ([]Topic, error) {
 	return out, nil
 }
 
+// RenameTopic renames a topic in place (slug + display name), preserving its
+// id and every item/exercise/review reference — the cities cutover's one-time
+// legacy rename (cities/city-to-country -> cities/city-on-map) so engine.Seed
+// converges the renamed row instead of orphaning its items under a second leaf.
+func (s *Store) RenameTopic(ctx context.Context, topicID uuid.UUID, slug, name string) error {
+	return s.q.RenameTopic(ctx, db.RenameTopicParams{ID: topicID, Slug: slug, Name: name})
+}
+
 // ReparentTopic moves a topic under a new parent (nil = becomes root) with a
 // single-row UPDATE (architecture §2.1: "Aurora will rearrange it later").
 func (s *Store) ReparentTopic(ctx context.Context, topicID uuid.UUID, newParentID *uuid.UUID) error {

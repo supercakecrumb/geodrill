@@ -187,6 +187,14 @@ func (s *Store) GetExercisesByItem(ctx context.Context, itemID uuid.UUID) ([]Exe
 	return out, nil
 }
 
+// DeleteOpenExercisesByTopic deletes only the OPEN (unanswered) exercises of
+// every item under a topic and returns how many rows were removed — the cities
+// cutover's reset. Answered exercises (and the reviews that reference them)
+// stay as archive; items are untouched.
+func (s *Store) DeleteOpenExercisesByTopic(ctx context.Context, topicID uuid.UUID) (int64, error) {
+	return s.q.DeleteOpenExercisesByTopic(ctx, topicID)
+}
+
 // ReviewInsert is the full reviews row: engram.Review FSRS fields merged
 // with the generalized item/mode/chosen/correct_answer columns (architecture
 // §2.5). This is geodrill's single review write path.

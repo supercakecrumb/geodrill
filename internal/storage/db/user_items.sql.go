@@ -71,6 +71,24 @@ func (q *Queries) CountKnownItems(ctx context.Context, id uuid.UUID) (int64, err
 	return count, err
 }
 
+const deleteUserItemsByTopic = `-- name: DeleteUserItemsByTopic :execrows
+DELETE FROM user_items ui
+USING items i
+WHERE ui.item_id = i.id AND i.topic_id = $1
+`
+
+// Delete every user_items row for items under a topic — the cities cutover's
+// decided per-user progress reset, so every city becomes re-introducible
+// (biggest-first) via ListCandidateIntroItems's user_items-derived "new"
+// check. Items and their answered exercise/review archive are untouched.
+func (q *Queries) DeleteUserItemsByTopic(ctx context.Context, topicID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUserItemsByTopic, topicID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getUserItem = `-- name: GetUserItem :one
 SELECT user_id, item_id, lifecycle, due, stability, difficulty, reps, lapses, state, last_review, introduced_at, known_at, updated_at FROM user_items WHERE user_id = $1 AND item_id = $2
 `

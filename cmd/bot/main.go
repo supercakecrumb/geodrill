@@ -107,9 +107,11 @@ func run() error {
 	// one quizzable topic by the P3.3 task brief (main_religion/region are
 	// seeded as facts for future sibling quizzes but have no Generator yet).
 	topics.Register(profiles.New())
-	// Cities first slice: "which country is this city from?", one direction,
-	// answered via the existing global country-suggestion index (no city
-	// entries added to it) — vibe/design-cities.md's task-brief override.
+	// Cities: map-based "which city is at the red marker?", answered by typing
+	// the city name via the city-suggestion autocomplete index; each newly
+	// discovered city shows a map + rich info card — vibe/design-cities-on-map.md.
+	// The map image comes from Garage (presence decided at seed time); a
+	// not-yet-synced city degrades to a text question.
 	topics.Register(cities.New())
 	// Flags: flag photo -> country name (autocomplete), plus confusable-flag
 	// set-choice — vibe/design-flags-quiz.md. flags.New() resolves images
