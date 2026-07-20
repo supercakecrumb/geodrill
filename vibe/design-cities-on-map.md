@@ -267,16 +267,21 @@ the 4,487 items. Idempotent by construction (keyed on the legacy path existing):
    - `DeleteOpenIntroductionsByTopic` (stale unanswered intro cards);
    - `DeleteUserItemsByTopic` — **the decided reset** (makes every city re-introducible,
      biggest-first, per `ListCandidateIntroItems`'s `user_items`-derived "new" check);
-   - refresh the tier-progress cache for every user in `user_tier_progress`
-     (`RecomputeTierProgress` → `UpsertTierProgress`);
    - `RenameTopic(legacy.ID, "city-on-map", "City on the Map")`.
 3. `engine.Seed` then converges quiz_kind/exercise_modes/name on the renamed row and
    rewrites all 4,487 payloads in place — item IDs (and the reviews archive's references)
    are preserved.
 
+**Tier-progress cache is deliberately NOT recomputed in the migration.** `user_tier_progress`
+is a cache; after the reset it's stale-*high* (still counts the deleted city cards as
+good-shape), which only keeps tiers *unlocked* — the harmless, permissive direction — and it
+self-heals on each user's next answer via the existing `RecomputeTierProgressForTier`.
+Recomputing every user inside a seed would be heavy and would aggressively *re-lock* tiers a
+user earned partly through cities, hiding other topics' items. So we let it self-heal.
+
 New sqlc queries (+ regenerate; **no DDL, no new migration files**): `RenameTopic`,
 `DeleteOpenExercisesByTopic`, `DeleteOpenIntroductionsByTopic`, `DeleteUserItemsByTopic`,
-`ListTierProgressUserIDs`, and `ListMediaLocalPathsByPrefix` (for the §7 presence check).
+and `ListMediaLocalPathsByPrefix` (for the §7 presence check; already added in Phase 3).
 `gg_relevant` needs nothing — city items are country-linked, the existing country pass
 covers them. Call-site touch-ups: seed/register log strings in `cmd/ingest/seed_topics.go` +
 the comment block in `cmd/bot/main.go`.
