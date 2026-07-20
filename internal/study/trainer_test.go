@@ -108,6 +108,35 @@ func TestGradeIndexedSet(t *testing.T) {
 	}
 }
 
+// TestGradeIndexedDontKnowSentinel covers the idx=-1 sentinel AnswerDontKnow
+// passes for indexed modes: no option is the tapped one, so nothing is marked
+// wrong, the answer grades incorrect with an empty chosen, and the correct
+// option is still ✅-marked so the in-place edit reveals the answer.
+func TestGradeIndexedDontKnowSentinel(t *testing.T) {
+	options := mustJSON(t, []singleOptionJSON{
+		{Key: "rus", Label: "Russian"},
+		{Key: "ukr", Label: "Ukrainian"},
+		{Key: "srp", Label: "Serbian"},
+	})
+	ex := storage.Exercise{Mode: int16(quiz.ModeSingle), Options: options, CorrectAnswer: "ukr"}
+
+	correct, chosen, graded, err := gradeIndexed(ex, -1)
+	if err != nil {
+		t.Fatalf("gradeIndexed(-1): %v", err)
+	}
+	if correct || chosen != "" {
+		t.Fatalf("idk sentinel must grade wrong with empty chosen, got correct=%v chosen=%q", correct, chosen)
+	}
+	if graded[1].Mark != telegram.MarkCorrect {
+		t.Fatalf("correct option must still be ✅-marked, got %v", graded[1].Mark)
+	}
+	for i, o := range graded {
+		if o.Mark == telegram.MarkWrong {
+			t.Fatalf("idk taps no option, so none may be marked wrong, got MarkWrong at %d", i)
+		}
+	}
+}
+
 func TestCanonicalSetString(t *testing.T) {
 	a := canonicalSetString([]string{"nor", "dan"})
 	b := canonicalSetString([]string{"dan", "nor", "dan"})

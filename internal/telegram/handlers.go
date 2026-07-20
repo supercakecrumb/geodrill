@@ -565,6 +565,8 @@ func (b *Bot) handleCallback(ctx context.Context, s Session) error {
 		return b.handleTopicCallback(ctx, s, data)
 	case strings.HasPrefix(data, dataAnswerPrefix):
 		return b.handleAnswerCallback(ctx, s, data)
+	case strings.HasPrefix(data, dataIdkPrefix):
+		return b.handleIdkCallback(ctx, s, data)
 	case data == "cap:inc5":
 		return b.handleCapChange(ctx, s, 5)
 	case data == "cap:dec5":

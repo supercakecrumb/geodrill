@@ -52,6 +52,30 @@ func parseIndexCallback(prefix, data string) (exerciseID uuid.UUID, index int, o
 	return id, idx, true
 }
 
+// dataIdkPrefix is the callback prefix for the "🤷 I don't know" button:
+// "idk:<exercise-uuid>". Budget: "idk:"(4) + uuid(36) = 40, comfortably
+// under Telegram's 64-byte callback_data cap.
+const dataIdkPrefix = "idk:"
+
+// idkCallbackData builds the "I don't know" button's payload for an exercise.
+func idkCallbackData(exerciseID uuid.UUID) string {
+	return dataIdkPrefix + exerciseID.String()
+}
+
+// parseIdkCallback parses a payload built by idkCallbackData. ok is false
+// for anything malformed.
+func parseIdkCallback(data string) (exerciseID uuid.UUID, ok bool) {
+	rest, hasPrefix := strings.CutPrefix(data, dataIdkPrefix)
+	if !hasPrefix {
+		return uuid.UUID{}, false
+	}
+	id, err := uuid.Parse(rest)
+	if err != nil {
+		return uuid.UUID{}, false
+	}
+	return id, true
+}
+
 // ── /train ───────────────────────────────────────────────────────────────
 
 // sendNextTrain sends the next due exercise for user via Trainer
@@ -114,6 +138,12 @@ func nothingDueText(user storage.User, p Prompt) string {
 // the current chat's input field, ready for typing.
 const autocompleteButtonLabel = "⌨️ Type your answer"
 
+// dontKnowButtonLabel is the explicit "give up" button shown on every
+// /train question: tapping it registers the card as NOT KNOWN (a FAIL,
+// same outcome as a wrong answer), reveals the correct answer, and advances
+// to the next card (handleIdkCallback / Trainer.AnswerDontKnow).
+const dontKnowButtonLabel = "🤷 I don't know"
+
 // sendExercise sends one ready Prompt: a photo-from-birth or text
 // message, with option buttons for ModeSingle/ModeSet or a bare "type your
 // answer" prompt (no buttons, unless Autocomplete adds its own prefill
@@ -129,6 +159,10 @@ func (b *Bot) sendExercise(s Session, p Prompt) error {
 	} else {
 		rows = optionRows(p.ExerciseID, p.Options)
 	}
+	// Every question carries an explicit "I don't know" escape hatch (a FAIL,
+	// same outcome as a wrong answer): after the autocomplete row for ModeText,
+	// after the option rows for indexed modes.
+	rows = append(rows, []Btn{{Label: dontKnowButtonLabel, Data: idkCallbackData(p.ExerciseID)}})
 	if p.MediaPath != "" {
 		// SendPhoto is ModeHTML (see its Session doc comment) — escape like
 		// any other dynamic text going through an HTML-parsed send/edit.
@@ -193,6 +227,46 @@ func (b *Bot) answerAndAdvance(ctx context.Context, s Session, exerciseID uuid.U
 	b.applyAnswerEdit(s, res)
 	if err := s.Respond(answerToast(res.Correct)); err != nil {
 		return err
+	}
+	return b.sendNextTrain(ctx, s, user)
+}
+
+// ── idk: callbacks ("🤷 I don't know") ────────────────────────────────────
+
+// handleIdkCallback grades one idk: tap as a FAIL (not-known) via
+// Trainer.AnswerDontKnow, edits the exercise in place to reveal the answer,
+// and sends the next due exercise — mirroring handleAnswerCallback, except
+// the outcome is always wrong. For ModeText it also sends the correct
+// spelling as a follow-up (the in-place reveal edit is scrolled out of view,
+// exactly the wrongReveal case handleText handles).
+func (b *Bot) handleIdkCallback(ctx context.Context, s Session, data string) error {
+	if b.trainer == nil {
+		return s.Respond("")
+	}
+	exerciseID, ok := parseIdkCallback(data)
+	if !ok {
+		return s.Respond("")
+	}
+	user, err := b.loadOrCreateUser(ctx, s)
+	if err != nil {
+		return err
+	}
+	res, err := b.trainer.AnswerDontKnow(ctx, user.ID, exerciseID)
+	if err != nil {
+		return err
+	}
+	if res.Stale {
+		return s.Respond(staleToast)
+	}
+
+	if err := s.Respond(""); err != nil {
+		return err
+	}
+	b.applyAnswerEdit(s, res)
+	if res.CorrectAnswer != "" {
+		if err := s.Send(wrongReveal(res.CorrectAnswer)); err != nil {
+			return err
+		}
 	}
 	return b.sendNextTrain(ctx, s, user)
 }

@@ -358,6 +358,12 @@ type Trainer interface {
 	// there is no such exercise — the caller must treat the message as
 	// ordinary, unhandled text rather than silently swallowing it.
 	AnswerText(ctx context.Context, userID uuid.UUID, typed string) (result AnswerResult, ok bool, err error)
+	// AnswerDontKnow grades the given exercise as a FAIL (not-known) and
+	// reveals the answer, regardless of mode — the "🤷 I don't know" button.
+	// It is never graded as correct: the outcome is identical to a wrong
+	// answer (a ✅-marked correct option for indexed modes, a CorrectAnswer
+	// reveal string for ModeText).
+	AnswerDontKnow(ctx context.Context, userID, exerciseID uuid.UUID) (AnswerResult, error)
 	// Stats builds the /stats view model over reviews/user_items — the
 	// counterpart of the legacy trainer.Stats.
 	Stats(ctx context.Context, userID uuid.UUID) (Stats, error)

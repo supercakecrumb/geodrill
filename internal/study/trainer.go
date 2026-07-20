@@ -480,6 +480,33 @@ func (s *Service) AnswerText(ctx context.Context, userID uuid.UUID, typed string
 	return res, true, nil
 }
 
+// AnswerDontKnow implements telegram.Trainer: the "🤷 I don't know" button.
+// It grades exerciseID as a FAIL (not-known) and reveals the answer,
+// regardless of mode — never graded as correct. For indexed modes
+// (ModeSingle/ModeSet) it runs gradeIndexed with the -1 sentinel, which
+// yields correct=false, chosen="", and graded options with the correct one
+// ✅-marked; for ModeText it grades wrong with no options, so finishAnswer
+// populates the CorrectAnswer reveal string. All the reveal/mark logic is
+// finishAnswer's — this method only fixes the outcome to wrong.
+func (s *Service) AnswerDontKnow(ctx context.Context, userID, exerciseID uuid.UUID) (telegram.AnswerResult, error) {
+	ex, found, err := s.store.GetExerciseByID(ctx, exerciseID)
+	if err != nil {
+		return telegram.AnswerResult{}, err
+	}
+	if !found {
+		return telegram.AnswerResult{Stale: true}, nil
+	}
+
+	var graded []telegram.GradedOption
+	if quiz.Mode(ex.Mode) != quiz.ModeText {
+		_, _, graded, err = gradeIndexed(ex, -1)
+		if err != nil {
+			return telegram.AnswerResult{}, err
+		}
+	}
+	return s.finishAnswer(ctx, userID, ex, "(idk)", false, graded, s.now())
+}
+
 // finishAnswer is the shared atomic write path for Answer/AnswerText
 // (architecture §1.6 steps 5/6, §5.5). Both callers already guard
 // found before calling in, so ex.ItemID is always valid here.

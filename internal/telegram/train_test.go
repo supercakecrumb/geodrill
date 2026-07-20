@@ -32,6 +32,10 @@ type stubTrainer struct {
 		exerciseID uuid.UUID
 		index      int
 	}
+	idkCall struct {
+		userID     uuid.UUID
+		exerciseID uuid.UUID
+	}
 }
 
 func (s *stubTrainer) NextExercise(ctx context.Context, userID uuid.UUID) (Prompt, error) {
@@ -49,6 +53,12 @@ func (s *stubTrainer) AnswerText(ctx context.Context, userID uuid.UUID, typed st
 	s.textCall.userID = userID
 	s.textCall.typed = typed
 	return s.answer, s.textOK, s.textErr
+}
+
+func (s *stubTrainer) AnswerDontKnow(ctx context.Context, userID, exerciseID uuid.UUID) (AnswerResult, error) {
+	s.idkCall.userID = userID
+	s.idkCall.exerciseID = exerciseID
+	return s.answer, nil
 }
 
 func (s *stubTrainer) Stats(ctx context.Context, userID uuid.UUID) (Stats, error) {
@@ -86,6 +96,34 @@ func TestParseAnswerCallback_Invalid(t *testing.T) {
 	for _, data := range cases {
 		if _, _, ok := parseAnswerCallback(data); ok {
 			t.Fatalf("parseAnswerCallback(%q) unexpectedly succeeded", data)
+		}
+	}
+}
+
+func TestIdkCallbackData_RoundTrip(t *testing.T) {
+	id := uuid.New()
+	data := idkCallbackData(id)
+	gotID, ok := parseIdkCallback(data)
+	if !ok || gotID != id {
+		t.Fatalf("round-trip failed: got (%v,%v), want (%v,true)", gotID, ok, id)
+	}
+	if len(data) > 64 {
+		t.Fatalf("idk callback data exceeds Telegram's 64-byte budget: %d bytes", len(data))
+	}
+}
+
+func TestParseIdkCallback_Invalid(t *testing.T) {
+	cases := []string{
+		"",
+		"noop",
+		"ans:" + uuid.New().String() + ":0", // wrong prefix
+		"idk:not-a-uuid",
+		"idk:", // missing uuid
+		uuid.New().String(),
+	}
+	for _, data := range cases {
+		if _, ok := parseIdkCallback(data); ok {
+			t.Fatalf("parseIdkCallback(%q) unexpectedly succeeded", data)
 		}
 	}
 }
@@ -218,19 +256,36 @@ func TestSendPrompt_NothingDueAllCaughtUp(t *testing.T) {
 	}
 }
 
-func TestSendExercise_ModeTextHasNoButtons(t *testing.T) {
+// assertIdkRow checks that rows' LAST row is the single "🤷 I don't know"
+// button wired to idkCallbackData(exID) — the escape hatch sendExercise
+// appends to every question shape.
+func assertIdkRow(t *testing.T, rows [][]Btn, exID uuid.UUID) {
+	t.Helper()
+	if len(rows) == 0 {
+		t.Fatalf("expected a trailing idk row, got no rows")
+	}
+	last := rows[len(rows)-1]
+	if len(last) != 1 || last[0].Label != dontKnowButtonLabel || last[0].Data != idkCallbackData(exID) {
+		t.Fatalf("expected a trailing «%s» row wired to idkCallbackData, got %+v", dontKnowButtonLabel, last)
+	}
+}
+
+func TestSendExercise_ModeTextHasOnlyIdkButton(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	p := Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "ulica", Mode: quiz.ModeText}
+	exID := uuid.New()
+	p := Prompt{Kind: PromptKindExercise, ExerciseID: exID, Text: "ulica", Mode: quiz.ModeText}
 	if err := b.sendExercise(s, p); err != nil {
 		t.Fatalf("sendExercise: %v", err)
 	}
 	if len(s.keyboards) != 1 {
 		t.Fatalf("expected one message sent, got %d", len(s.keyboards))
 	}
-	if s.keyboards[0].rows != nil {
-		t.Fatalf("a ModeText exercise must have no buttons, got %+v", s.keyboards[0].rows)
+	// A bare ModeText exercise (no autocomplete) carries only the idk row.
+	if len(s.keyboards[0].rows) != 1 {
+		t.Fatalf("expected exactly the idk row, got %+v", s.keyboards[0].rows)
 	}
+	assertIdkRow(t, s.keyboards[0].rows, exID)
 	if !strings.Contains(s.keyboards[0].text, "Type your answer") {
 		t.Fatalf("expected a type-your-answer prompt, got %q", s.keyboards[0].text)
 	}
@@ -239,13 +294,15 @@ func TestSendExercise_ModeTextHasNoButtons(t *testing.T) {
 func TestSendExercise_AutocompleteAddsInlineQueryButton(t *testing.T) {
 	s := &fakeSession{}
 	b := newTestBot(&stubStore{})
-	p := Prompt{Kind: PromptKindExercise, ExerciseID: uuid.New(), Text: "France", Mode: quiz.ModeText, Autocomplete: true}
+	exID := uuid.New()
+	p := Prompt{Kind: PromptKindExercise, ExerciseID: exID, Text: "France", Mode: quiz.ModeText, Autocomplete: true}
 	if err := b.sendExercise(s, p); err != nil {
 		t.Fatalf("sendExercise: %v", err)
 	}
 	rows := s.keyboards[0].rows
-	if len(rows) != 1 || len(rows[0]) != 1 {
-		t.Fatalf("expected exactly one autocomplete button row, got %+v", rows)
+	// The autocomplete row, then the idk row.
+	if len(rows) != 2 || len(rows[0]) != 1 {
+		t.Fatalf("expected an autocomplete row followed by the idk row, got %+v", rows)
 	}
 	btn := rows[0][0]
 	if !btn.InlineQueryChat {
@@ -254,6 +311,7 @@ func TestSendExercise_AutocompleteAddsInlineQueryButton(t *testing.T) {
 	if btn.Label != autocompleteButtonLabel {
 		t.Fatalf("expected the autocomplete button label, got %q", btn.Label)
 	}
+	assertIdkRow(t, rows, exID)
 }
 
 func TestSendExercise_ModeSingleHasButtons(t *testing.T) {
@@ -267,12 +325,15 @@ func TestSendExercise_ModeSingleHasButtons(t *testing.T) {
 	if err := b.sendExercise(s, p); err != nil {
 		t.Fatalf("sendExercise: %v", err)
 	}
-	if len(s.keyboards[0].rows) != 1 || len(s.keyboards[0].rows[0]) != 2 {
-		t.Fatalf("expected 2 options on one row, got %+v", s.keyboards[0].rows)
+	rows := s.keyboards[0].rows
+	// The two-option row, then the trailing idk row.
+	if len(rows) != 2 || len(rows[0]) != 2 {
+		t.Fatalf("expected 2 options on one row plus the idk row, got %+v", rows)
 	}
-	if s.keyboards[0].rows[0][0].Data != answerCallbackData(exID, 0) {
-		t.Fatalf("expected the option's index-based callback data, got %q", s.keyboards[0].rows[0][0].Data)
+	if rows[0][0].Data != answerCallbackData(exID, 0) {
+		t.Fatalf("expected the option's index-based callback data, got %q", rows[0][0].Data)
 	}
+	assertIdkRow(t, rows, exID)
 }
 
 func TestSendExercise_PhotoEscapesCaption(t *testing.T) {

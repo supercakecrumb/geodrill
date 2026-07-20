@@ -846,3 +846,140 @@ func TestKnownOutcomeDoesNotConsumeIntroBudget(t *testing.T) {
 		t.Fatalf("expected IntroBudgetExhausted after a genuine introduction under cap=1, got reason=%v", third.Reason)
 	}
 }
+
+// TestAnswerDontKnow exercises the "🤷 I don't know" button end-to-end:
+// AnswerDontKnow must always grade a FAIL and reveal the answer, whether the
+// open exercise is an indexed mode (correct option ✅-marked in Options) or
+// ModeText (CorrectAnswer reveal string), and record an incorrect review.
+func TestAnswerDontKnow(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	store, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer store.Close()
+
+	registerGenerators(store)
+	seedAllTopics(t, ctx, store)
+
+	sched := engram.NewScheduler()
+	svc := study.New(store, sched, study.GlobalRegistry, nil, 42)
+
+	now := time.Now().UTC()
+
+	// ── indexed mode (ModeSingle): a roadside exercise ────────────────────
+	roadsideTopic, found, err := store.GetTopicByPath(ctx, "roads/which-side")
+	if err != nil || !found {
+		t.Fatalf("get roads/which-side topic: found=%v err=%v", found, err)
+	}
+	roadsideItems, err := store.ListItemsWithTierByTopic(ctx, roadsideTopic.ID)
+	if err != nil {
+		t.Fatalf("list roadside items: %v", err)
+	}
+	if len(roadsideItems) == 0 {
+		t.Fatalf("expected at least one roadside item in the seed data")
+	}
+
+	idkUser, err := store.UpsertUser(ctx, 900030, "idk-tester")
+	if err != nil {
+		t.Fatalf("create idk user: %v", err)
+	}
+	roadItem := roadsideItems[0].Item
+	seedDueItem(t, ctx, store, idkUser.ID, roadItem.ID, now.Add(-time.Minute), 0)
+
+	prompt, err := svc.NextExercise(ctx, idkUser.ID)
+	if err != nil {
+		t.Fatalf("NextExercise (indexed): %v", err)
+	}
+	if prompt.Kind != telegram.PromptKindExercise || prompt.Mode == quiz.ModeText {
+		t.Fatalf("expected an indexed exercise, got kind=%v mode=%v", prompt.Kind, prompt.Mode)
+	}
+
+	res, err := svc.AnswerDontKnow(ctx, idkUser.ID, prompt.ExerciseID)
+	if err != nil {
+		t.Fatalf("AnswerDontKnow (indexed): %v", err)
+	}
+	if res.Stale || res.Correct {
+		t.Fatalf("I don't know must grade a fresh FAIL, got %+v", res)
+	}
+	foundCorrectMark := false
+	for _, o := range res.Options {
+		if o.Mark == telegram.MarkCorrect {
+			foundCorrectMark = true
+		}
+		if o.Mark == telegram.MarkWrong {
+			t.Fatalf("I don't know taps no option, so none may be marked wrong, got %+v", res.Options)
+		}
+	}
+	if !foundCorrectMark {
+		t.Fatalf("expected the correct option to be ✅-marked for reveal, got %+v", res.Options)
+	}
+	roadReviews, err := store.GetReviewsByItem(ctx, roadItem.ID)
+	if err != nil {
+		t.Fatalf("GetReviewsByItem (indexed): %v", err)
+	}
+	if len(roadReviews) != 1 || roadReviews[0].Correct {
+		t.Fatalf("expected exactly one incorrect review row for the idk'd item, got %+v", roadReviews)
+	}
+
+	// ── ModeText: a single-language special-characters item forced to text
+	// via the reps-based rotation rule (reps=2 → "text" first) ────────────
+	charsTopic, found, err := store.GetTopicByPath(ctx, "languages/special-characters")
+	if err != nil || !found {
+		t.Fatalf("get languages/special-characters topic: found=%v err=%v", found, err)
+	}
+	charsItems, err := store.ListActiveItemsByTopic(ctx, charsTopic.ID)
+	if err != nil {
+		t.Fatalf("list special-characters items: %v", err)
+	}
+	singleItem, ok := findSingleLanguageItem(charsItems)
+	if !ok {
+		t.Fatalf("expected at least one single-language item in seeds/special_chars.yaml")
+	}
+	seedDueItem(t, ctx, store, idkUser.ID, singleItem.ID, now, 2)
+
+	textPrompt, err := svc.NextExercise(ctx, idkUser.ID)
+	if err != nil {
+		t.Fatalf("NextExercise (text): %v", err)
+	}
+	if textPrompt.Kind != telegram.PromptKindExercise || textPrompt.Mode != quiz.ModeText {
+		t.Fatalf("expected a ModeText exercise, got kind=%v mode=%v", textPrompt.Kind, textPrompt.Mode)
+	}
+	exText, found, err := store.GetExerciseByID(ctx, textPrompt.ExerciseID)
+	if err != nil || !found {
+		t.Fatalf("GetExerciseByID (text): found=%v err=%v", found, err)
+	}
+
+	textRes, err := svc.AnswerDontKnow(ctx, idkUser.ID, textPrompt.ExerciseID)
+	if err != nil {
+		t.Fatalf("AnswerDontKnow (text): %v", err)
+	}
+	if textRes.Stale || textRes.Correct {
+		t.Fatalf("I don't know must grade a fresh FAIL for ModeText, got %+v", textRes)
+	}
+	if textRes.CorrectAnswer != exText.CorrectAnswer {
+		t.Fatalf("expected the correct spelling revealed, got %q want %q", textRes.CorrectAnswer, exText.CorrectAnswer)
+	}
+	if len(textRes.Options) != 0 {
+		t.Fatalf("ModeText carries no graded option buttons, got %d", len(textRes.Options))
+	}
+	textReviews, err := store.GetReviewsByItem(ctx, singleItem.ID)
+	if err != nil {
+		t.Fatalf("GetReviewsByItem (text): %v", err)
+	}
+	if len(textReviews) != 1 || textReviews[0].Correct {
+		t.Fatalf("expected exactly one incorrect review row for the text-mode idk'd item, got %+v", textReviews)
+	}
+
+	// Stale re-tap on the already-answered exercise must not double-record.
+	staleRes, err := svc.AnswerDontKnow(ctx, idkUser.ID, textPrompt.ExerciseID)
+	if err != nil {
+		t.Fatalf("AnswerDontKnow (stale): %v", err)
+	}
+	if !staleRes.Stale {
+		t.Fatalf("a second idk tap on an answered exercise should be Stale")
+	}
+}
