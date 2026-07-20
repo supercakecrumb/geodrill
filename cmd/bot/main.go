@@ -128,13 +128,14 @@ func run() error {
 	// suggestIdx powers inline-mode autocomplete answers
 	// (vibe/spike-autocomplete-inline.md): built once at startup as ONE
 	// merged index over every country (name + flag emoji + iso2), every
-	// country's primary capital (name + flag emoji + "cap:iso2"), and every
-	// special-characters language (name + "lang:iso3") — the capitals quiz's
-	// country->capital direction needs capital-name suggestions, the
-	// special-characters "which language uses «x»?" text question needs
-	// language-name suggestions, and the OnQuery handler answers from a single
-	// global index regardless of which exercise is open (see
-	// internal/suggest.NewFromCountriesCapitalsAndLanguages's doc). Capitals are
+	// country's primary capital (name + flag emoji + "cap:iso2"), every
+	// special-characters language (name + "lang:iso3"), and every city (name +
+	// country flag + "city:<seedkey>") — the capitals quiz's country->capital
+	// direction needs capital-name suggestions, the special-characters "which
+	// language uses «x»?" text question needs language-name suggestions, the
+	// upcoming map-based cities question needs city-name suggestions, and the
+	// OnQuery handler answers from a single global index regardless of which
+	// exercise is open (see internal/suggest.NewFromSources's doc). Capitals are
 	// sourced from the already-seeded country_facts row
 	// (capitals.FactKeyCapital), the same "query the store, don't re-parse
 	// yaml here" pattern countries themselves use.
@@ -170,7 +171,31 @@ func run() error {
 	for _, l := range specialchars.Languages() {
 		languageEntries = append(languageEntries, suggest.LanguageEntry{Code: l.Code, Name: l.Name})
 	}
-	suggestIdx := suggest.NewFromCountriesCapitalsAndLanguages(countries, capitalEntries, languageEntries)
+	// City suggestions for the upcoming map-based "which city is at the
+	// marker?" question (cities.SuggestCities() reads seeds/cities.yaml). Each
+	// city's flag emoji + coverage come from its country, looked up by ISO2 via
+	// countryByISO built once here; a city whose ISO2 isn't in the loaded
+	// countries is skipped defensively (a seed referencing an unknown country).
+	// These entries are INERT until that question ships — the live cities topic
+	// still answers a COUNTRY.
+	countryByISO := make(map[string]storage.Country, len(countries))
+	for _, c := range countries {
+		countryByISO[c.ISOA2] = c
+	}
+	suggestCities, err := cities.SuggestCities()
+	if err != nil {
+		return fmt.Errorf("load cities for autocomplete index: %w", err)
+	}
+	cityEntries := make([]suggest.CityEntry, 0, len(suggestCities))
+	for _, sc := range suggestCities {
+		c, ok := countryByISO[sc.Country]
+		if !ok {
+			logger.Debug("skipping city with unknown country for autocomplete index", "key", sc.Key, "country", sc.Country)
+			continue
+		}
+		cityEntries = append(cityEntries, suggest.CityEntry{Key: sc.Key, Name: sc.Name, FlagEmoji: c.FlagEmoji, Coverage: c.GGCoverage})
+	}
+	suggestIdx := suggest.NewFromSources(countries, capitalEntries, languageEntries, cityEntries)
 
 	// snagbox feedback reporting ([[snagbox-integration]]): wired only when
 	// both SNAGBOX_URL and SNAGBOX_INGEST_TOKEN are set, otherwise left nil so

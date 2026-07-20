@@ -6,10 +6,10 @@
 // startup.
 //
 // The index is built from generic Entry{Label, Emoji, Key} values rather
-// than any one domain type, so a second suggestion source can contribute its
-// own Entries into the same Index (see NewFromCountries for the first
-// source — countries — and NewFromCountriesAndCapitals for a second —
-// capital cities — merged into one global Index, which is what the
+// than any one domain type, so additional suggestion sources can contribute
+// their own Entries into the same Index (countries, capital cities, languages,
+// and city names all merge into one global Index via NewFromSources — see
+// NewFromCountries for how a single source plugs in), which is what the
 // single-handler OnQuery design needs: it answers from one index and can't
 // know which exercise is currently open, so per-source Indexes held side by
 // side wouldn't help it pick the right one).
@@ -45,11 +45,13 @@ const maxEdits = 2
 
 // Domain is the answer-kind an Entry belongs to — the scoping unit for
 // MatchDomain/DomainForAnswer (kanban card "Autocomplete must be scoped to
-// the question's answer domain"). There are three autocomplete answer domains
+// the question's answer domain"). There are four autocomplete answer domains
 // in the app today: city→country, capital→country, tld→country, and flags all
 // answer a COUNTRY; country→capital answers a CAPITAL (country→tld is plain
-// text, no autocomplete at all); and the special-characters "which language
-// uses «x»?" text question answers a LANGUAGE.
+// text, no autocomplete at all); the special-characters "which language
+// uses «x»?" text question answers a LANGUAGE; and the map-based "which city
+// is at the marker?" question answers a CITY (DomainCity — inert until that
+// question ships, since the current cities topic still answers a COUNTRY).
 type Domain int8
 
 const (
@@ -61,11 +63,17 @@ const (
 	// DomainCapital tags capital-city entries (NewFromCountriesAndCapitals's
 	// merged-in capitals).
 	DomainCapital
-	// DomainLanguage tags language-name entries
-	// (NewFromCountriesCapitalsAndLanguages's merged-in languages) — the
-	// answer domain for the special-characters "which language uses «x»?"
-	// text questions, which answer a LANGUAGE, not a country or capital.
+	// DomainLanguage tags language-name entries (NewFromSources's merged-in
+	// languages) — the answer domain for the special-characters "which
+	// language uses «x»?" text questions, which answer a LANGUAGE, not a
+	// country or capital.
 	DomainLanguage
+	// DomainCity tags city-name entries (NewFromSources's merged-in cities) —
+	// the answer domain for the map-based "which city is at the marker?"
+	// question. This domain is currently INERT: the live cities topic still
+	// answers a COUNTRY (DomainCountry), so no open exercise resolves to a
+	// CITY answer until that map-based question ships.
+	DomainCity
 )
 
 // Entry is one suggestion candidate: a display label, an optional emoji
@@ -106,15 +114,39 @@ type Suggestion struct {
 // literals instead of a live store.
 type Index struct {
 	entries []Entry
+	// domainByLabel maps a normalized label to the Domain of the FIRST entry
+	// carrying that label in construction order, so DomainForAnswer is an O(1)
+	// lookup instead of up to four full linear passes per inline keystroke
+	// (the merged index grows to ~5000 entries once cities are added). The
+	// entry slice is built country→capital→language→city, and this map keeps
+	// the first insertion per label, which reproduces DomainForAnswer's
+	// country-first→capital→language→city precedence exactly.
+	domainByLabel map[string]Domain
 }
 
 // New builds an Index over entries. The slice is copied, so the caller's
 // own slice can be mutated or discarded afterward without affecting the
-// Index.
+// Index. It also precomputes domainByLabel (normalized label → first entry's
+// Domain, in construction order) so DomainForAnswer is O(1).
 func New(entries []Entry) *Index {
 	cp := make([]Entry, len(entries))
 	copy(cp, entries)
-	return &Index{entries: cp}
+	domainByLabel := make(map[string]Domain, len(cp))
+	for _, e := range cp {
+		norm := quiz.Normalize(e.Label)
+		if norm == "" {
+			continue
+		}
+		// Keep the first entry per label: entries are ordered
+		// country→capital→language→city, so first-wins yields
+		// country-first precedence (a city-state whose capital shares its
+		// country's name stays DomainCountry, etc.).
+		if _, ok := domainByLabel[norm]; ok {
+			continue
+		}
+		domainByLabel[norm] = e.Domain
+	}
+	return &Index{entries: cp, domainByLabel: domainByLabel}
 }
 
 // NewFromCountries builds an Index from countries (name + flag emoji + ISO
@@ -169,28 +201,51 @@ type LanguageEntry struct {
 	Name string // English display name, e.g. "Spanish"
 }
 
-// NewFromCountriesCapitalsAndLanguages builds ONE merged Index over all three
-// suggestion sources the app needs: every country and capital (exactly as
-// NewFromCountriesAndCapitals) PLUS one entry per language (label = English
-// name, no emoji, key = "lang:<iso3>", Domain DomainLanguage). Language
-// entries are always Coverage:true — a language isn't a country and has no
-// GeoGuessr coverage of its own, so the gg_only filter must never drop it (it
-// would silently blank the special-characters autocomplete for gg_only
-// users). Same single-global-index rationale as NewFromCountriesAndCapitals:
-// the inline OnQuery handler answers from one index and can't know which
-// exercise is open, so all sources merge into one.
-func NewFromCountriesCapitalsAndLanguages(countries []storage.Country, capitals []CapitalEntry, languages []LanguageEntry) *Index {
+// CityEntry is one city the map-based "which city is at the marker?" question
+// can ask about, adapted by the caller (cmd/bot/main.go) from the cities
+// topic's seed rows into this shape — kept free of any cities-topic-specific
+// import so this package stays generic (mirrors how CapitalEntry/LanguageEntry
+// keep their topics out of this package). The FlagEmoji does NOT leak the
+// answer (the highlighted country is already visible on the map) and it
+// disambiguates homonyms (Paris FR vs a Paris US).
+type CityEntry struct {
+	Key       string // the city's seed key, e.g. "de:munich", used to build Key ("city:" + Key)
+	Name      string // English city name, e.g. "Munich"
+	FlagEmoji string // the city's country flag, e.g. "🇩🇪"
+	Coverage  bool   // the country's GeoGuessr coverage (for the gg_only filter)
+}
+
+// NewFromSources builds ONE merged Index over all four suggestion sources the
+// app needs: every country and capital (exactly as NewFromCountriesAndCapitals)
+// PLUS one entry per language (label = English name, no emoji, key =
+// "lang:<iso3>", Domain DomainLanguage) PLUS one entry per city (label = city
+// name, emoji = the country's flag, key = "city:<seedkey>", Domain DomainCity).
+// Language entries are always Coverage:true — a language isn't a country and
+// has no GeoGuessr coverage of its own, so the gg_only filter must never drop
+// it (it would silently blank the special-characters autocomplete for gg_only
+// users); city entries carry their country's Coverage so the gg_only filter
+// treats them like their country. Same single-global-index rationale as
+// NewFromCountriesAndCapitals: the inline OnQuery handler answers from one
+// index and can't know which exercise is open, so all sources merge into one.
+//
+// The city entries are INERT at runtime today: the live cities topic still
+// answers a COUNTRY, so no open exercise resolves to a DomainCity answer until
+// the map-based cities question ships.
+func NewFromSources(countries []storage.Country, capitals []CapitalEntry, languages []LanguageEntry, cities []CityEntry) *Index {
 	entries := countriesAndCapitalsEntries(countries, capitals)
 	for _, l := range languages {
 		entries = append(entries, Entry{Label: l.Name, Emoji: "", Key: "lang:" + l.Code, Domain: DomainLanguage, Coverage: true})
+	}
+	for _, c := range cities {
+		entries = append(entries, Entry{Label: c.Name, Emoji: c.FlagEmoji, Key: "city:" + c.Key, Domain: DomainCity, Coverage: c.Coverage})
 	}
 	return New(entries)
 }
 
 // countriesAndCapitalsEntries is the shared builder for the country+capital
-// entry list, used by both NewFromCountriesAndCapitals and
-// NewFromCountriesCapitalsAndLanguages so the language-aware constructor never
-// duplicates (or drifts from) the country/capital entry shape.
+// entry list, used by both NewFromCountriesAndCapitals and NewFromSources so
+// the all-sources constructor never duplicates (or drifts from) the
+// country/capital entry shape.
 func countriesAndCapitalsEntries(countries []storage.Country, capitals []CapitalEntry) []Entry {
 	entries := countryEntries(countries)
 	for _, c := range capitals {
@@ -271,16 +326,20 @@ func (idx *Index) MatchDomain(query string, domain Domain, ggOnly bool, limit in
 // belongs to, so a caller (internal/telegram's handleQuery) can pass the
 // right Domain to MatchDomain instead of always merging every suggestion
 // source. Membership precedence is COUNTRY-FIRST, then CAPITAL, then
-// LANGUAGE: idx's DomainCountry entries are checked before its DomainCapital
-// entries before its DomainLanguage entries, so a city-state whose capital
-// shares its country's name (Singapore, Monaco) resolves to DomainCountry —
-// only a name that is genuinely a capital-and-nothing-else (Canberra,
-// Ottawa) resolves to DomainCapital, and only a name that is a language and
-// neither a country nor a capital (Spanish, Russian) resolves to
-// DomainLanguage. An unrecognized answer, an empty string, or a nil Index all
-// default to DomainCountry, the same default a caller falls back to when no
-// exercise is open at all. Comparison is casefolded via quiz.Normalize,
-// consistent with Match's own notion of "the same label".
+// LANGUAGE, then CITY: a name is resolved to the earliest of those domains
+// that carries it, so a city-state whose capital shares its country's name
+// (Singapore, Monaco) resolves to DomainCountry, a capital-named city
+// (Bogotá) still resolves to DomainCapital (harmless — no capital-named city
+// question exists), and only a name that is genuinely a city-and-nothing-else
+// (Munich) resolves to DomainCity. An unrecognized answer, an empty string, or
+// a nil Index all default to DomainCountry, the same default a caller falls
+// back to when no exercise is open at all. Comparison is casefolded via
+// quiz.Normalize, consistent with Match's own notion of "the same label".
+//
+// The lookup is O(1) against the domainByLabel map precomputed by New (built
+// in the same country→capital→language→city precedence order, first-wins), so
+// this stays cheap per inline keystroke even as the merged index grows to
+// ~5000 entries.
 func (idx *Index) DomainForAnswer(correct string) Domain {
 	if idx == nil {
 		return DomainCountry
@@ -289,21 +348,8 @@ func (idx *Index) DomainForAnswer(correct string) Domain {
 	if norm == "" {
 		return DomainCountry
 	}
-
-	for _, e := range idx.entries {
-		if e.Domain == DomainCountry && quiz.Normalize(e.Label) == norm {
-			return DomainCountry
-		}
-	}
-	for _, e := range idx.entries {
-		if e.Domain == DomainCapital && quiz.Normalize(e.Label) == norm {
-			return DomainCapital
-		}
-	}
-	for _, e := range idx.entries {
-		if e.Domain == DomainLanguage && quiz.Normalize(e.Label) == norm {
-			return DomainLanguage
-		}
+	if d, ok := idx.domainByLabel[norm]; ok {
+		return d
 	}
 	return DomainCountry
 }

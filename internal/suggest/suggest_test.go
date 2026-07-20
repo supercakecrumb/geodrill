@@ -279,7 +279,7 @@ func testCountriesCapitalsAndLanguagesIndex() *Index {
 		{Code: "spa", Name: "Spanish"},
 		{Code: "rus", Name: "Russian"},
 	}
-	return NewFromCountriesCapitalsAndLanguages(countries, capitalEntries, languageEntries)
+	return NewFromSources(countries, capitalEntries, languageEntries, nil)
 }
 
 func TestDomainForAnswer_LanguageNameResolvesLanguage(t *testing.T) {
@@ -319,6 +319,102 @@ func TestMatchDomain_LanguageSurvivesGGOnly(t *testing.T) {
 	on := labels(idx.MatchDomain("russ", DomainLanguage, true, 10))
 	if len(on) != 1 || on[0] != "Russian" {
 		t.Fatalf("ggOnly=true dropped a language entry, got %v, want [Russian]", on)
+	}
+}
+
+// ── DomainCity (map-based cities-question answers) ──────────────────────
+
+// testAllDomainsIndex builds an index spanning all four domains, exercising
+// DomainForAnswer's country→capital→language→city precedence and the gg_only
+// coverage drop for a non-coverage country's city.
+func testAllDomainsIndex() *Index {
+	countries := []storage.Country{
+		{ID: uuid.New(), Name: "Germany", FlagEmoji: "🇩🇪", ISOA2: "DE", GGCoverage: true},
+		{ID: uuid.New(), Name: "Australia", FlagEmoji: "🇦🇺", ISOA2: "AU", GGCoverage: true},
+		// Singapore is a city-state: it's both a country name and a capital
+		// name, exercising DomainForAnswer's country-first rule.
+		{ID: uuid.New(), Name: "Singapore", FlagEmoji: "🇸🇬", ISOA2: "SG", GGCoverage: true},
+		{ID: uuid.New(), Name: "Spain", FlagEmoji: "🇪🇸", ISOA2: "ES", GGCoverage: true},
+		// Freedonia has no GeoGuessr coverage; its city inherits that.
+		{ID: uuid.New(), Name: "Freedonia", FlagEmoji: "🏴", ISOA2: "XX", GGCoverage: false},
+	}
+	capitalEntries := []CapitalEntry{
+		{CountryISO: "AU", Name: "Canberra", FlagEmoji: "🇦🇺", Coverage: true},
+		{CountryISO: "SG", Name: "Singapore", FlagEmoji: "🇸🇬", Coverage: true},
+	}
+	languageEntries := []LanguageEntry{
+		{Code: "spa", Name: "Spanish"},
+	}
+	cityEntries := []CityEntry{
+		{Key: "de:munich", Name: "Munich", FlagEmoji: "🇩🇪", Coverage: true},
+		{Key: "xx:sylvania", Name: "Sylvania", FlagEmoji: "🏴", Coverage: false},
+	}
+	return NewFromSources(countries, capitalEntries, languageEntries, cityEntries)
+}
+
+func TestNewFromSources_MergesCityEntries(t *testing.T) {
+	idx := testAllDomainsIndex()
+	got := idx.Match("munic", 10)
+	// A city entry is keyed distinctly ("city:" prefix), carries its country's
+	// flag (disambiguates homonyms without leaking the answer), and is tagged
+	// DomainCity.
+	want := Suggestion{Label: "Munich", Emoji: "🇩🇪", Key: "city:de:munich", Domain: DomainCity, Coverage: true}
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("city match = %v, want %+v", got, want)
+	}
+}
+
+func TestDomainForAnswer_PlainCityResolvesCity(t *testing.T) {
+	idx := testAllDomainsIndex()
+	if got := idx.DomainForAnswer("Munich"); got != DomainCity {
+		t.Fatalf("DomainForAnswer(%q) = %v, want DomainCity", "Munich", got)
+	}
+}
+
+func TestDomainForAnswer_Precedence(t *testing.T) {
+	idx := testAllDomainsIndex()
+	cases := []struct {
+		answer string
+		want   Domain
+	}{
+		{"Singapore", DomainCountry}, // country-first over its own capital
+		{"Canberra", DomainCapital},  // capital-only
+		{"Spanish", DomainLanguage},  // language-only
+		{"Munich", DomainCity},       // city-only
+		{"Atlantis", DomainCountry},  // unknown defaults to country
+	}
+	for _, tc := range cases {
+		if got := idx.DomainForAnswer(tc.answer); got != tc.want {
+			t.Fatalf("DomainForAnswer(%q) = %v, want %v", tc.answer, got, tc.want)
+		}
+	}
+}
+
+func TestMatchDomain_ScopesToCityOnly(t *testing.T) {
+	idx := testAllDomainsIndex()
+	got := labels(idx.MatchDomain("mun", DomainCity, false, 10))
+	want := []string{"Munich"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MatchDomain(DomainCity, %q) = %v, want %v", "mun", got, want)
+	}
+	// Munich's country Germany (a country) must never surface from a
+	// city-scoped match.
+	if leaked := idx.MatchDomain("germ", DomainCity, false, 10); len(leaked) != 0 {
+		t.Fatalf("MatchDomain(DomainCity) leaked a country entry: %v", leaked)
+	}
+}
+
+func TestMatchDomain_CityGGOnlyDropsNonCoverage(t *testing.T) {
+	// Sylvania's country (Freedonia) has no coverage, so its city carries
+	// Coverage:false and gg_only must drop it; Munich (covered) survives.
+	idx := testAllDomainsIndex()
+	off := labels(idx.MatchDomain("syl", DomainCity, false, 10))
+	if len(off) != 1 || off[0] != "Sylvania" {
+		t.Fatalf("ggOnly=false should return Sylvania, got %v", off)
+	}
+	on := idx.MatchDomain("syl", DomainCity, true, 10)
+	if len(on) != 0 {
+		t.Fatalf("ggOnly=true should drop the non-coverage city Sylvania, got %v", labels(on))
 	}
 }
 
