@@ -16,6 +16,7 @@ import (
 	"github.com/supercakecrumb/engram"
 
 	"github.com/supercakecrumb/geodrill/internal/config"
+	"github.com/supercakecrumb/geodrill/internal/feedback"
 	"github.com/supercakecrumb/geodrill/internal/game"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/study"
@@ -142,6 +143,21 @@ func run() error {
 	}
 	suggestIdx := suggest.NewFromCountriesAndCapitals(countries, capitalEntries)
 
+	// snagbox feedback reporting ([[snagbox-integration]]): wired only when
+	// both SNAGBOX_URL and SNAGBOX_INGEST_TOKEN are set, otherwise left nil so
+	// /feedback degrades to "not available" (telegram.Config.Feedback is
+	// nil-safe). The interface-typed var stays a true nil interface when
+	// unset — a typed-nil *feedback.Reporter would defeat the handler's nil
+	// check. The ingest token is write-only and scoped to geodrill's project;
+	// it's read here from the environment and never logged.
+	var feedbackReporter telegram.FeedbackReporter
+	if cfg.SnagboxURL != "" && cfg.SnagboxIngestToken != "" {
+		feedbackReporter = feedback.New(cfg.SnagboxURL, cfg.SnagboxIngestToken)
+		logger.Info("snagbox feedback reporting enabled")
+	} else {
+		logger.Info("snagbox feedback reporting disabled (SNAGBOX_URL/SNAGBOX_INGEST_TOKEN unset)")
+	}
+
 	bot, err := telegram.New(telegram.Config{
 		Token:  cfg.TelegramToken,
 		Store:  store,
@@ -158,6 +174,7 @@ func run() error {
 		TierRecomputer: studySvc,
 		Game:           telegram.NewGameService(gameEngine, store, time.Now().UnixNano()),
 		Suggest:        suggestIdx,
+		Feedback:       feedbackReporter,
 	})
 	if err != nil {
 		return fmt.Errorf("build bot: %w", err)

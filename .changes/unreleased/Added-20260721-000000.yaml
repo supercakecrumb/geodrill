@@ -1,0 +1,3 @@
+kind: Added
+body: A /feedback command files bug reports and feedback into snagbox — send it inline (e.g. "/feedback the flags quiz showed the wrong country") and geodrill files it into its snagbox project via a write-only ingest token. Wired via SNAGBOX_URL and SNAGBOX_INGEST_TOKEN; both are optional, and /feedback replies that feedback is unavailable until they are set.
+time: 2026-07-21T00:00:00Z

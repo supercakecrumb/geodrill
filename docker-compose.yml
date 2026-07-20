@@ -27,6 +27,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://geodrill:geodrill@db:5432/geodrill?sslmode=disable}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       FSRS_RETENTION: ${FSRS_RETENTION:-}
+      # snagbox /feedback reporting (optional; unset → /feedback replies "not available").
+      SNAGBOX_URL: ${SNAGBOX_URL:-}
+      SNAGBOX_INGEST_TOKEN: ${SNAGBOX_INGEST_TOKEN:-}
     restart: unless-stopped
 
   ingest:

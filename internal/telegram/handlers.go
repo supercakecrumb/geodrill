@@ -332,7 +332,7 @@ func (b *Bot) handleHelp(ctx context.Context, s Session) error {
 // place — the same in-place-edit convention rerenderSettings uses for
 // /settings.
 func (b *Bot) handleHelpCallback(ctx context.Context, s Session, data string) error {
-	text, rows := helpSection(data, b.study != nil, b.topics != nil, b.game != nil)
+	text, rows := helpSection(data, b.study != nil, b.topics != nil, b.game != nil, b.feedback != nil)
 	if err := s.EditMessage(s.MessageID(), text, rows); err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (b *Bot) handleHelpCallback(ctx context.Context, s Session, data string) er
 // help:cmds — including help:root and any unrecognized value — renders the
 // root menu, so a stale or malformed tap always falls back to something
 // sensible instead of erroring.
-func helpSection(data string, hasStudy, hasTopics, hasGame bool) (string, [][]Btn) {
+func helpSection(data string, hasStudy, hasTopics, hasGame, hasFeedback bool) (string, [][]Btn) {
 	switch data {
 	case dataHelpFSRS:
 		return helpFSRSText, helpBackRow()
@@ -353,7 +353,7 @@ func helpSection(data string, hasStudy, hasTopics, hasGame bool) (string, [][]Bt
 	case dataHelpTiers:
 		return helpTiersText, helpBackRow()
 	case dataHelpCmds:
-		return helpCommandsText(hasStudy, hasTopics, hasGame), helpBackRow()
+		return helpCommandsText(hasStudy, hasTopics, hasGame, hasFeedback), helpBackRow()
 	default:
 		return helpRootText, helpRootRows()
 	}
@@ -383,7 +383,7 @@ func helpBackRow() [][]Btn {
 // commands, plus /study, /topics, and /game only when their services are
 // wired (mirroring the retired helpTextFor's hasStudy/hasTopics gating, so
 // /help never advertises a command that would just reply "🚧 coming soon").
-func helpCommandsText(hasStudy, hasTopics, hasGame bool) string {
+func helpCommandsText(hasStudy, hasTopics, hasGame, hasFeedback bool) string {
 	var b strings.Builder
 	b.WriteString("🧭 Commands\n\n")
 	b.WriteString("/train — next due review, scheduled by FSRS\n")
@@ -398,6 +398,9 @@ func helpCommandsText(hasStudy, hasTopics, hasGame bool) string {
 	}
 	b.WriteString("/stats — reviews, accuracy, streak, due forecast, and your top mix-ups\n")
 	b.WriteString("/settings — daily new-item cap, button style, and reminders\n")
+	if hasFeedback {
+		b.WriteString("/feedback — report a bug or send feedback (e.g. /feedback the flags quiz is wrong)\n")
+	}
 	b.WriteString("/start — register with geodrill\n")
 	b.WriteString("/help — this menu\n")
 	return b.String()

@@ -15,6 +15,15 @@ type Config struct {
 	DatabaseURL   string     // DATABASE_URL (required)
 	LogLevel      slog.Level // LOG_LEVEL (debug|info|warn|error), default info
 	FSRSRetention float64    // FSRS_RETENTION, default 0.9 (engram default)
+
+	// Snagbox wires the /feedback command into the snagbox issue-intake
+	// service ([[snagbox-integration]]). Both are OPTIONAL: with either
+	// unset, /feedback degrades to a "feedback isn't available" reply rather
+	// than failing startup — the same nil-safe posture every optional bot
+	// dependency takes. The ingest token is write-only, scoped to geodrill's
+	// snagbox project, and stays server-side (never shipped to clients).
+	SnagboxURL         string // SNAGBOX_URL (e.g. https://snagbox.example.com)
+	SnagboxIngestToken string // SNAGBOX_INGEST_TOKEN (write-only, per-project)
 }
 
 // Load reads configuration from the environment. requireToken controls whether
@@ -25,6 +34,9 @@ func Load(requireToken bool) (Config, error) {
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
 		LogLevel:      slog.LevelInfo,
 		FSRSRetention: 0.9,
+
+		SnagboxURL:         os.Getenv("SNAGBOX_URL"),
+		SnagboxIngestToken: os.Getenv("SNAGBOX_INGEST_TOKEN"),
 	}
 
 	if cfg.DatabaseURL == "" {

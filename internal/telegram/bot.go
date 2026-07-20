@@ -91,6 +91,11 @@ type Config struct {
 	// telebot.OnQuery unregistered entirely, the same nil-safe convention
 	// every other optional Config field follows.
 	Suggest Suggester
+	// Feedback files /feedback notes into snagbox ([[snagbox-integration]]).
+	// Nil-safe: with no reporter wired (SNAGBOX_URL / SNAGBOX_INGEST_TOKEN
+	// unset), /feedback replies that feedback isn't available rather than
+	// failing — the same convention every optional field above follows.
+	Feedback FeedbackReporter
 }
 
 // mediaStore is the narrow slice of *storage.Store SendPhoto needs to cache
@@ -162,6 +167,10 @@ type Bot struct {
 	// Config.Store, the same *storage.Store already satisfying userStore
 	// and mediaStore above — nil-safe the same way those are.
 	exerciseStore openExerciseStore
+	// feedback files /feedback notes into snagbox — nil until Config.Feedback
+	// is wired, at which point handleFeedback files instead of replying that
+	// feedback is unavailable (see feedback.go).
+	feedback FeedbackReporter
 
 	remindedMu  sync.Mutex
 	remindState map[uuid.UUID]reminderState // userID -> today's reminder progress
@@ -205,6 +214,7 @@ func New(cfg Config) (*Bot, error) {
 		game:          cfg.Game,
 		suggest:       cfg.Suggest,
 		exerciseStore: cfg.Store,
+		feedback:      cfg.Feedback,
 		remindState:   make(map[uuid.UUID]reminderState),
 		gameRuns:      make(map[int64]*gameRun),
 	}
@@ -220,6 +230,10 @@ func New(cfg Config) (*Bot, error) {
 	tb.Handle("/introduce", b.wrap(b.handleStudy)) // alias that fetches more intro cards on demand (decision 2)
 	tb.Handle("/topics", b.wrap(b.handleTopics))
 	tb.Handle("/game", b.wrap(b.handleGame))
+	// /feedback is registered unconditionally (like /study, /topics, /game):
+	// handleFeedback is nil-safe and replies "not available" until a reporter
+	// is wired, so it never intercepts anything it can't serve.
+	tb.Handle("/feedback", b.wrap(b.handleFeedback))
 	tb.Handle(telebot.OnCallback, b.wrap(b.handleCallback))
 	// OnText (free-typed answers) is only registered when Trainer is
 	// wired: the legacy bot never listened for plain text at all, and
@@ -260,6 +274,7 @@ var botCommands = []telebot.Command{
 	{Text: "game", Description: "Play a quick game (no scheduling)"},
 	{Text: "settings", Description: "Daily cap, reminders, button style"},
 	{Text: "stats", Description: "Your progress and mix-ups"},
+	{Text: "feedback", Description: "Report a bug or send feedback"},
 	{Text: "help", Description: "How geodrill works"},
 	{Text: "start", Description: "Register and pick decks"},
 }
