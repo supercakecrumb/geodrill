@@ -13,6 +13,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	telebot "gopkg.in/telebot.v4"
 
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/storage/objstore"
 	"github.com/supercakecrumb/geodrill/internal/suggest"
 )
 
@@ -96,6 +98,11 @@ type Config struct {
 	// unset), /feedback replies that feedback isn't available rather than
 	// failing — the same convention every optional field above follows.
 	Feedback FeedbackReporter
+	// Objects is the Garage object store SendPhoto streams S3-backed images
+	// from on a file_id cache miss (objectFetcher's doc). Nil-safe: unset (the
+	// default when GARAGE_* env is absent) just means garage:// media refs
+	// can't be sent — disk-backed images (flags) are unaffected.
+	Objects objectFetcher
 }
 
 // mediaStore is the narrow slice of *storage.Store SendPhoto needs to cache
@@ -108,6 +115,19 @@ type Config struct {
 type mediaStore interface {
 	GetMediaByLocalPath(ctx context.Context, localPath string) (storage.MediaFile, bool, error)
 	SetMediaTelegramFileID(ctx context.Context, mediaID uuid.UUID, fileID string) error
+}
+
+// objectFetcher is the narrow slice of the Garage object store SendPhoto needs
+// to stream a city-map image the ONE time it isn't already cached as a
+// telegram_file_id: fetch the object bytes for a garage:// media reference
+// (internal/storage/objstore). Declared locally the same way mediaStore is, so
+// tbSession depends on an interface (objstore.Store satisfies it directly, no
+// adapter) and can be faked in tests. Optional and nil-safe: a nil fetcher
+// means S3-backed images simply can't be sent (they degrade to nothing/text),
+// exactly like a nil media store degrades caching — the bot never fails to
+// start over it.
+type objectFetcher interface {
+	GetObject(ctx context.Context, bucket, key string) (io.ReadCloser, error)
 }
 
 // openExerciseStore is the narrow store surface handleQuery needs to look up
@@ -145,6 +165,12 @@ type Bot struct {
 	// package tests build fakeSession/Session directly and never exercise
 	// tbSession at all, so they're unaffected either way).
 	media mediaStore
+
+	// objects streams S3-backed (garage://) images for SendPhoto's one-time
+	// cache-miss fetch (objectFetcher's doc). Set from Config.Objects; nil-safe
+	// the same way media is — a nil fetcher just means garage:// refs can't be
+	// sent, disk-backed flags are untouched.
+	objects objectFetcher
 
 	// study is nil until a later wave wires Config.StudyService — every
 	// call site checks it before use (see study.go).
@@ -211,6 +237,7 @@ func New(cfg Config) (*Bot, error) {
 		tb:            tb,
 		store:         cfg.Store,
 		media:         cfg.Store,
+		objects:       cfg.Objects,
 		logger:        logger,
 		now:           now,
 		username:      tb.Me.Username,
@@ -297,7 +324,7 @@ func (b *Bot) wrap(h func(context.Context, Session) error) telebot.HandlerFunc {
 			}
 		}()
 
-		s := &tbSession{bot: b.tb, ctx: c, media: b.media, logger: b.logger}
+		s := &tbSession{bot: b.tb, ctx: c, media: b.media, objects: b.objects, logger: b.logger}
 		if herr := h(context.Background(), s); herr != nil {
 			b.logger.Error("telegram: handler error", "error", herr)
 		}
@@ -537,10 +564,11 @@ func (b *Bot) setReminderState(userID uuid.UUID, st reminderState) {
 // tbSession adapts a telebot.Context (plus the *telebot.Bot, needed for the
 // send/edit calls that must return the sent message id) to Session.
 type tbSession struct {
-	bot    *telebot.Bot
-	ctx    telebot.Context
-	media  mediaStore
-	logger *slog.Logger
+	bot     *telebot.Bot
+	ctx     telebot.Context
+	media   mediaStore
+	objects objectFetcher
+	logger  *slog.Logger
 }
 
 func (s *tbSession) UserID() int64 {
@@ -616,33 +644,55 @@ func (s *tbSession) EditMessage(messageID int64, text string, rows [][]Btn) erro
 // in-place edit (see the Session.SendPhoto doc comment).
 //
 // File_id caching (architecture §2.8 decision 6): the FIRST send for a
-// given local path uploads from disk and caches the Telegram file_id
+// given media identity uploads the bytes and caches the Telegram file_id
 // Telegram returns into media_files; every SUBSEQUENT send for the same
-// path reuses that cached file_id (telebot.File{FileID: ...}) instead of
-// re-uploading the file from disk. A nil media store, a lookup error, or a
-// path with no media_files row (asset not ingested yet) all fall back to
-// the original always-send-from-disk behavior — caching is a pure
-// optimization, never a correctness requirement, so any failure along this
-// path is logged (when a logger is available) rather than surfaced to the
-// caller.
+// identity reuses that cached file_id (telebot.File{FileID: ...}) and
+// transfers no bytes — never touching disk OR S3.
+//
+// Where the bytes come from on that first send depends on the media identity's
+// scheme (vibe/design-cities.md), resolved by resolvePhotoFile:
+//   - a bare disk path (flags, "data/flags/xx.png") → telebot.FromDisk, exactly
+//     as before.
+//   - a "garage://<bucket>/<key>" reference (city maps) → streamed once from the
+//     Garage object store (s.objects) via telebot.FromReader; the stream is
+//     closed after Send. A garage ref with no object fetcher wired, or a fetch
+//     error, is a hard failure for that send (we have no bytes to send) — it's
+//     logged and the error returned, unlike the disk/cache optimizations below.
+//
+// For the disk path, caching stays a pure optimization: a nil media store, a
+// lookup error, or a path with no media_files row all fall back to
+// always-send-from-disk, logged (when a logger is available) rather than
+// surfaced to the caller.
 func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error) {
-	file := telebot.FromDisk(path)
-	var mediaID uuid.UUID
-	cached := false
+	ctx := context.Background()
 
+	var mediaID uuid.UUID
+	cachedFileID := ""
 	if s.media != nil {
-		if mf, ok, err := s.media.GetMediaByLocalPath(context.Background(), path); err != nil {
+		if mf, ok, err := s.media.GetMediaByLocalPath(ctx, path); err != nil {
 			if s.logger != nil {
 				s.logger.Warn("telegram: media file_id lookup failed", "path", path, "error", err)
 			}
 		} else if ok {
 			mediaID = mf.ID
-			if mf.TelegramFileID != "" {
-				file = telebot.File{FileID: mf.TelegramFileID}
-				cached = true
-			}
+			cachedFileID = mf.TelegramFileID
 		}
 	}
+
+	file, rc, err := resolvePhotoFile(ctx, path, cachedFileID, s.objects)
+	if err != nil {
+		// Only a garage ref we can't fetch reaches here — no bytes, no send.
+		if s.logger != nil {
+			s.logger.Warn("telegram: resolve photo source failed", "path", path, "error", err)
+		}
+		return 0, err
+	}
+	if rc != nil {
+		// telebot reads the stream synchronously during Send, so closing after
+		// Send returns is safe (and required — the object store stream is live).
+		defer rc.Close()
+	}
+	cached := cachedFileID != ""
 
 	photo := &telebot.Photo{File: file, Caption: caption}
 	msg, err := s.bot.Send(s.ctx.Chat(), photo, buildMarkup(rows), telebot.ModeHTML)
@@ -651,12 +701,41 @@ func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error)
 	}
 
 	if !cached && mediaID != uuid.Nil && msg.Photo != nil && msg.Photo.FileID != "" {
-		if serr := s.media.SetMediaTelegramFileID(context.Background(), mediaID, msg.Photo.FileID); serr != nil && s.logger != nil {
+		if serr := s.media.SetMediaTelegramFileID(ctx, mediaID, msg.Photo.FileID); serr != nil && s.logger != nil {
 			s.logger.Warn("telegram: cache media file_id failed", "path", path, "error", serr)
 		}
 	}
 
 	return int64(msg.ID), nil
+}
+
+// resolvePhotoFile decides where a photo's bytes come from for one send, given
+// the media identity (path), any cached telegram_file_id, and an optional
+// object fetcher. It is the testable core of SendPhoto's scheme branch (no
+// telebot.Bot, no network): the cached-file_id fast path short-circuits before
+// either disk or S3 is consulted, a garage:// ref streams from the fetcher, and
+// anything else reads from disk.
+//
+// When it returns a non-nil io.ReadCloser, the caller owns it and must Close it
+// after the send completes (the object-store stream stays open until then).
+func resolvePhotoFile(ctx context.Context, path, cachedFileID string, objects objectFetcher) (telebot.File, io.ReadCloser, error) {
+	// Cache hit: reuse the file_id, touch neither disk nor S3.
+	if cachedFileID != "" {
+		return telebot.File{FileID: cachedFileID}, nil, nil
+	}
+	// S3-backed city map: stream the bytes once from Garage.
+	if bucket, key, ok := objstore.ParseGarageRef(path); ok {
+		if objects == nil {
+			return telebot.File{}, nil, fmt.Errorf("telegram: cannot send %q: no object store configured", path)
+		}
+		rc, err := objects.GetObject(ctx, bucket, key)
+		if err != nil {
+			return telebot.File{}, nil, fmt.Errorf("telegram: fetch %q from object store: %w", path, err)
+		}
+		return telebot.FromReader(rc), rc, nil
+	}
+	// Disk-backed asset (flags): unchanged behavior.
+	return telebot.FromDisk(path), nil, nil
 }
 
 // EditCaption replaces a photo message's caption and keyboard in place, the

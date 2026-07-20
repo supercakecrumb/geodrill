@@ -69,3 +69,15 @@ func (s *Store) GetMediaByLocalPath(ctx context.Context, localPath string) (Medi
 func (s *Store) SetMediaTelegramFileID(ctx context.Context, mediaID uuid.UUID, fileID string) error {
 	return s.q.SetMediaTelegramFileID(ctx, db.SetMediaTelegramFileIDParams{ID: mediaID, TelegramFileID: pgText(fileID)})
 }
+
+// ListMediaLocalPathsByPrefix returns every media_files.local_path beginning
+// with prefix, sorted — used by the cities seeder to learn which city-map
+// images have already been uploaded+registered (keyed on the
+// "garage://apps-geodrill/citymaps/" prefix).
+//
+// NOTE: the underlying query is `LIKE prefix || '%'`, so a prefix containing
+// SQL LIKE metacharacters (% or _) would misbehave. This is NOT for user
+// input — callers pass fixed literal prefixes only.
+func (s *Store) ListMediaLocalPathsByPrefix(ctx context.Context, prefix string) ([]string, error) {
+	return s.q.ListMediaLocalPathsByPrefix(ctx, pgText(prefix))
+}

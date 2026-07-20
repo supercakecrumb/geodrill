@@ -173,6 +173,9 @@ type Querier interface {
 	// Items with no country link (language topics: special characters, common
 	// words, guess-the-language) — the input to the language relevance pass.
 	ListLanguageItems(ctx context.Context) ([]Item, error)
+	// Every media_files.local_path beginning with the given prefix — used by the
+	// cities seeder to learn which city-map images have been uploaded+registered.
+	ListMediaLocalPathsByPrefix(ctx context.Context, prefix pgtype.Text) ([]string, error)
 	// GeoGuessr-only filter: LEFT JOIN items so legacy item-less rows are kept
 	// when gg_only is off, and dropped only under gg_only (a NULL gg_relevant
 	// fails the predicate) — the same no-extra-param, user_id-drives-the-flag

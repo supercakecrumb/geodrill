@@ -20,3 +20,8 @@ SELECT * FROM media_files WHERE local_path = $1;
 -- Caches the Telegram file_id after first upload so later sends can reuse it
 -- and skip re-uploading the asset (architecture §2.8, decision 6).
 UPDATE media_files SET telegram_file_id = $2 WHERE id = $1;
+
+-- name: ListMediaLocalPathsByPrefix :many
+-- Every media_files.local_path beginning with the given prefix — used by the
+-- cities seeder to learn which city-map images have been uploaded+registered.
+SELECT local_path FROM media_files WHERE local_path LIKE sqlc.arg(prefix) || '%' ORDER BY local_path;

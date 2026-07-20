@@ -24,6 +24,26 @@ type Config struct {
 	// snagbox project, and stays server-side (never shipped to clients).
 	SnagboxURL         string // SNAGBOX_URL (e.g. https://snagbox.example.com)
 	SnagboxIngestToken string // SNAGBOX_INGEST_TOKEN (write-only, per-project)
+
+	// Garage is the S3-compatible object store holding city-map PNGs
+	// ([[deployment]], vibe/design-cities.md). ALL fields are OPTIONAL and
+	// server-side only (sourced from OpenBao in production): with them unset
+	// the bot simply can't fetch S3-backed images, so city maps degrade to
+	// text — the same nil-safe posture Snagbox takes above. Load never fails
+	// when they're absent; GarageConfigured() reports whether enough is set
+	// to build an object-store client. The keys are secrets — never logged.
+	GarageEndpoint  string // GARAGE_S3_ENDPOINT (e.g. http://garage:3900)
+	GarageRegion    string // GARAGE_S3_REGION (default "garage" when unset)
+	GarageAccessKey string // GARAGE_ACCESS_KEY_ID
+	GarageSecretKey string // GARAGE_SECRET_ACCESS_KEY
+	GarageBucket    string // GARAGE_BUCKET (default "apps-geodrill" when unset)
+}
+
+// GarageConfigured reports whether the Garage object store has enough
+// configuration to build a client: an endpoint plus both credentials. Region
+// and bucket always have defaults (see Load), so they don't gate this.
+func (c Config) GarageConfigured() bool {
+	return c.GarageEndpoint != "" && c.GarageAccessKey != "" && c.GarageSecretKey != ""
 }
 
 // Load reads configuration from the environment. requireToken controls whether
@@ -37,6 +57,22 @@ func Load(requireToken bool) (Config, error) {
 
 		SnagboxURL:         os.Getenv("SNAGBOX_URL"),
 		SnagboxIngestToken: os.Getenv("SNAGBOX_INGEST_TOKEN"),
+
+		GarageEndpoint:  os.Getenv("GARAGE_S3_ENDPOINT"),
+		GarageRegion:    os.Getenv("GARAGE_S3_REGION"),
+		GarageAccessKey: os.Getenv("GARAGE_ACCESS_KEY_ID"),
+		GarageSecretKey: os.Getenv("GARAGE_SECRET_ACCESS_KEY"),
+		GarageBucket:    os.Getenv("GARAGE_BUCKET"),
+	}
+
+	// Region and bucket have stable defaults so callers never have to set
+	// them for a standard Garage deployment; the credentials/endpoint stay
+	// unset-means-disabled (GarageConfigured).
+	if cfg.GarageRegion == "" {
+		cfg.GarageRegion = "garage"
+	}
+	if cfg.GarageBucket == "" {
+		cfg.GarageBucket = "apps-geodrill"
 	}
 
 	if cfg.DatabaseURL == "" {

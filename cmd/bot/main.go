@@ -19,6 +19,7 @@ import (
 	"github.com/supercakecrumb/geodrill/internal/feedback"
 	"github.com/supercakecrumb/geodrill/internal/game"
 	"github.com/supercakecrumb/geodrill/internal/storage"
+	"github.com/supercakecrumb/geodrill/internal/storage/objstore"
 	"github.com/supercakecrumb/geodrill/internal/study"
 	"github.com/supercakecrumb/geodrill/internal/suggest"
 	"github.com/supercakecrumb/geodrill/internal/telegram"
@@ -61,6 +62,23 @@ func run() error {
 		return fmt.Errorf("open store: %w", err)
 	}
 	defer store.Close()
+
+	// Garage object store for city-map images (vibe/design-cities.md). Wired
+	// only when GARAGE_* is configured; left nil otherwise so SendPhoto's
+	// garage:// branch degrades cleanly (city maps aren't sent) while
+	// disk-backed flags keep working. The interface-typed var stays a true nil
+	// interface when unset so telegram's nil check holds.
+	var objStore objstore.Store
+	if cfg.GarageConfigured() {
+		s, err := objstore.New(cfg.GarageEndpoint, cfg.GarageRegion, cfg.GarageAccessKey, cfg.GarageSecretKey)
+		if err != nil {
+			return fmt.Errorf("build object store: %w", err)
+		}
+		objStore = s
+		logger.Info("garage object store configured", "endpoint", cfg.GarageEndpoint, "bucket", cfg.GarageBucket)
+	} else {
+		logger.Info("garage object store not configured (GARAGE_* unset) — S3-backed images will not be sent")
+	}
 
 	sched := engram.NewScheduler(engram.WithRetention(cfg.FSRSRetention))
 
@@ -186,6 +204,7 @@ func run() error {
 		Game:           telegram.NewGameService(gameEngine, store, time.Now().UnixNano()),
 		Suggest:        suggestIdx,
 		Feedback:       feedbackReporter,
+		Objects:        objStore,
 	})
 	if err != nil {
 		return fmt.Errorf("build bot: %w", err)

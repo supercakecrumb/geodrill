@@ -54,6 +54,32 @@ func (q *Queries) GetMediaByLocalPath(ctx context.Context, localPath string) (Me
 	return i, err
 }
 
+const listMediaLocalPathsByPrefix = `-- name: ListMediaLocalPathsByPrefix :many
+SELECT local_path FROM media_files WHERE local_path LIKE $1 || '%' ORDER BY local_path
+`
+
+// Every media_files.local_path beginning with the given prefix — used by the
+// cities seeder to learn which city-map images have been uploaded+registered.
+func (q *Queries) ListMediaLocalPathsByPrefix(ctx context.Context, prefix pgtype.Text) ([]string, error) {
+	rows, err := q.db.Query(ctx, listMediaLocalPathsByPrefix, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var local_path string
+		if err := rows.Scan(&local_path); err != nil {
+			return nil, err
+		}
+		items = append(items, local_path)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const putMediaFile = `-- name: PutMediaFile :one
 INSERT INTO media_files (content_id, local_path, sha256, telegram_file_id, width, height, bytes)
 VALUES ($1, $2, $3, $4, $5, $6, $7)

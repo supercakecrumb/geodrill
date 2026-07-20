@@ -922,6 +922,44 @@ func TestMediaFiles(t *testing.T) {
 	}
 }
 
+// TestListMediaLocalPathsByPrefix covers the cities-seeder presence-check
+// query: it returns only the media rows whose local_path begins with the given
+// prefix (the "garage://apps-geodrill/citymaps/" convention), leaving disk-path
+// rows and other-prefix rows out.
+func TestListMediaLocalPathsByPrefix(t *testing.T) {
+	dsn := testDSN(t)
+	freshSchema(t, dsn)
+
+	ctx := context.Background()
+	st, err := storage.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer st.Close()
+
+	const prefix = "garage://apps-geodrill/citymaps/"
+	w, h, n := 100, 100, 1000
+	// Two matching city-map refs and one non-matching disk-backed flag row.
+	if _, err := st.PutMediaFile(ctx, nil, prefix+"paris.png", "sha-paris", &w, &h, &n); err != nil {
+		t.Fatalf("put city map paris: %v", err)
+	}
+	if _, err := st.PutMediaFile(ctx, nil, prefix+"berlin.png", "sha-berlin", &w, &h, &n); err != nil {
+		t.Fatalf("put city map berlin: %v", err)
+	}
+	if _, err := st.PutMediaFile(ctx, nil, "data/flags/fr.png", "sha-flag", &w, &h, &n); err != nil {
+		t.Fatalf("put flag: %v", err)
+	}
+
+	got, err := st.ListMediaLocalPathsByPrefix(ctx, prefix)
+	if err != nil {
+		t.Fatalf("list by prefix: %v", err)
+	}
+	want := []string{prefix + "berlin.png", prefix + "paris.png"} // ORDER BY local_path
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("prefix query returned %v, want %v", got, want)
+	}
+}
+
 func TestTierProgress(t *testing.T) {
 	dsn := testDSN(t)
 	freshSchema(t, dsn)
