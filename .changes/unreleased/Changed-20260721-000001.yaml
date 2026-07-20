@@ -1,0 +1,3 @@
+kind: Changed
+body: The intro card's middle button is now "🧠 I know" (was "🧠 I know this") — the longer label got truncated to "I k…this" in Telegram's button UI.
+time: 2026-07-21T00:00:01Z

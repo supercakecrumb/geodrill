@@ -138,7 +138,7 @@ const helpFSRSText = "📚 How spaced repetition works\n\n" +
 
 const helpIntroButtonsText = "🎓 The intro buttons explained\n\n" +
 	"«Got it» — the item is introduced and will come up for review soon.\n\n" +
-	"«I know this» — the item is marked known immediately, scheduled far out (~2 weeks) " +
+	"«I know» — the item is marked known immediately, scheduled far out (~2 weeks) " +
 	"to verify later, and does NOT consume the daily intro budget.\n\n" +
 	"«Know it, but test me» — introduced like «Got it», so it shows up in reviews for " +
 	"you to prove it."
@@ -388,7 +388,7 @@ func helpCommandsText(hasStudy, hasTopics, hasGame, hasFeedback bool) string {
 	b.WriteString("🧭 Commands\n\n")
 	b.WriteString("/train — next due review, scheduled by FSRS\n")
 	if hasStudy {
-		b.WriteString("/study — teaching cards for new items (✅ Got it / 🧠 I know this / 🎯 Test me); /introduce fetches more on demand\n")
+		b.WriteString("/study — teaching cards for new items (✅ Got it / 🧠 I know / 🎯 Test me); /introduce fetches more on demand\n")
 	}
 	if hasTopics {
 		b.WriteString("/topics — browse topics, tiers, and your progress; toggle what you study\n")

@@ -89,11 +89,11 @@ func introCloserText(card IntroCard) string {
 }
 
 // introButtonRows renders an intro card's three outcome buttons on one row,
-// per architecture §5.1's mock: [✅ Got it] [🧠 I know this] [🎯 Test me].
+// per architecture §5.1's mock: [✅ Got it] [🧠 I know] [🎯 Test me].
 func introButtonRows(introID uuid.UUID, media bool) [][]Btn {
 	return [][]Btn{{
 		{Label: "✅ Got it", Data: introCallbackData(introID, engram.IntroGotIt, media)},
-		{Label: "🧠 I know this", Data: introCallbackData(introID, engram.IntroKnown, media)},
+		{Label: "🧠 I know", Data: introCallbackData(introID, engram.IntroKnown, media)},
 		{Label: "🎯 Test me", Data: introCallbackData(introID, engram.IntroTestMe, media)},
 	}}
 }
