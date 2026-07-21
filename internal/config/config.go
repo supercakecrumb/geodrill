@@ -37,6 +37,14 @@ type Config struct {
 	GarageAccessKey string // GARAGE_ACCESS_KEY_ID
 	GarageSecretKey string // GARAGE_SECRET_ACCESS_KEY
 	GarageBucket    string // GARAGE_BUCKET (default "apps-geodrill" when unset)
+
+	// NaturalEarthPath is the Natural Earth 1:10m admin-0 countries GeoJSON the
+	// runtime city-map renderer draws from (internal/citymap.NewRenderer). It is
+	// OPTIONAL: with the file absent the renderer is unavailable and city maps
+	// degrade to text (the same nil-safe posture Garage takes above). The bot
+	// image bakes the file in at the default location; NATURAL_EARTH_PATH
+	// overrides it.
+	NaturalEarthPath string // NATURAL_EARTH_PATH (default data/naturalearth/ne_10m_admin_0_countries.geojson)
 }
 
 // GarageConfigured reports whether the Garage object store has enough
@@ -63,6 +71,14 @@ func Load(requireToken bool) (Config, error) {
 		GarageAccessKey: os.Getenv("GARAGE_ACCESS_KEY_ID"),
 		GarageSecretKey: os.Getenv("GARAGE_SECRET_ACCESS_KEY"),
 		GarageBucket:    os.Getenv("GARAGE_BUCKET"),
+
+		NaturalEarthPath: os.Getenv("NATURAL_EARTH_PATH"),
+	}
+
+	// The renderer's basemap has a stable default location (the bot image bakes
+	// it there); NATURAL_EARTH_PATH only overrides it.
+	if cfg.NaturalEarthPath == "" {
+		cfg.NaturalEarthPath = "data/naturalearth/ne_10m_admin_0_countries.geojson"
 	}
 
 	// Region and bucket have stable defaults so callers never have to set

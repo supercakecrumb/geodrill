@@ -109,6 +109,12 @@ func seedPath(name string) string {
 func citiesSeedPath() string    { return seedPath("cities.yaml") }
 func cityFactsSeedPath() string { return seedPath("city_facts.yaml") }
 
+// CitiesSeedPath is the exported resolver for seeds/cities.yaml, so callers
+// outside this package (cmd/bot and cmd/citymapsync, which build the on-demand
+// city-map renderer) read the exact same seed file this package's own loaders
+// do — one source of truth for the seed location.
+func CitiesSeedPath() string { return citiesSeedPath() }
+
 // loadCitiesFile reads and parses seeds/cities.yaml at path.
 func loadCitiesFile(path string) (citiesSeedFile, error) {
 	data, err := os.ReadFile(path)
@@ -145,15 +151,19 @@ func loadCityFacts(path string) (map[string]cityFactSeed, error) {
 	return out, nil
 }
 
-// syncedMapImage returns the city's map-image filename when its garage:// ref
-// is present in the synced set (registered in media_files), else "" — the
-// presence-at-seed-time decision that keeps the generator IO-free.
-func syncedMapImage(key string, synced map[string]bool) string {
-	file := citymap.ImageFileName(key)
-	if synced[MediaRootRef+"/"+file] {
-		return file
+// mapImageForCoords returns the city's map-image filename when the city HAS
+// coordinates (a non-zero lat OR lng), else "" (text fallback). City maps are
+// rendered on demand at first Telegram send (internal/telegram SendPhoto via
+// internal/citymap.Renderer) and cached as a telegram_file_id thereafter, so a
+// map no longer has to be pre-rendered and registered in media_files to be
+// usable — every city with a location gets a map_image, and Garage is an
+// optional persistence layer rather than a prerequisite. A city with no
+// coordinates (exactly (0,0)) can't be framed, so it keeps map_image = "".
+func mapImageForCoords(key string, lat, lng float64) string {
+	if lat == 0 && lng == 0 {
+		return ""
 	}
-	return ""
+	return citymap.ImageFileName(key)
 }
 
 // factFor returns the scraped blurb + source URL for a city, but ONLY for
@@ -220,19 +230,6 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 		return err
 	}
 
-	// Presence-at-seed-time: the set of city-map images already synced to
-	// Garage + registered in media_files, keyed by their garage:// ref. A
-	// city's payload gets map_image only when its ref is in this set; a
-	// re-seed after syncing more images fills in more map_image values.
-	refList, err := store.ListMediaLocalPathsByPrefix(ctx, MediaRootRef+"/")
-	if err != nil {
-		return fmt.Errorf("cities: list synced city-map refs: %w", err)
-	}
-	synced := make(map[string]bool, len(refList))
-	for _, r := range refList {
-		synced[r] = true
-	}
-
 	entries := sortByPopulationDesc(sf.Cities)
 
 	// Resolve every referenced country against the already-seeded country
@@ -260,7 +257,7 @@ func SeedFromFile(ctx context.Context, store *storage.Store, path string) error 
 	for _, e := range entries {
 		c := byISO[e.Country]
 		tier := e.Tier // local copy — avoid aliasing the loop variable's address
-		mapImage := syncedMapImage(e.Key, synced)
+		mapImage := mapImageForCoords(e.Key, e.Lat, e.Lng)
 		fact, factURL := factFor(e.Tier, e.Key, facts)
 
 		items = append(items, engine.ItemSeed{

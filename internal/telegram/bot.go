@@ -11,7 +11,10 @@
 package telegram
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -24,6 +27,7 @@ import (
 	"github.com/supercakecrumb/engram/quiz"
 	telebot "gopkg.in/telebot.v4"
 
+	"github.com/supercakecrumb/geodrill/internal/citymap"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/storage/objstore"
 	"github.com/supercakecrumb/geodrill/internal/suggest"
@@ -99,10 +103,17 @@ type Config struct {
 	// failing — the same convention every optional field above follows.
 	Feedback FeedbackReporter
 	// Objects is the Garage object store SendPhoto streams S3-backed images
-	// from on a file_id cache miss (objectFetcher's doc). Nil-safe: unset (the
-	// default when GARAGE_* env is absent) just means garage:// media refs
-	// can't be sent — disk-backed images (flags) are unaffected.
-	Objects objectFetcher
+	// from on a file_id cache miss and persists on-demand renders to
+	// (objectStore's doc). Nil-safe: unset (the default when GARAGE_* env is
+	// absent) just means city maps are never persisted — they still render and
+	// send when MapRenderer is wired, just re-render if the file_id is ever
+	// lost. Disk-backed images (flags) are unaffected either way.
+	Objects objectStore
+	// MapRenderer renders a city map in-process on a file_id + object-store
+	// miss (mapRenderer's doc), so maps are produced lazily at first send with
+	// no offline batch/upload step. Nil-safe: unset (e.g. the Natural Earth
+	// data isn't present) means city maps degrade to text.
+	MapRenderer mapRenderer
 }
 
 // mediaStore is the narrow slice of *storage.Store SendPhoto needs to cache
@@ -115,19 +126,37 @@ type Config struct {
 type mediaStore interface {
 	GetMediaByLocalPath(ctx context.Context, localPath string) (storage.MediaFile, bool, error)
 	SetMediaTelegramFileID(ctx context.Context, mediaID uuid.UUID, fileID string) error
+	// PutMediaFile registers (upserts) a media_files row keyed on local_path.
+	// SendPhoto uses it to persist an on-demand-rendered city map's row BEFORE
+	// it writes the returned file_id back (so the cache write-back has a row to
+	// key on) — see resolvePhotoFile. *storage.Store satisfies it directly
+	// (internal/storage/media.go).
+	PutMediaFile(ctx context.Context, contentID *uuid.UUID, localPath, sha256 string, width, height, bytes *int) (storage.MediaFile, error)
 }
 
-// objectFetcher is the narrow slice of the Garage object store SendPhoto needs
-// to stream a city-map image the ONE time it isn't already cached as a
-// telegram_file_id: fetch the object bytes for a garage:// media reference
+// objectStore is the narrow slice of the Garage object store SendPhoto needs to
+// stream a city-map image the ONE time it isn't already cached as a
+// telegram_file_id, and to PERSIST an on-demand render so the next send seeds
+// the file_id cache: fetch/put object bytes for a garage:// media reference
 // (internal/storage/objstore). Declared locally the same way mediaStore is, so
 // tbSession depends on an interface (objstore.Store satisfies it directly, no
-// adapter) and can be faked in tests. Optional and nil-safe: a nil fetcher
-// means S3-backed images simply can't be sent (they degrade to nothing/text),
-// exactly like a nil media store degrades caching — the bot never fails to
-// start over it.
-type objectFetcher interface {
+// adapter) and can be faked in tests. Optional and nil-safe: a nil store means
+// city maps aren't persisted (they still render on demand from the renderer),
+// so the bot never fails to start over it.
+type objectStore interface {
 	GetObject(ctx context.Context, bucket, key string) (io.ReadCloser, error)
+	PutObject(ctx context.Context, bucket, key string, r io.Reader, size int64, contentType string) error
+}
+
+// mapRenderer renders a city map in-process from the city's coordinates when no
+// telegram_file_id is cached and no object exists in Garage (or no object store
+// is wired) — the "render on miss" fallback that makes offline batch rendering
+// unnecessary (internal/citymap.Renderer satisfies it). RenderPNG returns
+// ok=false (no error) for a city with no coordinates, so the caller falls back
+// to text. Declared locally, nil-safe: a nil renderer means a city map that
+// isn't already cached/persisted can't be produced — it degrades to text.
+type mapRenderer interface {
+	RenderPNG(key string) ([]byte, bool, error)
 }
 
 // openExerciseStore is the narrow store surface handleQuery needs to look up
@@ -167,10 +196,16 @@ type Bot struct {
 	media mediaStore
 
 	// objects streams S3-backed (garage://) images for SendPhoto's one-time
-	// cache-miss fetch (objectFetcher's doc). Set from Config.Objects; nil-safe
-	// the same way media is — a nil fetcher just means garage:// refs can't be
-	// sent, disk-backed flags are untouched.
-	objects objectFetcher
+	// cache-miss fetch and persists on-demand renders (objectStore's doc). Set
+	// from Config.Objects; nil-safe the same way media is — a nil store just
+	// means city maps aren't persisted, disk-backed flags are untouched.
+	objects objectStore
+
+	// renderer produces a city map in-process when neither a cached file_id nor
+	// a persisted object is available (mapRenderer's doc). Set from
+	// Config.MapRenderer; nil-safe — a nil renderer degrades uncached city maps
+	// to text.
+	renderer mapRenderer
 
 	// study is nil until a later wave wires Config.StudyService — every
 	// call site checks it before use (see study.go).
@@ -238,6 +273,7 @@ func New(cfg Config) (*Bot, error) {
 		store:         cfg.Store,
 		media:         cfg.Store,
 		objects:       cfg.Objects,
+		renderer:      cfg.MapRenderer,
 		logger:        logger,
 		now:           now,
 		username:      tb.Me.Username,
@@ -324,7 +360,7 @@ func (b *Bot) wrap(h func(context.Context, Session) error) telebot.HandlerFunc {
 			}
 		}()
 
-		s := &tbSession{bot: b.tb, ctx: c, media: b.media, objects: b.objects, logger: b.logger}
+		s := &tbSession{bot: b.tb, ctx: c, media: b.media, objects: b.objects, renderer: b.renderer, logger: b.logger}
 		if herr := h(context.Background(), s); herr != nil {
 			b.logger.Error("telegram: handler error", "error", herr)
 		}
@@ -564,11 +600,12 @@ func (b *Bot) setReminderState(userID uuid.UUID, st reminderState) {
 // tbSession adapts a telebot.Context (plus the *telebot.Bot, needed for the
 // send/edit calls that must return the sent message id) to Session.
 type tbSession struct {
-	bot     *telebot.Bot
-	ctx     telebot.Context
-	media   mediaStore
-	objects objectFetcher
-	logger  *slog.Logger
+	bot      *telebot.Bot
+	ctx      telebot.Context
+	media    mediaStore
+	objects  objectStore
+	renderer mapRenderer
+	logger   *slog.Logger
 }
 
 func (s *tbSession) UserID() int64 {
@@ -653,16 +690,20 @@ func (s *tbSession) EditMessage(messageID int64, text string, rows [][]Btn) erro
 // scheme (vibe/design-cities.md), resolved by resolvePhotoFile:
 //   - a bare disk path (flags, "data/flags/xx.png") → telebot.FromDisk, exactly
 //     as before.
-//   - a "garage://<bucket>/<key>" reference (city maps) → streamed once from the
-//     Garage object store (s.objects) via telebot.FromReader; the stream is
-//     closed after Send. A garage ref with no object fetcher wired, or a fetch
-//     error, is a hard failure for that send (we have no bytes to send) — it's
-//     logged and the error returned, unlike the disk/cache optimizations below.
+//   - a "garage://<bucket>/<key>" reference (city maps) → resolved by
+//     resolvePhotoFile: streamed once from the Garage object store (s.objects)
+//     when the object exists; on an object miss (or with no object store wired)
+//     rendered in-process by s.renderer and, when a store IS wired, persisted
+//     back to Garage + media_files so the next send seeds the file_id cache.
+//     Only when neither a persisted object NOR a renderer can produce bytes is
+//     the send a hard failure — logged and the error returned.
 //
-// For the disk path, caching stays a pure optimization: a nil media store, a
-// lookup error, or a path with no media_files row all fall back to
-// always-send-from-disk, logged (when a logger is available) rather than
-// surfaced to the caller.
+// resolvePhotoFile may create the media_files row on an on-demand render, so it
+// returns the effective media id to key the file_id write-back on (possibly a
+// freshly created row, not the one looked up above). For the disk path,
+// caching stays a pure optimization: a nil media store, a lookup error, or a
+// path with no media_files row all fall back to always-send-from-disk, logged
+// (when a logger is available) rather than surfaced to the caller.
 func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error) {
 	ctx := context.Background()
 
@@ -679,9 +720,10 @@ func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error)
 		}
 	}
 
-	file, rc, err := resolvePhotoFile(ctx, path, cachedFileID, s.objects)
+	file, rc, effMediaID, err := resolvePhotoFile(ctx, path, cachedFileID, mediaID, s.objects, s.media, s.renderer, s.logger)
 	if err != nil {
-		// Only a garage ref we can't fetch reaches here — no bytes, no send.
+		// Only a garage ref with no bytes at all (no object, no renderer) reaches
+		// here — nothing to send.
 		if s.logger != nil {
 			s.logger.Warn("telegram: resolve photo source failed", "path", path, "error", err)
 		}
@@ -700,8 +742,11 @@ func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error)
 		return 0, err
 	}
 
-	if !cached && mediaID != uuid.Nil && msg.Photo != nil && msg.Photo.FileID != "" {
-		if serr := s.media.SetMediaTelegramFileID(ctx, mediaID, msg.Photo.FileID); serr != nil && s.logger != nil {
+	// effMediaID is the row to cache the file_id on: the one looked up above, or
+	// a row resolvePhotoFile created when it persisted an on-demand render. It is
+	// non-nil only when a media store was involved, so s.media is safe here.
+	if !cached && effMediaID != uuid.Nil && msg.Photo != nil && msg.Photo.FileID != "" {
+		if serr := s.media.SetMediaTelegramFileID(ctx, effMediaID, msg.Photo.FileID); serr != nil && s.logger != nil {
 			s.logger.Warn("telegram: cache media file_id failed", "path", path, "error", serr)
 		}
 	}
@@ -710,32 +755,110 @@ func (s *tbSession) SendPhoto(path, caption string, rows [][]Btn) (int64, error)
 }
 
 // resolvePhotoFile decides where a photo's bytes come from for one send, given
-// the media identity (path), any cached telegram_file_id, and an optional
-// object fetcher. It is the testable core of SendPhoto's scheme branch (no
-// telebot.Bot, no network): the cached-file_id fast path short-circuits before
-// either disk or S3 is consulted, a garage:// ref streams from the fetcher, and
-// anything else reads from disk.
+// the media identity (path), any cached telegram_file_id, the media row id
+// looked up for it (uuid.Nil if none), and the optional object store, media
+// store, and renderer. It is the testable core of SendPhoto's scheme branch (no
+// telebot.Bot, no network) and returns the effective media id the caller should
+// cache the resulting file_id on — the passed-in one, or a row this function
+// creates when it persists an on-demand render.
 //
-// When it returns a non-nil io.ReadCloser, the caller owns it and must Close it
-// after the send completes (the object-store stream stays open until then).
-func resolvePhotoFile(ctx context.Context, path, cachedFileID string, objects objectFetcher) (telebot.File, io.ReadCloser, error) {
-	// Cache hit: reuse the file_id, touch neither disk nor S3.
+// Resolution order for a garage:// city-map ref with no cached file_id:
+//  1. object store present → try GetObject (the cold origin); on success, stream
+//     it (existing path).
+//  2. object miss/404, a fetch error, OR no object store → render in-process via
+//     the renderer (KeyFromImageFileName → RenderPNG). If it renders (ok), send
+//     those bytes; and when an object store IS wired, persist them to Garage
+//     (PutObject) + register a media_files row (PutMediaFile) so the next send
+//     seeds the file_id cache — the returned effective media id is that new row.
+//  3. renderer nil, no coords (ok=false), or a render error, and no object
+//     bytes → a hard failure (no bytes to send).
+//
+// The cached-file_id fast path short-circuits before any of this; a bare disk
+// path (flags) is unchanged. When it returns a non-nil io.ReadCloser, the
+// caller owns it and must Close it after the send completes (a rendered
+// bytes-reader needs no close and is returned as a nil ReadCloser).
+func resolvePhotoFile(
+	ctx context.Context,
+	path, cachedFileID string,
+	mediaID uuid.UUID,
+	objects objectStore,
+	media mediaStore,
+	renderer mapRenderer,
+	logger *slog.Logger,
+) (telebot.File, io.ReadCloser, uuid.UUID, error) {
+	// Cache hit: reuse the file_id, touch neither disk, S3, nor the renderer.
 	if cachedFileID != "" {
-		return telebot.File{FileID: cachedFileID}, nil, nil
+		return telebot.File{FileID: cachedFileID}, nil, mediaID, nil
 	}
-	// S3-backed city map: stream the bytes once from Garage.
-	if bucket, key, ok := objstore.ParseGarageRef(path); ok {
-		if objects == nil {
-			return telebot.File{}, nil, fmt.Errorf("telegram: cannot send %q: no object store configured", path)
-		}
+
+	bucket, key, isGarage := objstore.ParseGarageRef(path)
+	if !isGarage {
+		// Disk-backed asset (flags): unchanged behavior.
+		return telebot.FromDisk(path), nil, mediaID, nil
+	}
+
+	// S3-backed city map. First try Garage (the cold origin) when it's wired.
+	if objects != nil {
 		rc, err := objects.GetObject(ctx, bucket, key)
-		if err != nil {
-			return telebot.File{}, nil, fmt.Errorf("telegram: fetch %q from object store: %w", path, err)
+		if err == nil {
+			return telebot.FromReader(rc), rc, mediaID, nil
 		}
-		return telebot.FromReader(rc), rc, nil
+		// A miss/404 (or any fetch error) is NOT fatal — fall through to render.
+		if logger != nil {
+			logger.Debug("telegram: object store miss, rendering city map on demand", "path", path, "error", err)
+		}
 	}
-	// Disk-backed asset (flags): unchanged behavior.
-	return telebot.FromDisk(path), nil, nil
+
+	// Render on miss: produce the map in-process from the city's coordinates.
+	if renderer != nil {
+		renderKey := citymap.KeyFromImageFileName(baseName(key))
+		data, ok, rerr := renderer.RenderPNG(renderKey)
+		switch {
+		case rerr != nil:
+			if logger != nil {
+				logger.Warn("telegram: render city map on demand failed", "path", path, "key", renderKey, "error", rerr)
+			}
+		case ok:
+			effMediaID := mediaID
+			// Persist to Garage + media_files when a store is wired, so a later
+			// send reuses the seeded file_id and this render happens at most once.
+			// With no store this is a pure in-memory send (no persistence).
+			if objects != nil {
+				if perr := objects.PutObject(ctx, bucket, key, bytes.NewReader(data), int64(len(data)), "image/png"); perr != nil {
+					if logger != nil {
+						logger.Warn("telegram: persist rendered city map to object store failed", "path", path, "error", perr)
+					}
+				} else if media != nil {
+					sum := sha256.Sum256(data)
+					w, h, n := citymap.ImageWidth, citymap.ImageHeight, len(data)
+					if mf, merr := media.PutMediaFile(ctx, nil, path, hex.EncodeToString(sum[:]), &w, &h, &n); merr != nil {
+						if logger != nil {
+							logger.Warn("telegram: register rendered city map media row failed", "path", path, "error", merr)
+						}
+					} else {
+						effMediaID = mf.ID
+					}
+				}
+			}
+			return telebot.FromReader(bytes.NewReader(data)), nil, effMediaID, nil
+		}
+	}
+
+	// No renderer, no coords, or a render error — and no bytes from Garage.
+	if objects == nil {
+		return telebot.File{}, nil, mediaID, fmt.Errorf("telegram: cannot send %q: no object store configured and no map could be rendered", path)
+	}
+	return telebot.File{}, nil, mediaID, fmt.Errorf("telegram: cannot send %q: object missing and no map could be rendered", path)
+}
+
+// baseName returns the final path segment of a garage object key (always
+// '/'-separated, e.g. "citymaps/de-munich.png" → "de-munich.png"), the map
+// filename KeyFromImageFileName inverts back into a city key.
+func baseName(key string) string {
+	if i := strings.LastIndexByte(key, '/'); i >= 0 {
+		return key[i+1:]
+	}
+	return key
 }
 
 // EditCaption replaces a photo message's caption and keyboard in place, the

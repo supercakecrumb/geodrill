@@ -1,20 +1,18 @@
-// Command citymapsync uploads local city-map PNGs to the Garage S3 object
-// store and registers each as a media_files row keyed on its
-// "garage://<bucket>/citymaps/<file>" reference — the S3 counterpart to
-// cmd/flagassets (which only registers a bare on-disk path). The cities topic
-// resolves an item's map image by this garage:// ref; the bot streams the
-// bytes from Garage exactly once, on the first Telegram send, to seed the
-// telegram_file_id cache (internal/telegram SendPhoto, vibe/design-cities.md).
+// Command citymapsync is an OPTIONAL pre-warm tool: it renders every city map
+// in-process and uploads each to the Garage S3 object store, registering a
+// media_files row keyed on its "garage://<bucket>/citymaps/<file>" reference.
 //
-// It mirrors cmd/flagassets's structure (config.Load(false), MigrateUp,
-// storage.New, walk *.png, per-file sha256 + image.DecodeConfig dims) but adds
-// the upload step. Idempotent: the media upsert is keyed on the ref, and
-// unless -force an object of the same size already present in the bucket is
-// left in place (only the media_files row is (re)ensured).
+// It is no longer required. The bot renders city maps ON DEMAND at first send
+// (internal/telegram SendPhoto → internal/citymap.Renderer) and, when Garage is
+// configured, persists them there — so maps appear with no offline batch. This
+// tool exists only to PRE-WARM the Garage cache ahead of time, avoiding the
+// small first-send render+upload latency for the whole set at once.
 //
-// Requires Garage credentials (config.GarageConfigured) — it cannot run
-// without them. Never commits anything under data/ (that directory is
-// gitignored, populated out of band).
+// It reuses the SAME building blocks the bot's on-demand path uses — the
+// citymap renderer (RenderPNG), objstore.PutObject, and store.PutMediaFile — so
+// there is one render/upload/register implementation, not two. Requires Garage
+// credentials (config.GarageConfigured) and the Natural Earth basemap
+// (NATURAL_EARTH_PATH). Never commits anything under data/.
 package main
 
 import (
@@ -24,16 +22,14 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"image"
-	_ "image/png" // registers the PNG decoder image.DecodeConfig needs
 	"log/slog"
 	"os"
-	"path/filepath"
-	"sort"
 
+	"github.com/supercakecrumb/geodrill/internal/citymap"
 	"github.com/supercakecrumb/geodrill/internal/config"
 	"github.com/supercakecrumb/geodrill/internal/storage"
 	"github.com/supercakecrumb/geodrill/internal/storage/objstore"
+	"github.com/supercakecrumb/geodrill/internal/topics/cities"
 )
 
 func main() {
@@ -44,7 +40,7 @@ func main() {
 }
 
 func run() error {
-	mediaRoot := flag.String("media-root", "data/citymaps", "directory of city-map PNGs to upload (every *.png directly under it)")
+	nePath := flag.String("ne", "", "path to the Natural Earth countries GeoJSON (default: NATURAL_EARTH_PATH, else data/naturalearth/ne_10m_admin_0_countries.geojson)")
 	force := flag.Bool("force", false, "re-upload every object even when one of the same size already exists in the bucket")
 	flag.Parse()
 
@@ -57,6 +53,11 @@ func run() error {
 
 	if !cfg.GarageConfigured() {
 		return fmt.Errorf("garage object store is not configured: set GARAGE_S3_ENDPOINT, GARAGE_ACCESS_KEY_ID and GARAGE_SECRET_ACCESS_KEY (this tool cannot run without them)")
+	}
+
+	neFile := cfg.NaturalEarthPath
+	if *nePath != "" {
+		neFile = *nePath
 	}
 
 	ctx := context.Background()
@@ -78,19 +79,28 @@ func run() error {
 	}
 	bucket := cfg.GarageBucket
 
-	files, err := listPNGs(*mediaRoot)
+	renderer, err := citymap.NewRenderer(neFile, cities.CitiesSeedPath())
 	if err != nil {
-		return fmt.Errorf("list %s: %w", *mediaRoot, err)
-	}
-	if len(files) == 0 {
-		logger.Warn("no PNG files found under media root", "media_root", *mediaRoot)
+		return fmt.Errorf("build city-map renderer: %w", err)
 	}
 
-	var uploaded, skipped, failed int
-	for _, path := range files {
-		didUpload, err := syncOne(ctx, store, objStore, bucket, path, *force)
+	keys := renderer.Keys()
+	var uploaded, skipped, skippedNoCoord, failed int
+	for _, key := range keys {
+		data, ok, err := renderer.RenderPNG(key)
 		if err != nil {
-			logger.Error("sync city map failed", "path", path, "error", err)
+			logger.Error("render city map failed", "key", key, "error", err)
+			failed++
+			continue
+		}
+		if !ok {
+			// No coordinates — the bot serves these as text, nothing to pre-warm.
+			skippedNoCoord++
+			continue
+		}
+		didUpload, err := syncRendered(ctx, store, objStore, bucket, key, data, *force)
+		if err != nil {
+			logger.Error("sync city map failed", "key", key, "error", err)
 			failed++
 			continue
 		}
@@ -102,71 +112,43 @@ func run() error {
 	}
 
 	logger.Info("citymapsync: done",
-		"media_root", *mediaRoot, "bucket", bucket, "total", len(files),
-		"uploaded", uploaded, "skipped", skipped, "failed", failed)
+		"bucket", bucket, "total", len(keys),
+		"uploaded", uploaded, "skipped", skipped, "skipped_no_coords", skippedNoCoord, "failed", failed)
 	if failed > 0 {
-		return fmt.Errorf("%d of %d city maps failed to sync; see log above", failed, len(files))
+		return fmt.Errorf("%d city map(s) failed to sync; see log above", failed)
 	}
 	return nil
 }
 
-// listPNGs returns every *.png file directly under root, sorted for
-// deterministic log output (each upload/upsert is independent, keyed on its
-// object key / media ref).
-func listPNGs(root string) ([]string, error) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".png" {
-			continue
-		}
-		out = append(out, filepath.Join(root, e.Name()))
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-// syncOne uploads path to Garage (unless an object of the same size already
-// exists and -force is off) and upserts its media_files row keyed on the
-// "garage://<bucket>/citymaps/<file>" reference. It returns whether it actually
-// uploaded bytes (false = the object was already present and reused). The
-// media row is (re)ensured either way, so a run always leaves the DB consistent
-// with the bucket.
-func syncOne(ctx context.Context, store *storage.Store, objStore objstore.Store, bucket, path string, force bool) (bool, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false, fmt.Errorf("read: %w", err)
-	}
+// syncRendered uploads the rendered bytes for one city to Garage (unless an
+// object of the same size already exists and -force is off) and upserts its
+// media_files row keyed on "garage://<bucket>/citymaps/<file>" — the exact
+// PutObject + PutMediaFile pair the bot's on-demand render-on-miss path
+// (internal/telegram resolvePhotoFile) runs, so the pre-warmed and on-demand
+// results are identical. Returns whether it actually uploaded bytes.
+func syncRendered(ctx context.Context, store *storage.Store, objStore objstore.Store, bucket, key string, data []byte, force bool) (bool, error) {
+	file := citymap.ImageFileName(key)
+	objKey := "citymaps/" + file
+	ref := "garage://" + bucket + "/" + objKey
 
 	sum := sha256.Sum256(data)
 	hexSum := hex.EncodeToString(sum[:])
-
-	imgCfg, _, err := image.DecodeConfig(bytes.NewReader(data))
-	if err != nil {
-		return false, fmt.Errorf("decode PNG dimensions: %w", err)
-	}
-	width, height, nBytes := imgCfg.Width, imgCfg.Height, len(data)
-
-	key := "citymaps/" + filepath.Base(path)
-	ref := "garage://" + bucket + "/" + key
+	width, height, nBytes := citymap.ImageWidth, citymap.ImageHeight, len(data)
 
 	uploaded := false
 	if !force {
-		exists, size, err := objStore.StatObject(ctx, bucket, key)
+		exists, size, err := objStore.StatObject(ctx, bucket, objKey)
 		if err != nil {
 			return false, fmt.Errorf("stat object: %w", err)
 		}
 		if !exists || size != int64(nBytes) {
-			if err := objStore.PutObject(ctx, bucket, key, bytes.NewReader(data), int64(nBytes), "image/png"); err != nil {
+			if err := objStore.PutObject(ctx, bucket, objKey, bytes.NewReader(data), int64(nBytes), "image/png"); err != nil {
 				return false, fmt.Errorf("put object: %w", err)
 			}
 			uploaded = true
 		}
 	} else {
-		if err := objStore.PutObject(ctx, bucket, key, bytes.NewReader(data), int64(nBytes), "image/png"); err != nil {
+		if err := objStore.PutObject(ctx, bucket, objKey, bytes.NewReader(data), int64(nBytes), "image/png"); err != nil {
 			return false, fmt.Errorf("put object: %w", err)
 		}
 		uploaded = true

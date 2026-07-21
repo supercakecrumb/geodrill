@@ -15,6 +15,7 @@ import (
 
 	"github.com/supercakecrumb/engram"
 
+	"github.com/supercakecrumb/geodrill/internal/citymap"
 	"github.com/supercakecrumb/geodrill/internal/config"
 	"github.com/supercakecrumb/geodrill/internal/feedback"
 	"github.com/supercakecrumb/geodrill/internal/game"
@@ -77,7 +78,25 @@ func run() error {
 		objStore = s
 		logger.Info("garage object store configured", "endpoint", cfg.GarageEndpoint, "bucket", cfg.GarageBucket)
 	} else {
-		logger.Info("garage object store not configured (GARAGE_* unset) — S3-backed images will not be sent")
+		logger.Info("garage object store not configured (GARAGE_* unset) — city maps render on demand but aren't persisted")
+	}
+
+	// City-map renderer for lazy, on-demand rendering (internal/citymap): built
+	// once at startup from the Natural Earth basemap + the cities seed. On the
+	// first send of a city map with no cached telegram_file_id and no persisted
+	// object, the bot renders it in-process (and, when Garage is configured,
+	// persists it) — so there's no offline batch/upload step. Nil-safe: if the
+	// Natural Earth data is missing the renderer is left nil and city maps
+	// degrade to text (the same posture the object store takes). Kept a concrete
+	// *citymap.Renderer here so a build failure yields a TRUE nil interface in
+	// telegram.Config (a typed-nil would defeat the bot's nil check).
+	var mapRenderer *citymap.Renderer
+	if r, rerr := citymap.NewRenderer(cfg.NaturalEarthPath, cities.CitiesSeedPath()); rerr != nil {
+		logger.Warn("city-map renderer unavailable — city maps degrade to text until the Natural Earth data is present",
+			"natural_earth_path", cfg.NaturalEarthPath, "error", rerr)
+	} else {
+		mapRenderer = r
+		logger.Info("city-map renderer ready (on-demand rendering enabled)", "natural_earth_path", cfg.NaturalEarthPath)
 	}
 
 	sched := engram.NewScheduler(engram.WithRetention(cfg.FSRSRetention))
@@ -214,7 +233,7 @@ func run() error {
 		logger.Info("snagbox feedback reporting disabled (SNAGBOX_URL/SNAGBOX_INGEST_TOKEN unset)")
 	}
 
-	bot, err := telegram.New(telegram.Config{
+	botCfg := telegram.Config{
 		Token:  cfg.TelegramToken,
 		Store:  store,
 		Logger: logger,
@@ -232,7 +251,15 @@ func run() error {
 		Suggest:        suggestIdx,
 		Feedback:       feedbackReporter,
 		Objects:        objStore,
-	})
+	}
+	// Only set MapRenderer when the renderer actually built — assigning a
+	// typed-nil *citymap.Renderer would make the interface field non-nil and
+	// defeat the bot's nil check (panicking on the first uncached city map).
+	if mapRenderer != nil {
+		botCfg.MapRenderer = mapRenderer
+	}
+
+	bot, err := telegram.New(botCfg)
 	if err != nil {
 		return fmt.Errorf("build bot: %w", err)
 	}

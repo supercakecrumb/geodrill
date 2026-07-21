@@ -184,8 +184,10 @@ func auditFreshSchema(t *testing.T, dsn string) {
 	}
 }
 
-// TestAuditMapImagePresence is the (b) DB-gated audit: only cities whose
-// garage:// ref is registered in media_files get map_image set at seed time.
+// TestAuditMapImagePresence is the (b) DB-gated audit: map_image is set at seed
+// time for every city that HAS coordinates (non-zero lat OR lng) and left empty
+// for coordinate-less cities — the on-demand rendering gating (maps render
+// lazily at first send, so no media_files pre-registration is required).
 func TestAuditMapImagePresence(t *testing.T) {
 	dsn := auditTestDSN(t)
 	auditFreshSchema(t, dsn)
@@ -201,18 +203,20 @@ func TestAuditMapImagePresence(t *testing.T) {
 		t.Fatalf("seed roadside (countries): %v", err)
 	}
 
-	// Register two city-map refs (Munich + Paris). A third city (Beijing) is
-	// left unregistered as the negative control.
-	registered := []string{"de:munich", "fr:paris"}
-	for _, key := range registered {
-		ref := MediaRootRef + "/" + citymap.ImageFileName(key)
-		if _, err := store.PutMediaFile(ctx, nil, ref, "", nil, nil, nil); err != nil {
-			t.Fatalf("put media %s: %v", ref, err)
-		}
-	}
-
+	// Seed with NO city-map media pre-registered — map_image must still be set
+	// for every city with coordinates purely from the seed data.
 	if err := SeedFromFile(ctx, store, citiesSeedPath()); err != nil {
 		t.Fatalf("seed cities: %v", err)
+	}
+
+	// Coordinates straight from the seed file drive the expected gating.
+	sf, err := loadCitiesFile(citiesSeedPath())
+	if err != nil {
+		t.Fatalf("loadCitiesFile: %v", err)
+	}
+	coordsByKey := make(map[string][2]float64, len(sf.Cities))
+	for _, e := range sf.Cities {
+		coordsByKey[e.Key] = [2]float64{e.Lat, e.Lng}
 	}
 
 	topic, found, err := store.GetTopicByPath(ctx, RootSlug+"/"+LeafSlug)
@@ -223,22 +227,30 @@ func TestAuditMapImagePresence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list items: %v", err)
 	}
-	mapImageByKey := make(map[string]string, len(items))
+
+	checkedWithMap, checkedNoMap := 0, 0
 	for _, it := range items {
 		var p itemPayload
 		if err := json.Unmarshal(it.Payload, &p); err != nil {
 			t.Fatalf("item %s: unmarshal payload: %v", it.Key, err)
 		}
-		mapImageByKey[it.Key] = p.MapImage
-	}
-
-	for _, key := range registered {
-		want := citymap.ImageFileName(key)
-		if got := mapImageByKey[key]; got != want {
-			t.Fatalf("registered city %q map_image = %q, want %q", key, got, want)
+		coords := coordsByKey[it.Key]
+		hasCoords := !(coords[0] == 0 && coords[1] == 0)
+		if hasCoords {
+			want := citymap.ImageFileName(it.Key)
+			if p.MapImage != want {
+				t.Fatalf("city %q has coords but map_image = %q, want %q", it.Key, p.MapImage, want)
+			}
+			checkedWithMap++
+		} else {
+			if p.MapImage != "" {
+				t.Fatalf("coordinate-less city %q map_image = %q, want empty", it.Key, p.MapImage)
+			}
+			checkedNoMap++
 		}
 	}
-	if got, ok := mapImageByKey["cn:beijing"]; ok && got != "" {
-		t.Fatalf("unregistered city cn:beijing map_image = %q, want empty", got)
+	if checkedWithMap == 0 {
+		t.Fatalf("expected at least one city with coordinates to carry a map_image")
 	}
+	t.Logf("map_image gating: %d cities with maps, %d without", checkedWithMap, checkedNoMap)
 }

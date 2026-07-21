@@ -128,14 +128,20 @@ func TestFactForTierGating(t *testing.T) {
 	}
 }
 
-// TestSyncedMapImage: map_image is set only when the ref is in the synced set.
-func TestSyncedMapImage(t *testing.T) {
-	synced := map[string]bool{MediaRootRef + "/de-munich.png": true}
-	if got := syncedMapImage("de:munich", synced); got != "de-munich.png" {
-		t.Fatalf("syncedMapImage(de:munich) = %q, want de-munich.png", got)
+// TestMapImageForCoords: map_image is set for every city WITH coordinates
+// (non-zero lat OR lng) — on-demand rendering means no media_files
+// pre-registration is required — and left empty for a coordinate-less city.
+func TestMapImageForCoords(t *testing.T) {
+	if got := mapImageForCoords("de:munich", 48.14, 11.58); got != "de-munich.png" {
+		t.Fatalf("mapImageForCoords(de:munich, coords) = %q, want de-munich.png", got)
 	}
-	if got := syncedMapImage("fr:paris", synced); got != "" {
-		t.Fatalf("syncedMapImage(fr:paris) = %q, want empty (not synced)", got)
+	// A single non-zero component is enough to frame a marker.
+	if got := mapImageForCoords("x:y", 10, 0); got != "x-y.png" {
+		t.Fatalf("mapImageForCoords(x:y, 10,0) = %q, want x-y.png", got)
+	}
+	// Exactly (0,0) = coordinate-less: text fallback.
+	if got := mapImageForCoords("fr:paris", 0, 0); got != "" {
+		t.Fatalf("mapImageForCoords(fr:paris, 0,0) = %q, want empty", got)
 	}
 }
 
