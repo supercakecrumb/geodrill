@@ -6,6 +6,14 @@ images, no tiles, no Mini App dependency) and **supersedes the quiz mechanics in
 `vibe/design-cities.md`** (its MCQ modes are rejected — no option-list quizzes for cities;
 its payload/tier/no-new-table reasoning still stands). Both stay as historical records.
 
+> **As-built note (2026-07-21):** §4/§5's *offline batch render + upload* was superseded during
+> the build by **on-demand rendering** — the bot renders each city map in-process on first send
+> and caches the Telegram `file_id` (rendered at most once), so no batch/upload step is required
+> and Garage is *optional* persistence. `cmd/citymaps`/`cmd/citymapsync` remain as an optional
+> local-preview / pre-warm; the Natural Earth GeoJSON is baked into the Docker image. The
+> seeder sets `map_image` for every city *with coordinates* (not gated on media_files). The
+> README "Cities map-based topic" section is the current operator runbook.
+
 ## 1. Decisions (Aurora, 2026-07-21)
 
 1. **Replace, don't add.** The current city→country quiz (`city_to_country`) is removed and
