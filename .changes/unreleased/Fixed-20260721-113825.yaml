@@ -1,3 +1,0 @@
-kind: Fixed
-body: Seed files now load correctly in the Docker image — seed paths resolve relative to the working directory (/app/seeds) when the source-relative path isn't present, fixing bot and ingest startup in the distroless container (previously they crashed loading seeds/*.yaml).
-time: 2026-07-21T11:38:25Z
