@@ -17,8 +17,6 @@ package guesslang
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"runtime"
 	"sort"
 
 	"github.com/supercakecrumb/geodrill/internal/content"
@@ -72,8 +70,7 @@ type itemPayload struct {
 // package's own directory (`go test` always runs with cwd set to the
 // package directory — mirrors internal/topics/roadside's seedPath).
 func seedsPath() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "seeds", "decks.yaml")
+	return engine.SeedPath("decks.yaml")
 }
 
 // Seed loads seeds/decks.yaml and seeds the languages/guess-the-language

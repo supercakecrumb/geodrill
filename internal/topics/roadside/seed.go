@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 
 	"gopkg.in/yaml.v3"
 
@@ -59,8 +57,7 @@ func countriesSeedPath() string { return seedPath("countries.yaml") }
 func roadSidesSeedPath() string { return seedPath("road_sides.yaml") }
 
 func seedPath(name string) string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "seeds", name)
+	return engine.SeedPath(name)
 }
 
 // loadRoadSidesFile reads and parses a road_sides.yaml file at path.

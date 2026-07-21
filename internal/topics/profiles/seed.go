@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 
 	"gopkg.in/yaml.v3"
 
@@ -86,8 +84,7 @@ type profilesSeedFile struct {
 // package's own directory (`go test` runs with cwd = package dir) — mirrors
 // tld.seedPath / capitals.seedPath.
 func seedPath(name string) string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "seeds", name)
+	return engine.SeedPath(name)
 }
 
 func profilesSeedPath() string  { return seedPath("country_profiles.yaml") }

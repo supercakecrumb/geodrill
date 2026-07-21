@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 
 	"gopkg.in/yaml.v3"
 
@@ -58,8 +56,7 @@ type seedFile struct {
 // caller's working directory is the repo root (cmd/bot, cmd/ingest-style
 // tools) or this package's own directory (`go test`).
 func seedFilePath() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "seeds", "common_words.yaml")
+	return engine.SeedPath("common_words.yaml")
 }
 
 // loadSeedFile reads and parses the seed YAML at path.
