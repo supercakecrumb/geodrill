@@ -1,3 +1,0 @@
-kind: Added
-body: Every /train question now carries a "🤷 I don't know" button. Tapping it registers the card as not known (a fail, exactly like a wrong answer — never graded as correct), reveals the correct answer in place (and, for type-your-answer questions, as a follow-up reply since the reveal scrolls out of view), and advances to the next card.
-time: 2026-07-21T00:00:05Z

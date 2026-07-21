@@ -1,3 +1,0 @@
-kind: Changed
-body: Introductions now round-robin across topics instead of exhausting one topic before starting the next. Previously /study served every item of a topic (dozens of near-identical cards) back-to-back before moving on; the intro candidate order is now tier, then within-topic rank, then topic position, so consecutive introductions rotate across the currently-unlocked topics for variety. No scheduling change — reviews are unaffected.
-time: 2026-07-21T00:00:04Z

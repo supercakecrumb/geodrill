@@ -1,3 +1,0 @@
-kind: Fixed
-body: Free-text replies sent via Telegram's inline autocomplete in a group chat (e.g. "@geodriller_bot Japan") were graded against the raw text including the bot's own @mention, marking correct answers wrong — this also masqueraded as broken case-insensitive matching. handleText now strips a leading bot @mention before grading.
-time: 2026-07-21T00:00:02Z

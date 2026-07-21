@@ -1,3 +1,0 @@
-kind: Changed
-body: City maps now render on demand at first send (and are cached as a Telegram file_id thereafter, so each map is rendered at most once), instead of being produced by an offline batch and uploaded ahead of time. There's no manual render/upload step anymore, and Garage object storage became optional persistence rather than a prerequisite — with it configured, on-demand renders are saved back so they survive; without it, a map simply re-renders if its file_id is ever lost.
-time: 2026-07-21T00:00:08Z
