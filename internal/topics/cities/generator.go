@@ -11,10 +11,11 @@
 //
 // # Media wrapper (no IO), mirroring internal/topics/flags
 //
-// The map image lives in Garage S3, not on local disk, so the generator does
-// NO filesystem or network probe: whether an image exists was decided at seed
-// time (seed.go sets itemPayload.MapImage only for images already registered
-// in media_files). This package's Generator wraps an inner *engine.Generator
+// The map image is materialized on demand at send time (the bot renders it
+// in-process on the first send and caches the Telegram file_id), so the
+// generator does NO filesystem or network probe: whether a city HAS a map was
+// decided at seed time (seed.go sets itemPayload.MapImage for every city that
+// has coordinates). This package's Generator wraps an inner *engine.Generator
 // (built from an engine.Descriptor exactly like every other topic) and, per
 // item, either attaches MediaPath = MediaRootRef + "/" + MapImage (when
 // present) or degrades to the §2 text fallback (a still-answerable text
@@ -52,12 +53,13 @@ import (
 // Kind is this package's sole quiz_kind.
 const Kind = "city_on_map"
 
-// MediaRootRef is the garage:// ref prefix under which city-map images are
-// registered in media_files. It MUST match cmd/citymapsync's bucket default
-// ("apps-geodrill") + "citymaps/" key prefix (vibe/design-cities-on-map.md
-// §5): the seeder registers refs of the form
-// "garage://apps-geodrill/citymaps/<file>", and this generator reconstructs
-// the same ref as the Exercise/IntroCard MediaPath.
+// MediaRootRef is the garage:// ref prefix that identifies a city-map image.
+// It MUST match cmd/citymapsync's bucket default ("apps-geodrill") + "citymaps/"
+// key prefix (vibe/design-cities-on-map.md §5): the generator sets the
+// Exercise/IntroCard MediaPath to "garage://apps-geodrill/citymaps/<file>", and
+// the bot's send path treats that ref as the image's identity — fetching it
+// from Garage if present, otherwise rendering it on demand from the file's key
+// (and persisting to Garage when configured).
 const MediaRootRef = "garage://apps-geodrill/citymaps"
 
 // maxDistractors caps the single-choice MCQ fallback. The topic is configured
